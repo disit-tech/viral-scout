@@ -1,4 +1,5 @@
-"""Usage counters per run (quota meter): YouTube API units, Apify results, page requests, captions, Whisper minutes.
+"""Usage counters per run (quota meter): YouTube API units, Apify results, page requests, captions, Whisper minutes,
+and for the ads scout: meta_ad_library_requests, tiktok_research_requests, apify_items / apify_runs.
 
 Profiles can set caps; the report warns at 80% (the way paid tools show a quota bar):
   budget: {youtube_api_units_per_day: 10000, apify_items_per_month: 500}

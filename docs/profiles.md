@@ -48,6 +48,36 @@ transcribe: {whisper: true, model: base, max_per_run: 8, max_seconds: 180}
 budget: {youtube_api_units_per_day: 10000, apify_items_per_month: 500}
 ```
 
+### Ads block
+
+For `python -m viral_scout ads <profile>`, see [ads-scout.md](ads-scout.md).
+
+```yaml
+ads:
+  advertisers:                      # competitors: Meta page names, numeric page ids, or a dict
+    - Sunrun
+    - "1234567890"                  # a page id (exact, no name matching needed)
+    - {name: Palmetto, match: "^Palmetto( Solar)?$|LightReach", domain: palmetto.com}
+  keywords: [home battery backup, solar panels illinois]   # category searches, in the ads' language
+  domains: [sunrun.com]             # landing domains: Google Transparency (Apify) and lookup links
+  countries: [US]                   # the first one is used for Apify and the lookup links
+  meta_countries: [DE, PL]          # EU countries for the official Meta API (it has no US commercial ads)
+  sources: [meta_api, tiktok_api, apify_meta, apify_tiktok_top, apify_google]   # default: all
+  days: 180                         # look-back window
+  per_query: 50                     # ads per advertiser/keyword query
+  top: 30                           # rows in "Winning ads"
+  meta_video_pass: true             # one extra Meta API call per search to tag video ads
+  apify_input: {}                   # merged into the APIFY_ADS_ACTOR input
+  tiktok_top_input: {}              # input for APIFY_TIKTOK_ADS_ACTOR
+  google_input: {}                  # input for APIFY_GOOGLE_ADS_ACTOR
+  # output_dir: ...                 # default: the profile's output_dir
+```
+
+Tips:
+- **Names match loosely.** A name search also returns other advertisers who mention the brand (dealers, affiliates, reviewers), so only pages whose name matches are kept. Set `match:` (a regex) when the page name differs from the brand, or use the numeric page id.
+- **Keywords are the category:** they keep every advertiser, which is how you find competitors you didn't know about. Move the ones that keep showing up into `advertisers`.
+- **US businesses:** the official Meta API has EU ads only. Use `apify_meta` for US ads, and optionally `meta_countries` to see the European versions of the same angles.
+
 ### Alerts
 
 ```yaml

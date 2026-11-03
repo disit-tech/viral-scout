@@ -34,6 +34,33 @@ KEYS = [
      "unlocks": "Actor id for trending hashtags (e.g. a TikTok Creative Center trends actor from the Apify store).",
      "get": "Pick an actor in the Apify store; copy its id (user~actor).",
      "docs": "https://apify.com/store?search=tiktok%20trends"},
+    {"name": "META_AD_LIBRARY_TOKEN", "group": "Ads: Meta Ad Library API", "cost": "free (identity-verified developer)",
+     "unlocks": "Ads scout: ads delivered in the EU (copy, start/stop dates, platforms, EU reach) plus political/issue "
+                "ads anywhere. US commercial ads are NOT in the API; use APIFY_ADS_ACTOR for those.",
+     "get": "Confirm your identity and location at facebook.com/ID → Meta for Developers app → Graph API Explorer → "
+            "user access token (exchange it for a long-lived one).",
+     "docs": "https://developers.facebook.com/docs/graph-api/reference/ads_archive/"},
+    {"name": "TIKTOK_RESEARCH_CLIENT_KEY", "group": "Ads: TikTok Commercial Content API", "cost": "free (application)",
+     "unlocks": "Ads scout: TikTok ads shown in the EEA (first/last shown, reach, video/images; no ad copy).",
+     "get": "TikTok for Developers → apply for the Commercial Content API → after approval, copy the research "
+            "client key from the portal's research section.",
+     "docs": "https://developers.tiktok.com/doc/commercial-content-api-getting-started"},
+    {"name": "TIKTOK_RESEARCH_CLIENT_SECRET", "group": "Ads: TikTok Commercial Content API", "cost": "",
+     "unlocks": "Pairs with TIKTOK_RESEARCH_CLIENT_KEY (client-credentials token, valid 2 hours).",
+     "get": "Same place as the client key.",
+     "docs": "https://developers.tiktok.com/doc/client-access-token-management"},
+    {"name": "APIFY_ADS_ACTOR", "group": "Ads: Apify actors", "cost": "paid per ad (uses APIFY_TOKEN)",
+     "unlocks": "Ads scout: the Meta Ad Library for any country, including the US (e.g. apify~facebook-ads-scraper).",
+     "get": "Pick a Meta Ad Library actor in the Apify store; copy its id (user~actor). Check its price per result.",
+     "docs": "https://apify.com/apify/facebook-ads-scraper"},
+    {"name": "APIFY_TIKTOK_ADS_ACTOR", "group": "Ads: Apify actors", "cost": "paid (uses APIFY_TOKEN)",
+     "unlocks": "Ads scout: TikTok Creative Center Top Ads (no public API). Input in the profile: ads.tiktok_top_input.",
+     "get": "Pick a TikTok Creative Center top-ads actor in the Apify store; copy its id.",
+     "docs": "https://apify.com/store?search=tiktok%20top%20ads"},
+    {"name": "APIFY_GOOGLE_ADS_ACTOR", "group": "Ads: Apify actors", "cost": "paid (uses APIFY_TOKEN)",
+     "unlocks": "Ads scout: Google Ads Transparency Center by domain/advertiser (no public API). Input: ads.google_input.",
+     "get": "Pick a Google Ads Transparency actor in the Apify store; copy its id.",
+     "docs": "https://apify.com/store?search=google%20ads%20transparency"},
     {"name": "GOOGLE_PLACES_API_KEY", "group": "Google Places API (New)", "cost": "free monthly credit, then paid",
      "unlocks": "Local competitors: nearby businesses in your niche and their public social channels.",
      "get": "Google Cloud console → enable Places API (New) → Credentials → API key (restrict it).",
@@ -116,6 +143,28 @@ def test(name):
                               headers={"X-Goog-Api-Key": v, "X-Goog-FieldMask": "places.id"},
                               json={"textQuery": "coffee in Chicago", "pageSize": 1}, timeout=20)
             return r.ok, "ok (1 ID-only request)" if r.ok else r.json().get("error", {}).get("message", r.text[:120])
+        if name == "META_AD_LIBRARY_TOKEN":
+            # One EU ad, ID only: the cheapest read of the Ad Library API.
+            from .ads.sources import GRAPH_VERSION
+            r = requests.get(f"https://graph.facebook.com/{GRAPH_VERSION}/ads_archive",
+                             params={"search_terms": "solar", "ad_reached_countries": '["DE"]', "ad_type": "ALL",
+                                     "fields": "id", "limit": 1, "access_token": v}, timeout=20)
+            d = r.json()
+            return r.ok, "ok (1 request)" if r.ok else d.get("error", {}).get("message", r.text[:160])
+        if name in ("TIKTOK_RESEARCH_CLIENT_KEY", "TIKTOK_RESEARCH_CLIENT_SECRET"):
+            # Only fetches a client token; doesn't use the query quota.
+            r = requests.post("https://open.tiktokapis.com/v2/oauth/token/", timeout=20,
+                              data={"client_key": os.environ.get("TIKTOK_RESEARCH_CLIENT_KEY", ""),
+                                    "client_secret": os.environ.get("TIKTOK_RESEARCH_CLIENT_SECRET", ""),
+                                    "grant_type": "client_credentials"})
+            d = r.json()
+            ok = bool(d.get("access_token"))
+            return ok, "ok (client token issued)" if ok else (d.get("error_description") or d.get("error") or r.text[:160])
+        if name in ("APIFY_ADS_ACTOR", "APIFY_TIKTOK_ADS_ACTOR", "APIFY_GOOGLE_ADS_ACTOR", "APIFY_TRENDS_ACTOR"):
+            # Looks the actor up (free); doesn't run it.
+            r = requests.get(f"https://api.apify.com/v2/acts/{v}", params={"token": os.environ.get("APIFY_TOKEN", "")},
+                             timeout=20)
+            return r.ok, f"ok: {r.json()['data'].get('title') or v}" if r.ok else r.text[:160]
         if name == "VIRAL_SCOUT_YTDLP":
             return os.path.isdir(os.path.join(v, "yt_dlp")), "ok" if os.path.isdir(os.path.join(v, "yt_dlp")) else "no yt_dlp folder there"
         return True, "set (no live test for this one)"

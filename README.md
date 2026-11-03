@@ -2,7 +2,7 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
-Docs: [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+Docs: [ads scout](docs/ads-scout.md) · [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
 
 It answers three questions:
 
@@ -27,6 +27,7 @@ And it turns numbers into something you can film:
 - **Trending hashtags** (Apify) and **Instagram hashtag top posts** (Graph API), when the keys are set.
 - **Local competitors**: nearby businesses in your niche (Google Places API) and their public social channels, as watch-list candidates.
 - **Search** across everything ever collected; **New research** from a description; a **Setup** page for keys (dashboard and CLI).
+- **Ads scout** (`python -m viral_scout ads <profile>`): the paid side. Competitor and category ads that keep running (Meta Ad Library API for EU ads, TikTok Commercial Content API for EEA ads, Apify actors for US Meta ads, TikTok Top Ads and Google Transparency). Scored on days running, variants and reach, with hook, offer, CTA, landing domain and format extracted. Report, JSON, an Ads page per business, and ad ideas from the skill. See [docs/ads-scout.md](docs/ads-scout.md).
 - **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 
@@ -51,6 +52,9 @@ And it turns numbers into something you can film:
 | Any post URL (Instagram reel, TikTok, YouTube) | views/likes/comments/date of one post | nothing (yt-dlp) |
 | Instagram watch list | another professional account's recent reels, likes, comments, followers | `IG_GRAPH_TOKEN` + `IG_GRAPH_USER_ID` (official Graph API, Business Discovery) |
 | TikTok discovery + watch list | hashtags, keyword search, profiles | `APIFY_TOKEN` (Apify, paid per result) |
+| Meta Ad Library API (ads scout) | ads delivered in the EU + political ads: copy, dates, platforms, EU reach. **No US commercial ads** | `META_AD_LIBRARY_TOKEN` (free, identity-verified) |
+| TikTok Commercial Content API (ads scout) | TikTok ads shown in the EEA: dates, reach, media (no copy) | `TIKTOK_RESEARCH_CLIENT_KEY` + `_SECRET` (free, by application) |
+| Meta Ad Library / TikTok Top Ads / Google Transparency via Apify (ads scout) | US and other ads where no official API exists | `APIFY_TOKEN` + `APIFY_ADS_ACTOR` / `APIFY_TIKTOK_ADS_ACTOR` / `APIFY_GOOGLE_ADS_ACTOR` (paid) |
 | Telegram alerts | push new outliers/risers | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`, or `alerts.env_file` to reuse an existing bot |
 
 What it deliberately doesn't do: call Instagram's or TikTok's private web APIs, spoof app headers, or log in with someone's account behind their back. Instagram profiles and TikTok lists only come through the official API or a paid provider that handles it.
@@ -66,6 +70,7 @@ Copy `.env.example` to `.env` (git-ignored):
 ```
 python -m viral_scout run <profile>              # full run → report
 python -m viral_scout run <profile> --no-discover # only watch list, seeds, re-checks
+python -m viral_scout ads <profile>                # best-performing ads in the niche → ads report
 python -m viral_scout add <profile> <url> ...      # track posts someone sent you
 python -m viral_scout save <profile> <ID|url> --note "why it works"   # → swipe file note
 python -m viral_scout dismiss <profile> <ID|url> ...                  # never show again

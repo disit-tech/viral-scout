@@ -4,6 +4,7 @@
 |---|---|
 | [Marketing workflow](marketing-workflow.md) | Using viral-scout every week: from "what's viral" to a filmed video |
 | [Originality and duplicate detection](originality-and-duplicate-detection.md) | How Instagram, TikTok and YouTube detect reposts and copies, what happens, and how to stay original |
+| [Ads scout](ads-scout.md) | The paid side: long-running competitor ads, offers and hooks (Meta, TikTok, Google), coverage per region, scoring |
 | [Dashboard](dashboard.md) | The web UI: local with actions, or published read-only on Vercel (free) |
 | [How it works](how-it-works.md) | Pipeline, sources, scoring formulas, data model, limits |
 | [Setup and keys](setup.md) | Install, `.env`, the YouTube / Instagram / Apify / Telegram keys, scheduling |

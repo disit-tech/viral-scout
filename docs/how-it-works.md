@@ -101,6 +101,7 @@ Report sections:
 | `comments.py` | comment mining |
 | `trends.py` | trending hashtags (Apify) and Instagram hashtag top posts (Graph API) |
 | `places.py` | local competitors (Google Places API) and their social links |
+| `ads/` | the ads scout: Meta/TikTok APIs and Apify routes, hook/offer extraction, ad_score, report ([ads-scout.md](ads-scout.md)) |
 | `ytdlp.py` | loads yt-dlp (the clone in `$VIRAL_SCOUT_YTDLP`, or the pip package) |
 | `sources/youtube.py` | hashtag feeds, channel lists, enrichment, caption link (yt-dlp) |
 | `sources/youtube_api.py` | YouTube Data API search |

@@ -73,6 +73,10 @@ export default function Dashboard({ profile, ideas, local }: {
         <div className="text-right text-xs text-muted">
           <div>Last run {when(profile.date)}</div>
           <div>{num(items.filter((i) => !i.dismissed).length)} posts · {profile.sources.hashtags} hashtags · {profile.sources.keywords} keywords · {profile.sources.watch} watched</div>
+          <Link href={`/p/${profile.name}/ads`}
+            className="mt-2 inline-block rounded-lg border border-line bg-panel px-2.5 py-1 text-sm text-text hover:border-accent">
+            Ads{profile.ads_summary ? ` · ${num(profile.ads_summary.ads)}` : ""} →
+          </Link>
         </div>
       </div>
 

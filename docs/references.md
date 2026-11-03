@@ -57,6 +57,30 @@ Every external source viral-scout relies on, compares itself with, or cites. URL
 | Telegram Bot API | alerts (`sendMessage`, `getMe`, `getUpdates`) | https://core.telegram.org/bots/api#sendmessage |
 | Google Trends API (alpha, by application) | not used | https://developers.google.com/search/blog/2025/07/trends-api |
 
+## Ads scout
+
+The full write-up is [ads-scout.md](ads-scout.md). Checked in November 2026.
+
+| Source | Used for | Link |
+|---|---|---|
+| Meta Ad Library API: `ads_archive` (Graph API v26.0 on the page) | `meta_api` source; parameters, and the EU-only note for commercial ads ("Ads that did not reach any location in the EU will only return if they are about social issues, elections or politics") | https://developers.facebook.com/docs/graph-api/reference/ads_archive/ |
+| Meta ArchivedAd fields | `ad_delivery_start_time/stop_time`, `ad_creative_bodies`, `ad_creative_link_titles/captions`, `ad_snapshot_url`, `page_name`, `publisher_platforms`, `eu_total_reach` (EU only) | https://developers.facebook.com/docs/marketing-api/reference/archived-ad/ |
+| Meta Ad Library API access (identity confirmation, token) | key setup | https://www.facebook.com/ads/library/api/ (unverified, 403 to bots; confirmed through vendor guides) |
+| Meta Ad Library (public site) | lookup links | https://www.facebook.com/ads/library/ |
+| TikTok Commercial Content API: getting started | research client after approval | https://developers.tiktok.com/doc/commercial-content-api-getting-started |
+| TikTok Commercial Content API: Query Ads | `POST /v2/research/adlib/ad/query/`, fields, filters (EEA country codes, `max_count` ≤ 10, date range within a year) | https://developers.tiktok.com/doc/commercial-content-api-query-ads |
+| TikTok client access token (`client_credentials`, 2 h) | token for the research API | https://developers.tiktok.com/doc/client-access-token-management |
+| TikTok Creative Center Top Ads (no public API) | lookup links; optional Apify actor | https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en |
+| Google Ads Transparency Center | lookup links; optional Apify actor | https://adstransparency.google.com/ |
+| Google: Ads transparency (API access only for EEA ad data) | coverage note | https://support.google.com/adspolicy/answer/13733850 · terms: https://adstransparency.google.com/terms |
+| Apify Facebook Ads Scraper (example `APIFY_ADS_ACTOR`; input `startUrls`, output `adArchiveID`, `startDate`, `collationCount`, `snapshot.*`; pay per ad) | `apify_meta` source | https://apify.com/apify/facebook-ads-scraper |
+| Winning Hunter: ad spend signals (longevity scored at 14/45 days) | longevity as a proxy | https://winninghunter.com/blog/ad-spend-signals-competitor-profitability |
+| Superscale: how to use the Meta Ad Library (30–60+ days, variant counts) | longevity and variants | https://www.superscale.ai/learn/how-to-use-the-meta-ad-library |
+| Stackmatix: Meta Ads Library competitor research (long runs can be brand spend) | proxy caveat | https://www.stackmatix.com/blog/meta-ads-library-competitor-research |
+| FTC: Advertising FAQs, a guide for small business | truth in advertising, "free" offers | https://www.ftc.gov/business-guidance/resources/advertising-faqs-guide-small-business |
+| Illinois Shines: brochures and resources (marketing guidelines, consumer protection) | solar compliance notes | https://illinoisshines.com/brochures-and-other-resources/ |
+| Illinois Shines DG marketing guidelines (2018: avoid calling a system "free"; current rules are in the IPA consumer-protection appendices) | solar compliance notes | https://illinoisshines.com/wp-content/uploads/2018/11/Final-Distributed-Generation-Marketing-Guidelines-11.26.18.pdf (not re-read in full) |
+
 ## Libraries and frameworks
 
 | | Link |

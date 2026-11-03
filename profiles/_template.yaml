@@ -53,3 +53,23 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 
 # Quota meter: the report warns at 80% of these caps
 # budget: {youtube_api_units_per_day: 10000, apify_items_per_month: 500}
+
+# Ads scout: the best-performing ads in your niche (python -m viral_scout ads <profile>). See docs/ads-scout.md.
+# Sources without keys are listed under "Skipped sources"; the run never fails over a missing key.
+# ads:
+#   advertisers:             # competitors: Meta page names, numeric page ids, or {name, page_id, match, domain}
+#     - Competitor Name
+#     - {name: Big Brand, match: "^Big Brand( Inc)?$", domain: bigbrand.com}
+#   keywords: []             # category searches (write them in the language of the ads)
+#   domains: []              # landing domains (Google Ads Transparency via Apify, and lookup links)
+#   countries: [US]          # first one is used for Apify and lookup links
+#   meta_countries: []       # EU countries for the official Meta API (US commercial ads aren't in the API)
+#   sources: [meta_api, tiktok_api, apify_meta, apify_tiktok_top, apify_google]   # default: all of them
+#   days: 180                # look back this far
+#   per_query: 50            # ads per advertiser/keyword query
+#   top: 30                  # rows in "Winning ads"
+#   meta_video_pass: true    # one extra Meta API query per search to tag video ads
+#   apify_input: {}          # merged into the APIFY_ADS_ACTOR input (actors differ)
+#   tiktok_top_input: {}     # input for APIFY_TIKTOK_ADS_ACTOR
+#   google_input: {}         # input for APIFY_GOOGLE_ADS_ACTOR
+#   output_dir: ""           # default: output_dir above
