@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { REPO, localOnly, runCli } from "@/lib/cli";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 600;
+export const maxDuration = 300;   // Vercel Hobby cap; this route only runs locally anyway (localOnly)
 
 const VIDEO = /\.(mp4|mov|m4v|webm|mkv)$/i;
 
