@@ -1,6 +1,11 @@
 # Example: an online English school. Copy to profiles/<yours>.yaml (business profiles are git-ignored).
 name: example-language-school
 
+business: >
+  Online English school for adult beginners (A1–B1). The teacher films 40–60 s selfie videos on a phone,
+  with humour and the English on screen. Likes plain-vs-native contrasts, phrase packs and skits about
+  everyday situations. Never reuses other creators' footage.
+
 discover:
   youtube:
     window: month

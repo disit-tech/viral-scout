@@ -1,0 +1,89 @@
+# Similar tools: how they work and what we took
+
+Research from November 2026, based on public READMEs, documentation and product pages. Nothing behind a login was checked. Prices and features change, so check the linked pages before relying on them.
+
+## The common pattern
+
+Almost every tool in this space does the same three things:
+
+1. **Find outliers.** It compares a video's views with what that creator usually gets. The baseline is the creator's median (the sturdier choice) or their mean, and sometimes it's matched by age.
+2. **Pull the hook and transcript.** The hook is the first ~3 seconds, and it's the part people copy.
+3. **Turn hits into work.** An LLM breaks down why the video worked and writes adapted scripts, and the hits go into saved collections ("swipe files") and alerts.
+
+## Open source
+
+### viral-shorts MCP ([Xeron2000/shorts](https://github.com/Xeron2000/shorts))
+- **Data:** YouTube Data API v3 only. `search.list` costs 100 quota units; `videos.list` and `channels.list` cost 1 each.
+- **Scoring:**
+  - VPH = views ÷ hours since publish. 1K VPH means potential, 5K high, 10K "super viral".
+  - Engagement = (likes + comments) ÷ views.
+  - Viral score = VPH × a time weight × (1 + an engagement boost), with newer videos weighted higher.
+- **Output:** a Markdown table from an MCP client, on demand. No scheduling.
+
+### viral_short_research_tool ([wisnuhid7](https://github.com/wisnuhid7/viral_short_research_tool))
+- **Data:** YouTube Data API v3; it deliberately avoids scrapers.
+- **Scoring:** velocity (views/hour) counts 45%, reach (views ÷ subscribers) 30%, engagement 25%. Videos under 3 hours old get a confidence penalty.
+- **Extracts:** GPT-4o-mini splits each video into hook (the first 3 s), body and CTA, plus presentation style. The result is cached per video and per prompt version.
+- **Output:** suggested keywords taken from the tags and title words of top videos; saved collections with notes; CSV and Markdown export; a quota meter.
+
+### ViralMint ([openclaw-easy/ViralMint](https://github.com/openclaw-easy/ViralMint), AGPL-3.0)
+- **Data:** the YouTube API; TikTok and Douyin through TikHub, a paid API (its cookie fallback breaks the platforms' terms); yt-dlp; Google Trends.
+- **Scoring:** outliers at 3–20× the channel's baseline, plus an "AI virality" score. The formulas aren't published.
+- **Extracts:** local faster-whisper transcripts. An LLM pulls out the hook, structure, tone, retention risks and suggested titles.
+- **Output:** alerts via Telegram, Slack or Discord. It also cuts and renders clips, which makes it a full production pipeline.
+
+## Commercial
+
+| Tool | Platforms | How "viral" is measured | Beyond numbers | Price |
+|---|---|---|---|---|
+| [1of10](https://1of10.com/blog/1of10-review/) | YouTube (+ Shorts) | views ÷ the channel's typical views; shows ~6–100× | Chrome overlay, tracked channels with notifications, bookmarks and folders, AI title/thumbnail/idea generators | $29–69/mo |
+| [vidIQ Outliers](https://support.vidiq.com/en/articles/9660010-outliers) | YouTube | views vs the channel's average over a similar timeframe (age-matched); bands <2×, 2–5×, 5–10×, >10× | filters for score, views, subscribers, VPH, length, publish window | subscription |
+| [TubeLab API](https://tubelab.net/docs/api/reference/search-outliers) | YouTube | returns both `zScore` and `averageViewsRatio`, with positive and negative outlier flags | semantic search, `type=short`, LLM labels (faceless, quality), a transcript endpoint | credits |
+| [Virlo](https://dev.virlo.ai/docs/satellite/video-outlier) | TikTok, YouTube, Instagram | **outlier = views ÷ the creator's median of up to 100 recent videos**; 1.5× above average, 3× viral, 10× mega viral; **weighted = ln(outlier) × ln(median)**; also a percentile and z-score | trending hashtags, sounds and hooks; scheduled niche "research agents"; webhooks; MCP | $0.50 per check |
+| [Sandcastles.ai](https://sandcastles.ai) | IG, TikTok, YT Shorts | "top 1%" outliers (formula not disclosed); tracks competitor channels every 6 h (1 h on top tiers) | transcripts, breakdowns of hook, story, format and style, hook templates, script writer, collections, MCP | $49–499/mo |
+| [Apify TikTok hook scraper](https://apify.com/church_of_loujess/tiktok-viral-hook-script-scraper) | TikTok | views ÷ followers, outlier at 3× or more; engagement = (likes + comments + shares + saves) ÷ views | parses TikTok's own captions: anything in the first 3.5 s becomes `openingHookText`, then body and CTA; hook archetype; words per minute; sound ID | ~$0.01–0.025 per post |
+| [TikTok Creative Center](https://ads.tiktok.com/help/article/how-to-use-trends) | TikTok | trending hashtags, songs, creators and videos by region, industry and period | trendlines and audience data; no public API or export | free (login recommended) |
+| Exolyt, Pentos | TikTok | hashtag and sound trends, competitor dashboards (data source not disclosed) | none noted | subscription |
+
+Other sources we checked:
+- **Google Trends:** the official API is an alpha that you have to apply for ([announcement](https://developers.google.com/search/blog/2025/07/trends-api)). The community `pytrends` library is reported broken.
+- **Instagram Graph API hashtag search:** official, but it needs the Public Content Access feature and is limited to 30 unique hashtags per 7 days ([docs](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-hashtag-search)).
+
+### omivibe.com (checked because it was suggested)
+[omivibe.com](https://omivibe.com) is a **B2B lead-generation and cold-email** product, not a video or trend tool:
+- It finds leads from Google Maps and a B2B database.
+- AI writes a personal email to each lead, sent from your own Gmail or Outlook.
+- It writes and posts LinkedIn content automatically.
+- It has an MCP server whose tools run as async jobs and check quota before acting.
+- Price: $49–349/mo.
+
+The useful ideas it gave us: drafts that come straight out of findings, a confirmation step before anything is published, budget warnings at 80% of a cap, and an MCP server with a start-a-job-then-poll pattern.
+
+## What viral-scout took
+
+| Idea | From | In viral-scout |
+|---|---|---|
+| Outlier = views ÷ the creator's **median** | Virlo, 1of10, vidIQ | `× usual` column |
+| Bands of 1.5× / 3× / 10× | Virlo | ↑ / ⚡ / 🔥 labels |
+| Rank by ln(outlier) × ln(baseline) | Virlo | Outliers section order |
+| Penalty for very new videos | wisnuhid7 | ⏳ under 6 h; per-day floored at 6 h |
+| Hook = the first ~3–4 s of captions | Apify hook scraper, wisnuhid7 | Hooks section, the `hook` field |
+| LLM breakdown + adapted scripts, cached | wisnuhid7, ViralMint, Sandcastles | the `/viral-scout` skill (Claude Code, no extra key); transcripts cached in SQLite |
+| Swipe file / collections | 1of10, Sandcastles | `save` → Obsidian note + `swipe.base` |
+| Tracked channels + notifications | 1of10, Sandcastles, ViralMint | watch list + Telegram alerts |
+| Keyword suggestions from hits | wisnuhid7 | suggested hashtags |
+
+What we do that most of them don't:
+- **Growth between runs** ("rise/day"). Most tools only see a snapshot.
+- **Per-business profiles**, including the business description the AI uses.
+- **Free on YouTube**, and **output into Obsidian**.
+
+## Not built yet (ranked)
+
+1. **On-screen text (OCR)** for silent videos, where the hook is a text card. Possible approach: grab the frame at 0–1 s with ffmpeg from a public download, then Tesseract (free) or a vision LLM.
+2. **Local Whisper transcripts** for Instagram and TikTok audio, which have no public captions. The approach: download the audio of public posts with yt-dlp and run faster-whisper on the CPU.
+3. **Trending sounds and hashtags.** TikTok Creative Center doesn't export, so this would need an Apify trends actor (paid). For Instagram, Graph API hashtag search (30 a week).
+4. **Age-matched baseline** (the vidIQ approach): compare views per day with the channel's median views per day at a similar age. This needs per-video dates in channel listings, which costs more requests.
+5. **Budget tracking:** count YouTube API units and Apify results per run, and warn at 80% of a cap set in the profile.
+6. **MCP server**, so other agents can start runs and read results.
+7. **Local competitors:** use the official Google Places API to find nearby businesses in the same niche, then look up their public channels as watch-list candidates.

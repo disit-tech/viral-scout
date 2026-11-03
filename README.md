@@ -2,6 +2,8 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
+Docs: [marketing workflow](docs/marketing-workflow.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+
 It answers three questions:
 
 1. **What's big on the topic right now, whoever posted it?** Independent discovery: keyword search and hashtag feeds, ranked by views per day.

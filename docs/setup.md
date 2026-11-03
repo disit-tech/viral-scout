@@ -1,0 +1,95 @@
+# Setup and keys
+
+## Install
+
+```
+git clone https://github.com/disit-tech/viral-scout
+cd viral-scout
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+You need Python 3.10+. Instagram and YouTube change often, so pointing `VIRAL_SCOUT_YTDLP` in `.env` at a yt-dlp clone (`git clone https://github.com/yt-dlp/yt-dlp`) gives you newer extractors than the pip package.
+
+On Windows, set `PYTHONIOENCODING=utf-8` for terminal output with emoji and Cyrillic. The scripts already do this.
+
+Test it:
+```
+python -m viral_scout profiles
+python -m viral_scout run example-language-school
+```
+
+## Keys (all optional)
+
+Each key unlocks one source. When a key is missing, that source is listed under **Skipped sources** and the rest still runs.
+
+### YouTube Data API key (free, recommended)
+This unlocks **keyword search for Shorts**, with a time window, sorted by views, per language. yt-dlp can't read YouTube's Shorts search results.
+
+1. Go to the Google Cloud console and create a project.
+2. In APIs & Services → Library, enable **YouTube Data API v3**.
+3. In Credentials, create an **API key**. Restrict it to YouTube Data API v3.
+4. Add `YOUTUBE_API_KEY=...` to `.env`.
+
+The free quota is 10,000 units a day, and one keyword costs about 102 units. So about 90 keywords a day, or about 45 if you run twice daily.
+
+### Instagram Graph API (free, needs a business setup)
+This unlocks the **watch list for Instagram professional accounts**: recent reels with likes, comments and followers.
+
+What you need:
+- an Instagram Business or Creator account linked to a Facebook Page,
+- a Meta app with `instagram_basic` and `pages_read_engagement`,
+- a long-lived access token.
+
+Add `IG_GRAPH_TOKEN=...` and `IG_GRAPH_USER_ID=...` (your Instagram business account id) to `.env`.
+
+Limits: it only reads **professional** accounts, and it returns likes, not views.
+
+### Apify (paid per result)
+This unlocks **TikTok** hashtags, keyword search and profiles. Get a token at apify.com → Settings → Integrations, and add `APIFY_TOKEN=...` to `.env`. The default actor is `clockworks~tiktok-scraper`; change it with `APIFY_TIKTOK_ACTOR`. Check the actor's price per result before you schedule it.
+
+### Telegram alerts (free)
+1. Create a bot with @BotFather to get the token.
+2. Send the bot any message.
+3. Open `https://api.telegram.org/bot<token>/getUpdates` and copy `message.chat.id`.
+4. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` to `.env`, and an `alerts:` block to the profile.
+
+To reuse a bot another app already has, point the profile at that app's env file instead of copying the secret:
+```yaml
+alerts:
+  env_file: D:/repo/my-site/.env.local
+  token_env: TELEGRAM_BOT_TOKEN
+  chat_env: TELEGRAM_CHAT_ID
+```
+
+### Your own cookies (only if needed)
+`VIRAL_SCOUT_COOKIES=path/to/cookies.txt` passes **your own** Netscape cookies file to yt-dlp, for when a site starts asking for a login on public posts. viral-scout never reads your browser's cookies by itself.
+
+## Scheduling
+
+### Windows (Task Scheduler)
+`scripts/run-daily.ps1 -Profile <name> [-Analyze]` writes logs to `data/logs/<profile>-<date>.log`. `-Analyze` then runs the `/viral-scout` skill headless through the Claude Code CLI (on your subscription) to write the ideas note.
+
+In PowerShell:
+```powershell
+$action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
+  -Argument '-NoProfile -ExecutionPolicy Bypass -File "D:\repo\viral-scout\scripts\run-daily.ps1" -Profile mybusiness -Analyze'
+$trigger = New-ScheduledTaskTrigger -Daily -At 7:30am
+$set     = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable
+Register-ScheduledTask -TaskName "viral-scout mybusiness" -Action $action -Trigger $trigger -Settings $set
+```
+
+A task can only wake a PC that is **asleep**, not one that's shut down. Also allow wake timers in the power plan: Power Options → Sleep → Allow wake timers.
+
+### macOS/Linux (cron)
+```
+30 7 * * * cd ~/viral-scout && python -m viral_scout run mybusiness --quiet >> data/logs/cron.log 2>&1
+```
+
+## Claude Code skill
+
+The skill lives in `.claude/skills/viral-scout/` in this repo. To use it from any project, link it into your global skills:
+- Windows: `New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\viral-scout" -Target "<repo>\.claude\skills\viral-scout"`
+- macOS/Linux: `ln -s <repo>/.claude/skills/viral-scout ~/.claude/skills/viral-scout`
+
+Then run `/viral-scout <profile>`.
