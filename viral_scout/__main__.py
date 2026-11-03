@@ -1,6 +1,7 @@
 """viral-scout CLI.
 
   python -m viral_scout run <profile> [--no-recheck] [--no-discover] [--quiet]
+  python -m viral_scout ads <profile> [--quiet]               best-performing ads in the niche → ads report
   python -m viral_scout add <profile> <url> [<url> ...]      track posts (e.g. reels someone sent you)
   python -m viral_scout save <profile> <id|url> ... [--note]  save to the Obsidian swipe file
   python -m viral_scout dismiss <profile> <id|url> ...        hide from future reports
@@ -33,6 +34,10 @@ def main(argv=None):
     r.add_argument("--no-discover", action="store_true", help="only watch list, seeds and re-checks")
     r.add_argument("--quiet", action="store_true")
     r.add_argument("--status-file", help="write running/done/failed JSON here (dashboard jobs)")
+    ad = sub.add_parser("ads", help="scout the best-performing ads in the niche and write the ads report")
+    ad.add_argument("profile")
+    ad.add_argument("--quiet", action="store_true")
+    ad.add_argument("--status-file", help="write running/done/failed JSON here (dashboard jobs)")
     a = sub.add_parser("add", help="track one or more post URLs")
     a.add_argument("profile")
     a.add_argument("urls", nargs="+")
@@ -216,6 +221,17 @@ def main(argv=None):
             sf.write_text(_json.dumps({"profile": cfg["name"], "updated": _dt.now().isoformat(), **kw}), encoding="utf-8")
 
     _status(status="running", started=_dt.now().isoformat())
+    if args.cmd == "ads":
+        from .ads.run import scout_ads
+        try:
+            res, (md, js) = scout_ads(cfg, quiet=args.quiet)
+        except Exception as err:
+            _status(status="failed", error=str(err)[:500])
+            raise
+        _status(status="done", ads=len(res["ads"]), errors=len(res["errors"]), report=md)
+        print(f"report: {md}\ndata:   {js}\nads: {len(res['ads'])}, advertisers: {len(res['advertisers'])}, "
+              f"errors: {len(res['errors'])}, skipped sources: {len(res['skipped'])}")
+        return 0
     try:
         res, (md, js) = run.scout(cfg, quiet=args.quiet, recheck=not args.no_recheck, discover=not args.no_discover)
     except Exception as err:

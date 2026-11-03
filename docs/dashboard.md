@@ -58,6 +58,7 @@ To publish automatically after the daily run, add a line to your scheduled task 
   - **Ideas**: the `<date>-viral-ideas.md` notes written by the `/viral-scout` skill, rendered as HTML.
   - **Swipe file**: a board with idea → scripted → filmed → posted → skip columns. Changing a card's status locally edits the note's `status:` in the vault.
   - **Sources**: skipped sources, suggested hashtags, creators who keep showing up, errors and recent runs.
+- `/p/<profile>/ads` (the **Ads** button on the business page): the ads scout ([ads-scout.md](ads-scout.md)). It shows an advertiser table (click a row to filter), then ad cards with the creative, advertiser, days running, variants, reach, platforms, hook, offer, CTA, landing domain and labels. You can filter by advertiser, format and offer, sort by score, days, variants or newest, and show only ads that are still running. Below the cards: offers that keep running, coverage, skipped sources (with the key that unlocks each) and lookup links. It's read-only, from `web/data/ads/<profile>.json`, which `python -m viral_scout ads|export` writes. Meta snapshot URLs, which carry the access token, are never exported.
 
 ## Security
 

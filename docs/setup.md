@@ -55,6 +55,12 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
 - **TikTok:** pick a trends actor in the Apify store, then set `APIFY_TRENDS_ACTOR=user~actor` (it uses `APIFY_TOKEN`) and pass its input in the profile under `trends.apify_input`.
 - **Instagram:** with the Graph API keys, list hashtags under `trends.instagram_hashtags`. Their top reels join the run. Meta allows 30 unique hashtags per 7 days, and the tool counts them.
 
+### Ads scout keys (optional)
+`python -m viral_scout ads <profile>` reads competitor ads. Every source is optional. Details, coverage and costs are in [ads-scout.md](ads-scout.md).
+- **Meta Ad Library API (free):** confirm your identity at facebook.com/ID, create a Meta for Developers app, get a user token in the Graph API Explorer (make it long-lived), then set `META_AD_LIBRARY_TOKEN=...`. It returns **ads delivered in the EU** plus political/issue ads. US commercial ads aren't available through the API.
+- **TikTok Commercial Content API (free, by application):** apply on TikTok for Developers. After approval, set `TIKTOK_RESEARCH_CLIENT_KEY` and `TIKTOK_RESEARCH_CLIENT_SECRET`. It covers ads shown in the EEA, without ad copy.
+- **Apify (paid):** with `APIFY_TOKEN`, set `APIFY_ADS_ACTOR` (Meta Ad Library, any country including the US, e.g. `apify~facebook-ads-scraper`), `APIFY_TIKTOK_ADS_ACTOR` (TikTok Creative Center Top Ads) and/or `APIFY_GOOGLE_ADS_ACTOR` (Google Ads Transparency Center). Check each actor's price. Usage counts toward `budget.apify_items_per_month`.
+
 ### The easy way: the Setup page
 On the local dashboard (`cd web && npm run dev`), open **/setup**. Every key is listed with what it unlocks, its cost, how to get it and its docs link, and you can save and test each one. The CLI equivalent is `python -m viral_scout keys`, `keys test` and `keys set NAME -` (the value is read from stdin).
 
@@ -88,6 +94,7 @@ The launcher works from any folder. It gives Claude (or any MCP client) these to
 - `start_run`, then `get_job` (runs take minutes, so the client starts one and polls)
 - `get_results`, `get_post`, `get_ideas`, `usage`
 - `save_post`, `dismiss_posts`, `track_links`, `set_swipe_status`
+- `ads_run` (then `get_job`) and `ads_results`: the ads scout
 
 ## Scheduling
 

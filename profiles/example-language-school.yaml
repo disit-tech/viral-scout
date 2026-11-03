@@ -41,3 +41,12 @@ filters:
 enrich_top: 60
 recheck: {max_age_days: 30, limit: 60}
 report: {top: 25}
+
+# Ads scout (python -m viral_scout ads example-language-school). Uncomment to try; see docs/ads-scout.md.
+# ads:
+#   advertisers: [Preply, Cambly, Lingoda]
+#   keywords: [learn english online, english tutor online]
+#   domains: [preply.com, cambly.com]
+#   countries: [US]
+#   meta_countries: [DE, PL]   # the official Meta API covers EU-delivered ads only
+#   days: 180

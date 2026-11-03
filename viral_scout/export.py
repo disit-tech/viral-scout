@@ -2,6 +2,7 @@
 
 Per profile: the latest run (items, sections, scores, hooks), flags from the DB (saved, dismissed, tracked),
 view history for charts, the AI ideas notes and the swipe notes. Plus index.json with one summary per profile.
+Ads scout data goes to web/data/ads/<profile>.json (a sub-folder, so it never shows up as a profile).
 """
 import json
 import re
@@ -72,7 +73,8 @@ def profile(cfg):
             if key in keys:
                 history.setdefault(key, []).append([ts, views if views is not None else likes])
         runs = [{"ts": r[0], **json.loads(r[1] or "{}")}
-                for r in db.execute("select ts, summary from runs order by ts desc limit 30")]
+                for r in db.execute("select ts, summary from runs order by ts desc limit 60")]
+        runs = [r for r in runs if r.get("kind") != "ads"][:30]      # ads runs have their own page
 
     items = []
     for it in latest["items"]:
@@ -113,7 +115,17 @@ def profile(cfg):
             c["frames"] = []                         # images aren't exported
             c["scorecard"] = scores.get(f"check:{c['slug']}")
             checks.append(c)
+    ads_path = Path(cfg["db"]).parent / f"{cfg['name']}-ads-latest.json"
+    ads_summary = None
+    if ads_path.exists():
+        try:
+            a = json.loads(ads_path.read_text(encoding="utf-8"))
+            ads_summary = {"date": a.get("date"), "ads": len(a.get("ads") or []),
+                           "advertisers": len(a.get("advertisers") or [])}
+        except ValueError:
+            pass
     return {
+        "ads_summary": ads_summary,
         "name": cfg["name"],
         "business": (cfg.get("business") or "").strip(),
         "date": latest.get("date"),
@@ -140,6 +152,31 @@ def profile(cfg):
     }
 
 
+def ads_data(cfg):
+    """The latest ads run for the dashboard, or None. Meta snapshot URLs carry the access token, so they never leave."""
+    p = Path(cfg["db"]).parent / f"{cfg['name']}-ads-latest.json"
+    if not p.exists():
+        return None
+    d = json.loads(p.read_text(encoding="utf-8"))
+    for a in d.get("ads") or []:
+        a.pop("snapshot_url", None)
+    d.pop("report", None)
+    d["business"] = (cfg.get("business") or "").strip()
+    reports = sorted(Path((cfg.get("ads") or {}).get("output_dir") or cfg["output_dir"]).glob("*-ads-scout.md"), reverse=True)
+    d["reports"] = [r.name[:10] for r in reports[:30]]
+    return d
+
+
+def export_ads(cfg, out=WEB_DATA):
+    d = ads_data(cfg)
+    if not d:
+        return None
+    (out / "ads").mkdir(parents=True, exist_ok=True)
+    f = out / "ads" / f"{cfg['name']}.json"
+    f.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    return f
+
+
 def export_all(names=None, out=WEB_DATA):
     out.mkdir(parents=True, exist_ok=True)
     if not names:
@@ -154,6 +191,7 @@ def export_all(names=None, out=WEB_DATA):
     done = []
     for name in sorted(names):
         cfg = config.load(name)
+        export_ads(cfg, out)
         data = profile(cfg)
         if not data:
             continue
@@ -166,6 +204,7 @@ def export_all(names=None, out=WEB_DATA):
             "posts": len(live), "outliers": sum(1 for i in live if (i.get("outlier") or 0) >= 3),
             "mega": sum(1 for i in live if (i.get("outlier") or 0) >= 10),
             "new": sum(1 for i in live if i.get("new")), "saved": len(data["swipe"]), "ideas": len(data["ideas"]),
+            "ads": (data.get("ads_summary") or {}).get("ads"),
             "top": [{"title": i["title"], "thumbnail": i.get("thumbnail"), "outlier": i.get("outlier"),
                      "channel": i["channel"], "url": i["url"]} for i in top],
         })

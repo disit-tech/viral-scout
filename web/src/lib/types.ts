@@ -104,6 +104,7 @@ export type Profile = {
   budget?: string[];
   trends?: { hashtag: string; views: number | null; posts: number | null; rank: number; on_topic: boolean }[];
   sources: { keywords: number; hashtags: number; watch: number; seeds: number };
+  ads_summary?: { date: string | null; ads: number; advertisers: number } | null;
 };
 
 export type IndexEntry = {
@@ -117,4 +118,76 @@ export type IndexEntry = {
   saved: number;
   ideas: number;
   top: { title: string; thumbnail?: string; outlier: number | null; channel: string; url: string }[];
+};
+
+/** One ad from the ads scout (web/data/ads/<profile>.json). Scores are proxies, not spend or ROAS. */
+export type AdItem = {
+  key: string;
+  source: "meta_api" | "tiktok_api" | "apify_meta" | "apify_tiktok_top" | "apify_google" | string;
+  id: string;
+  advertiser: string;
+  advertiser_id?: string;
+  url: string;
+  image?: string;
+  video?: string;
+  body?: string;
+  title?: string;
+  link_caption?: string;
+  link_url?: string;
+  landing_domain?: string;
+  cta_text?: string;
+  format: string;
+  platforms: string[];
+  countries?: string[];
+  start: string | null;
+  stop: string | null;
+  active: boolean;
+  days_running: number | null;
+  reach: number | null;
+  reach_label?: string;
+  likes?: number | null;
+  variants: number;
+  group?: string;
+  hook: string;
+  offers: string[];
+  offer_text?: string[];
+  cta: string;
+  ad_score: number;
+  labels: string[];
+  found_by: string[];
+  new?: boolean;
+};
+
+export type AdvertiserRow = {
+  advertiser: string;
+  ads: number;
+  active: number;
+  longest_days: number | null;
+  long_runners: number;
+  max_variants: number;
+  formats: Record<string, number>;
+  platforms: string[];
+  offers: Record<string, number>;
+  launched_last_14d: number;
+  launch_burst: boolean;
+  domains: string[];
+  sources: string[];
+  best_score: number;
+};
+
+export type AdsData = {
+  profile: string;
+  business?: string;
+  date: string;
+  countries?: string[];
+  ads: AdItem[];
+  advertisers: AdvertiserRow[];
+  offers: { offer: string; ads: number; long_runners: number }[];
+  coverage: string[];
+  lookup: { label: string; kind: string; links: Record<string, string> }[];
+  skipped: string[];
+  errors: string[];
+  usage?: Record<string, number>;
+  budget?: string[];
+  reports?: string[];
 };
