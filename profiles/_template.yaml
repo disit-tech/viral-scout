@@ -73,3 +73,6 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 #   tiktok_top_input: {}     # input for APIFY_TIKTOK_ADS_ACTOR
 #   google_input: {}         # input for APIFY_GOOGLE_ADS_ACTOR
 #   output_dir: ""           # default: output_dir above
+# Own performance (python -m viral_scout perf <profile>): unit economics and settings. See docs/performance.md
+# economics: {avg_order_value: 120, gross_margin: 0.6, ltv: 480, lead_to_customer_rate: 0.2, target_cpa: 40, payback_months: 3}
+# perf: {goal: sales, days: 28}     # goal: sales | leads | awareness

@@ -48,7 +48,7 @@ Every external source viral-scout relies on, compares itself with, or cites. URL
 | Instagram Graph API: Business Discovery | Instagram watch list | https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/business_discovery |
 | Instagram Graph API: Hashtag Search | hashtag ids (30 unique per 7 days) | https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-hashtag-search |
 | Instagram Graph API: hashtag top_media | top posts for a hashtag | https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-hashtag/top-media |
-| Instagram Graph API: Media Insights | possible future own-post metrics | https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-media/insights |
+| Instagram Graph API: Media Insights | own reels' insights ([Your performance](performance.md)) | https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights |
 | Google Places API (New): Text Search | local competitors | https://developers.google.com/maps/documentation/places/web-service/text-search |
 | Places API billing | cost of local competitor runs | https://developers.google.com/maps/documentation/places/web-service/usage-and-billing |
 | Apify: run actor sync, get dataset items | TikTok and trends through actors | https://docs.apify.com/api/v2/act-run-sync-get-dataset-items-post |
@@ -80,6 +80,23 @@ The full write-up is [ads-scout.md](ads-scout.md). Checked in November 2026.
 | FTC: Advertising FAQs, a guide for small business | truth in advertising, "free" offers | https://www.ftc.gov/business-guidance/resources/advertising-faqs-guide-small-business |
 | Illinois Shines: brochures and resources (marketing guidelines, consumer protection) | solar compliance notes | https://illinoisshines.com/brochures-and-other-resources/ |
 | Illinois Shines DG marketing guidelines (2018: avoid calling a system "free"; current rules are in the IPA consumer-protection appendices) | solar compliance notes | https://illinoisshines.com/wp-content/uploads/2018/11/Final-Distributed-Generation-Marketing-Guidelines-11.26.18.pdf (not re-read in full) |
+## Own performance APIs
+
+Used by [Your performance](performance.md) on your own accounts only. Checked November 2026 (pages loaded and, where noted, read).
+
+| API | Used for | Docs |
+|---|---|---|
+| Instagram Graph API: IG Media Insights | reels metrics (views, reach, saved, shares, ig_reels_avg_watch_time, ig_reels_video_view_total_time, reels_skip_rate, reposts, total_interactions); `impressions` deprecated for media after 2 Jul 2024; follows/profile_visits feed/story only (read, v26.0) | https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights |
+| Instagram Graph API: IG User media | listing your own media | https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media |
+| YouTube Analytics API: metrics | views, engagedViews, estimatedMinutesWatched, averageViewDuration, averageViewPercentage, shares, subscribersGained, audienceWatchRatio, relativeRetentionPerformance (read) | https://developers.google.com/youtube/analytics/metrics |
+| YouTube Analytics API: channel reports | audience retention report: `elapsedVideoTimeRatio`, one video per request (read) | https://developers.google.com/youtube/analytics/channel_reports |
+| YouTube Analytics API: reports.query | the report endpoint | https://developers.google.com/youtube/analytics/reference/reports/query |
+| Google OAuth for installed apps | loopback redirect, PKCE, out-of-band flow removed (read) | https://developers.google.com/identity/protocols/oauth2/native-app · https://developers.google.com/youtube/reporting/guides/authorization/installed-apps |
+| Meta Marketing API: Insights | `/{object}/insights`, v26.0 (read) | https://developers.facebook.com/documentation/ads-commerce/marketing-api/insights |
+| Meta Marketing API: Ad insights reference | field list (actions, action_values, video_p25…p100_watched_actions, video_thruplay_watched_actions, purchase_roas). The page renders with JavaScript, so the field names come from Meta's reference as known and partner mappings, not read in full (partly unverified) | https://developers.facebook.com/documentation/ads-commerce/marketing-api/reference/adgroup/insights |
+| TikTok API for Business | integrated report `/open_api/v1.3/report/integrated/get/` and metric names (portal renders with JavaScript; partly unverified) | https://business-api.tiktok.com/portal/docs · https://business-api.tiktok.com/portal/docs?id=1751443956638721 |
+| TikTok Ads help: video play metrics | definitions of video views, 2-s/6-s views, 25–100% views, average play time (read) | https://ads.tiktok.com/help/article/video-play |
+| YouTube Shorts view counting (31 Mar 2025) | "views" counts every start/replay; engaged views keep the old count | YouTube Help / Creator Insider announcement (not re-checked) |
 
 ## Libraries and frameworks
 

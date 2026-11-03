@@ -60,6 +60,13 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
 - **Meta Ad Library API (free):** confirm your identity at facebook.com/ID, create a Meta for Developers app, get a user token in the Graph API Explorer (make it long-lived), then set `META_AD_LIBRARY_TOKEN=...`. It returns **ads delivered in the EU** plus political/issue ads. US commercial ads aren't available through the API.
 - **TikTok Commercial Content API (free, by application):** apply on TikTok for Developers. After approval, set `TIKTOK_RESEARCH_CLIENT_KEY` and `TIKTOK_RESEARCH_CLIENT_SECRET`. It covers ads shown in the EEA, without ad copy.
 - **Apify (paid):** with `APIFY_TOKEN`, set `APIFY_ADS_ACTOR` (Meta Ad Library, any country including the US, e.g. `apify~facebook-ads-scraper`), `APIFY_TIKTOK_ADS_ACTOR` (TikTok Creative Center Top Ads) and/or `APIFY_GOOGLE_ADS_ACTOR` (Google Ads Transparency Center). Check each actor's price. Usage counts toward `budget.apify_items_per_month`.
+### Your own performance (optional, free)
+Reads **your own** accounts' private metrics for the [Your performance](performance.md) report. Each pair is optional:
+- **Instagram insights:** the `IG_GRAPH_TOKEN` above, with `instagram_manage_insights` (and `instagram_manage_comments` for comment sentiment) added.
+- **YouTube Analytics:** a Desktop OAuth client (`YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`), then `python -m viral_scout perf auth youtube` once; it saves `YT_OAUTH_REFRESH_TOKEN`. Step by step in [performance.md](performance.md#youtube-oauth-setup-once).
+- **Meta ads:** `META_ADS_TOKEN` (system-user token with `ads_read`) and `META_AD_ACCOUNT_ID`.
+- **TikTok ads:** `TIKTOK_ADS_TOKEN` (TikTok for Business developer app with Reporting) and `TIKTOK_ADVERTISER_ID`.
+- **No keys at all:** `python -m viral_scout perf import <profile> export.csv --source meta|tiktok|youtube|generic`.
 
 ### The easy way: the Setup page
 On the local dashboard (`cd web && npm run dev`), open **/setup**. Every key is listed with what it unlocks, its cost, how to get it and its docs link, and you can save and test each one. The CLI equivalent is `python -m viral_scout keys`, `keys test` and `keys set NAME -` (the value is read from stdin).
@@ -95,6 +102,7 @@ The launcher works from any folder. It gives Claude (or any MCP client) these to
 - `get_results`, `get_post`, `get_ideas`, `usage`
 - `save_post`, `dismiss_posts`, `track_links`, `set_swipe_status`
 - `ads_run` (then `get_job`) and `ads_results`: the ads scout
+- `perf_run` (then `get_job`), `perf_results`, `perf_diagnose`: your own videos and ads
 
 ## Scheduling
 

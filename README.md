@@ -3,6 +3,7 @@
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
 Docs: [ads scout](docs/ads-scout.md) · [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+Docs: [your performance](docs/performance.md) · [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
 
 It answers three questions:
 
@@ -30,6 +31,7 @@ And it turns numbers into something you can film:
 - **Video analysis page**: click any tile for the full breakdown: the 5 tests, a **20-criteria / 100-point creative scorecard** (AI), every number explained, growth, hook/CTA, viewer questions, transcript. See [docs/video-quality-framework.md](docs/video-quality-framework.md).
 - **Pre-publish check** for your own drafts (`check` command or the dashboard's Check a video page): format, loudness, peaks, silences, cuts and pacing, pattern interrupts, speech start, CTA, frames for the AI scorecard.
 - **Ads scout** (`python -m viral_scout ads <profile>`): the paid side. Competitor and category ads that keep running (Meta Ad Library API for EU ads, TikTok Commercial Content API for EEA ads, Apify actors for US Meta ads, TikTok Top Ads and Google Transparency). Scored on days running, variants and reach, with hook, offer, CTA, landing domain and format extracted. Report, JSON, an Ads page per business, and ad ideas from the skill. See [docs/ads-scout.md](docs/ads-scout.md).
+- **Your performance** ([docs](docs/performance.md)): the private numbers only your own accounts have (hook rate, watch time, retention curve, completion, shares/saves, CTR, CVR, CPA, CAC, ROAS) from the Instagram Graph API, YouTube Analytics (OAuth), the Meta Marketing API, the TikTok API for Business, or your own CSV exports. KPIs A–E with formulas and denominators, diagnostics against your own medians, the 5 tests, retention drop-offs, creative fatigue, unit economics.
 - **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 
@@ -79,6 +81,9 @@ python -m viral_scout dismiss <profile> <ID|url> ...                  # never sh
 python -m viral_scout status <profile> <note.md> scripted               # move a swipe note
 python -m viral_scout export [profiles]                                # data for the dashboard
 python -m viral_scout profiles
+python -m viral_scout perf <profile>                                   # your own videos and ads → performance report
+python -m viral_scout perf import <profile> export.csv --source meta   # or tiktok | youtube | generic
+python -m viral_scout perf auth youtube                                # one-time OAuth for YouTube Analytics
 ```
 
 Requirements: Python 3.10+, `pip install -r requirements.txt`. Set `VIRAL_SCOUT_YTDLP` to a yt-dlp clone to use newer extractors than the pip package (recommended).
@@ -111,7 +116,8 @@ Built after looking at the open-source [viral-shorts MCP](https://github.com/Xer
 ## Layout
 
 ```
-viral_scout/        code (sources/ = one module per platform)
+viral_scout/        code (sources/ = one module per platform, perf/ = own performance)
+tests/              tests (python tests/test_perf.py runs without pytest)
 profiles/           one YAML per business
 data/               SQLite history + latest JSON (git-ignored)
 reports/            default report folder when a profile has no output_dir (git-ignored)

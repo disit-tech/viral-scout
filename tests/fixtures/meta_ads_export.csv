@@ -1,0 +1,5 @@
+Campaign name,Ad name,Ad ID,Reporting starts,Reporting ends,Amount spent (USD),Impressions,Reach,Frequency,Clicks (all),Link clicks,Landing page views,Leads,Purchases,Purchases conversion value,3-second video plays,Video plays,Video plays at 25%,Video plays at 50%,Video plays at 75%,Video plays at 100%,ThruPlays,Video average play time,Post reactions,Post comments,Post shares,Post saves
+Spring promo,Hook A - teacher face,120201,2026-10-01,2026-10-28,"1,000.00","100,000","40,000",2.50,"2,000","1,500","1,200",0,60,"6,000.00","30,000","90,000","27,000","18,000","9,000","4,500","12,000",0:00:06,800,40,60,30
+Spring promo,Hook B - text only,120202,2026-10-01,2026-10-28,800.00,"100,000","45,000",2.22,900,600,500,0,10,"1,000.00","12,000","85,000","10,000","6,000","3,000","1,500","4,000",0:00:03,200,5,8,4
+Spring promo,Hook C - student story,120203,2026-10-01,2026-10-28,900.00,"90,000","38,000",2.37,"1,700","1,300",400,0,8,800.00,"27,000","80,000","24,000","16,000","8,000","4,000","11,000",0:00:06,700,35,50,25
+Totals,,,,,"2,700.00","290,000","110,000",,"4,600","3,400","2,100",0,78,"7,800.00","69,000",,,,,,,,,,,

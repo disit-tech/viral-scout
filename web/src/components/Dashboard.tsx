@@ -6,6 +6,7 @@ import type { Item, Profile } from "@/lib/types";
 import { num, when } from "@/lib/format";
 import PostCard from "./PostCard";
 import SwipeBoard from "./SwipeBoard";
+import PerformanceLink from "./perf/PerformanceLink";
 
 type Tab = "outliers" | "by_day" | "rising" | "seeds" | "own" | "ideas" | "swipe" | "health";
 
@@ -77,6 +78,7 @@ export default function Dashboard({ profile, ideas, local }: {
             className="mt-2 inline-block rounded-lg border border-line bg-panel px-2.5 py-1 text-sm text-text hover:border-accent">
             Ads{profile.ads_summary ? ` · ${num(profile.ads_summary.ads)}` : ""} →
           </Link>
+          <PerformanceLink name={profile.name} className="ml-2 mt-2" />
         </div>
       </div>
 

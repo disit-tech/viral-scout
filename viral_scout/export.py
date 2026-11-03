@@ -3,6 +3,7 @@
 Per profile: the latest run (items, sections, scores, hooks), flags from the DB (saved, dismissed, tracked),
 view history for charts, the AI ideas notes and the swipe notes. Plus index.json with one summary per profile.
 Ads scout data goes to web/data/ads/<profile>.json (a sub-folder, so it never shows up as a profile).
+Own performance (viral_scout/perf) goes to web/data/perf/<profile>.json, separate from the run data.
 """
 import json
 import re
@@ -208,7 +209,41 @@ def export_all(names=None, out=WEB_DATA):
             "top": [{"title": i["title"], "thumbnail": i.get("thumbnail"), "outlier": i.get("outlier"),
                      "channel": i["channel"], "url": i["url"]} for i in top],
         })
+    perf_done = set(export_perf(names, out)[1])
+    for p in index:
+        if p["name"] in perf_done:
+            p["perf"] = True
     index.sort(key=lambda p: p["name"])
     (out / "index.json").write_text(json.dumps({"exported": datetime.now().isoformat(), "profiles": index},
                                                ensure_ascii=False), encoding="utf-8")
     return out, done
+
+
+def perf_profile(cfg):
+    """Own-performance data for the dashboard (data/<profile>-perf-latest.json), or None."""
+    p = Path(cfg["db"]).parent / f"{cfg['name']}-perf-latest.json"
+    if not p.exists():
+        return None
+    data = json.loads(p.read_text(encoding="utf-8"))
+    for r in data.get("records", []):
+        r.pop("comment_texts", None)            # own comments stay local; the page only needs the sentiment score
+    return data
+
+
+def export_perf(names=None, out=WEB_DATA):
+    """web/data/perf/<profile>.json for the "Your performance" page. Returns (folder, exported names)."""
+    folder = out / "perf"
+    if not names:
+        names = [p.stem for p in config.PROFILES.glob("*.yaml") if not p.stem.startswith("_")]
+    done = []
+    for name in sorted(names):
+        try:
+            data = perf_profile(config.load(name))
+        except FileNotFoundError:
+            continue
+        if not data:
+            continue
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{name}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        done.append(name)
+    return folder, done

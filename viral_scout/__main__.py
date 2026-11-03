@@ -11,6 +11,9 @@
   python -m viral_scout new <name> --business ... --keywords "a; b" [--research] [--run]
   python -m viral_scout competitors <profile> ["query"] [--near "City, ST"]
   python -m viral_scout keys [status | test [NAME] | set NAME [VALUE|-]]
+  python -m viral_scout perf <profile> [--no-pull]               own performance (your videos and ads) → report
+  python -m viral_scout perf import <profile> <file.csv> --source meta|tiktok|youtube|generic
+  python -m viral_scout perf auth youtube                         OAuth for the YouTube Analytics API
   python -m viral_scout profiles
 """
 import argparse
@@ -23,6 +26,10 @@ def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     config.load_env()
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "perf":                 # own performance has its own sub-commands
+        from .perf.cli import main as perf_main
+        return perf_main(argv[1:])
     from . import run   # after load_env, so VIRAL_SCOUT_YTDLP from .env applies
     from .report import n
 
@@ -85,6 +92,7 @@ def main(argv=None):
     ke = sub.add_parser("keys", help="API key status / test / set")
     ke.add_argument("rest", nargs="*")
     sub.add_parser("profiles", help="list profiles")
+    sub.add_parser("perf", help="own performance: perf <profile> | perf import ... | perf auth youtube")
     args = p.parse_args(argv)
 
     if args.cmd == "keys":

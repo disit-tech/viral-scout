@@ -32,6 +32,7 @@ Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy f
 | `recheck` | re-measure recent posts | `{max_age_days: 30, limit: 60}` |
 | `report` | `top` rows per section, `hooks` shown, `transcripts` fetched | `{top: 25, hooks: 20, transcripts: 40}` |
 | `alerts` | Telegram thresholds | see below |
+| `economics`, `perf` | unit economics and own-performance settings | see [below](#own-performance-economics-and-perf) |
 
 ### Optional blocks
 
@@ -77,6 +78,29 @@ Tips:
 - **Names match loosely.** A name search also returns other advertisers who mention the brand (dealers, affiliates, reviewers), so only pages whose name matches are kept. Set `match:` (a regex) when the page name differs from the brand, or use the numeric page id.
 - **Keywords are the category:** they keep every advertiser, which is how you find competitors you didn't know about. Move the ones that keep showing up into `advertisers`.
 - **US businesses:** the official Meta API has EU ads only. Use `apify_meta` for US ads, and optionally `meta_countries` to see the European versions of the same angles.
+
+### Own performance: `economics` and `perf`
+
+Used by `python -m viral_scout perf <profile>` ([Your performance](performance.md)). Profiles are git-ignored, so your numbers stay local.
+
+```yaml
+economics:
+  avg_order_value: 120        # AOV; also estimates revenue from purchases when the platform reports none
+  gross_margin: 0.6           # 0–1 → break-even ROAS = 1 ÷ margin, contribution margin
+  ltv: 480                    # lifetime revenue per customer → max CAC, LTV:CAC
+  lead_to_customer_rate: 0.2  # lead-gen: CAC = spend ÷ (leads × rate); max CPL
+  target_cpa: 40              # diagnostics flag CPA above this
+  payback_months: 3           # with monthly_revenue_per_customer → payback CAC limit
+  monthly_revenue_per_customer: 60
+  total_revenue: 25000        # optional: real MER = total revenue ÷ total marketing spend (same period)
+  total_marketing_spend: 6000
+perf:
+  goal: sales                 # sales | leads | awareness: paid priorities and diagnosis weights
+  days: 28                    # API lookback (TikTok max 30)
+  sources: [instagram, youtube, meta_ads, tiktok_ads]   # default: every source whose keys are set
+  instagram: {limit: 30, comments: true, comment_posts: 10}
+  youtube: {limit: 50, retention_videos: 10, comments: true, comment_posts: 10}
+```
 
 ### Alerts
 
