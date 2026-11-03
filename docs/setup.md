@@ -82,6 +82,12 @@ The launcher works from any folder. It gives Claude (or any MCP client) these to
 ## Scheduling
 
 ### Windows (Task Scheduler)
+One command for all your profiles, staggered (YouTube rate-limits bursts), with the AI analysis and a final publish:
+```powershell
+scripts/schedule.ps1 -Profiles englishSchool,northForge,nfSolarPanels -Start 07:00 -GapMinutes 30 -Analyze -Publish
+scripts/schedule.ps1 -Remove     # remove them all
+```
+Or by hand:
 `scripts/run-daily.ps1 -Profile <name> [-Analyze]` writes logs to `data/logs/<profile>-<date>.log`. `-Analyze` then runs the `/viral-scout` skill headless through the Claude Code CLI (on your subscription) to write the ideas note.
 
 In PowerShell:
