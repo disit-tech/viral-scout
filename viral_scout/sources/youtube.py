@@ -90,13 +90,24 @@ def median_views(items):
     return statistics.median(v) if len(v) >= 3 else None
 
 
+BLOCKED = {"hit": False}      # set once YouTube asks to "confirm you're not a bot": stop opening videos this run
+
+
 def enrich(item, errors=None):
     """Fill likes/comments/date/subscribers from the video page. Returns True on success."""
     errors = errors if errors is not None else []
+    if BLOCKED["hit"]:
+        return False
     try:
         info = extract(f"https://www.youtube.com/watch?v={item.id}")
     except RuntimeError as err:
-        errors.append(f"youtube {item.id}: {err}")
+        msg = str(err)
+        if "not a bot" in msg or "429" in msg:
+            BLOCKED["hit"] = True
+            errors.append("youtube: bot check / rate limit hit, stopped opening videos for this run "
+                          "(too many runs close together; it clears after a few hours)")
+        else:
+            errors.append(f"youtube {item.id}: {msg[:160]}")
         return False
     item.views = info.get("view_count") or item.views
     item.likes = info.get("like_count")

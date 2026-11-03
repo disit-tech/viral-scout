@@ -137,7 +137,11 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         _log(f"enrich: {len(yt)} YouTube videos", quiet)
     for it in yt:
         youtube.enrich(it, errors)
-        time.sleep(0.3)
+        if youtube.BLOCKED["hit"]:
+            skipped.append("Part of enrichment: YouTube bot check. Space runs out (one per profile per day, "
+                           "30+ min apart); untitled posts from hashtag feeds were dropped this run.")
+            break
+        time.sleep(1.0)
     for key in [k for k in pool if drop(k, final=True) or (not pool[k].title and k not in tracked)]:
         del pool[key]
 
@@ -211,6 +215,11 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         else:
             _log("alerts: skipped (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)", quiet)
     store.log_run(cfg["name"], {"items": len(pool), "errors": len(errors), "report": paths[0]})
+    try:                                   # keep the web dashboard's data fresh
+        from .export import export_all
+        export_all([cfg["name"]])
+    except Exception as err:               # never fail a run over the dashboard
+        _log(f"export for the dashboard failed: {err}", quiet)
     return result, paths
 
 

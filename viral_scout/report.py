@@ -154,17 +154,20 @@ def write(cfg, res):
     md.write_text("\n".join(lines), encoding="utf-8")
 
     def js(it):
-        return {"platform": it.platform, "id": it.id, "url": it.url, "title": it.title, "channel": it.channel,
+        return {"key": it.key, "platform": it.platform, "id": it.id, "url": it.url, "title": it.title, "channel": it.channel,
                 "channel_url": it.channel_url, "followers": it.followers, "views": it.views, "likes": it.likes,
                 "comments": it.comments, "published": it.published.isoformat() if it.published else None,
                 "per_day": it.per_day, "rise_per_day": it.rise_per_day, "outlier": it.outlier, "label": it.label,
-                "weighted": it.weighted, "thumbnail": it.thumbnail, "description": it.description[:500],
+                "weighted": it.weighted, "thumbnail": it.thumbnail, "duration": it.duration, "early": it.early,
+                "channel_median": it.channel_median, "description": it.description[:500],
                 "engagement": it.engagement, "found_by": it.found_by, "hook": it.hook,
                 "transcript": it.transcript, "new": it.key in new,
                 "tracked": it.key in tracked, "watched": it.key in watched}
 
     data = Path(cfg["db"]).parent / f"{cfg['name']}-latest.json"
-    data.write_text(json.dumps({"date": now.isoformat(), "items": [js(i) for i in items],
+    data.write_text(json.dumps({"date": now.isoformat(), "report": str(md), "items": [js(i) for i in items],
+                                "sections": {k: [i.key for i in v] for k, v in sec.items()},
+                                "suggested_hashtags": sug, "repeat_creators": res["repeat_creators"],
                                 "skipped": res["skipped"], "errors": res["errors"]}, ensure_ascii=False, indent=1),
                     encoding="utf-8")
     return str(md), str(data)

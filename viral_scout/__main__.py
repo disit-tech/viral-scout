@@ -36,6 +36,12 @@ def main(argv=None):
     d = sub.add_parser("dismiss", help="hide posts from future reports")
     d.add_argument("profile")
     d.add_argument("refs", nargs="+")
+    st = sub.add_parser("status", help="set a swipe note's status (idea, scripted, filmed, posted, skip)")
+    st.add_argument("profile")
+    st.add_argument("file", help="swipe note file name")
+    st.add_argument("status", choices=["idea", "scripted", "filmed", "posted", "skip"])
+    ex = sub.add_parser("export", help="export data for the web dashboard (web/data/)")
+    ex.add_argument("names", nargs="*")
     sub.add_parser("profiles", help="list profiles")
     args = p.parse_args(argv)
 
@@ -44,7 +50,26 @@ def main(argv=None):
             print(f.stem)
         return 0
 
+    if args.cmd == "export":
+        from .export import export_all
+        out, names = export_all(args.names)
+        print(f"exported {', '.join(names) or 'nothing'} → {out}")
+        return 0
+
     cfg = config.load(args.profile)
+    if args.cmd == "status":
+        from pathlib import Path
+        import re as _re
+        folder = Path(cfg.get("swipe_dir") or (Path(cfg["output_dir"]) / "swipe"))
+        f = folder / Path(args.file).name
+        if not f.exists():
+            print("error: no such swipe note:", f.name)
+            return 1
+        text = f.read_text(encoding="utf-8")
+        text, k = _re.subn(r'^status:.*$', f'status: "{args.status}"', text, count=1, flags=_re.M)
+        f.write_text(text, encoding="utf-8")
+        print(f"{f.name}: status → {args.status}" if k else "error: no status field")
+        return 0 if k else 1
     if args.cmd == "save":
         paths, errors = run.save(cfg, args.refs, args.note)
         for pth in paths:

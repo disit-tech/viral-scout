@@ -1,0 +1,81 @@
+export type Item = {
+  key: string;
+  platform: "youtube" | "instagram" | "tiktok" | string;
+  id: string;
+  url: string;
+  title: string;
+  channel: string;
+  channel_url: string;
+  followers: number | null;
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  published: string | null;
+  per_day: number | null;
+  rise_per_day: number | null;
+  outlier: number | null;
+  label?: string;
+  weighted?: number;
+  thumbnail?: string;
+  duration?: number | null;
+  early?: boolean;
+  engagement: number | null;
+  found_by: string[];
+  hook?: string;
+  transcript?: string;
+  description?: string;
+  new: boolean;
+  tracked: boolean;
+  watched: boolean;
+  saved: boolean;
+  dismissed: boolean;
+  history: [string, number | null][];
+};
+
+export type SwipeNote = {
+  file: string;
+  title?: string;
+  status?: string;
+  format?: string;
+  platform?: string;
+  url?: string;
+  post_id?: string;
+  creator?: string;
+  views?: number;
+  likes?: number;
+  outlier?: number;
+  hook?: string;
+  thumbnail?: string;
+  saved?: string;
+  body: string;
+};
+
+export type Profile = {
+  name: string;
+  business: string;
+  date: string;
+  items: Item[];
+  sections: { by_day: string[]; outliers: string[]; rising: string[]; seeds: string[] };
+  suggested_hashtags: string[];
+  repeat_creators: string[];
+  skipped: string[];
+  errors: string[];
+  ideas: { date: string; file: string; markdown: string }[];
+  reports: string[];
+  swipe: SwipeNote[];
+  runs: { ts: string; items?: number; errors?: number }[];
+  sources: { keywords: number; hashtags: number; watch: number; seeds: number };
+};
+
+export type IndexEntry = {
+  name: string;
+  date: string;
+  business: string;
+  posts: number;
+  outliers: number;
+  mega: number;
+  new: number;
+  saved: number;
+  ideas: number;
+  top: { title: string; thumbnail?: string; outlier: number | null; channel: string; url: string }[];
+};

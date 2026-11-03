@@ -2,7 +2,7 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
-Docs: [marketing workflow](docs/marketing-workflow.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+Docs: [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
 
 It answers three questions:
 
@@ -19,6 +19,7 @@ And it turns numbers into something you can film:
 - **Swipe file**: `save` writes one Obsidian note per post (stats, thumbnail, hook, transcript, "why it works", "our version", status idea → scripted → filmed → posted) plus a `swipe.base` table/cards view. `dismiss` hides a post from future reports.
 - **Telegram alerts** for new mega-outliers and fast risers (official Bot API; each post alerted once).
 - **Suggested hashtags** that keep appearing on the hits but aren't in your profile yet.
+- **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 
 ### How "viral" is scored
 
@@ -59,6 +60,8 @@ python -m viral_scout run <profile> --no-discover # only watch list, seeds, re-c
 python -m viral_scout add <profile> <url> ...      # track posts someone sent you
 python -m viral_scout save <profile> <ID|url> --note "why it works"   # → swipe file note
 python -m viral_scout dismiss <profile> <ID|url> ...                  # never show again
+python -m viral_scout status <profile> <note.md> scripted               # move a swipe note
+python -m viral_scout export [profiles]                                # data for the dashboard
 python -m viral_scout profiles
 ```
 
