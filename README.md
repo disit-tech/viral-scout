@@ -2,7 +2,7 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
-Docs: [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+Docs: [your performance](docs/performance.md) · [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
 
 It answers three questions:
 
@@ -27,6 +27,7 @@ And it turns numbers into something you can film:
 - **Trending hashtags** (Apify) and **Instagram hashtag top posts** (Graph API), when the keys are set.
 - **Local competitors**: nearby businesses in your niche (Google Places API) and their public social channels, as watch-list candidates.
 - **Search** across everything ever collected; **New research** from a description; a **Setup** page for keys (dashboard and CLI).
+- **Your performance** ([docs](docs/performance.md)): the private numbers only your own accounts have (hook rate, watch time, retention curve, completion, shares/saves, CTR, CVR, CPA, CAC, ROAS) from the Instagram Graph API, YouTube Analytics (OAuth), the Meta Marketing API, the TikTok API for Business, or your own CSV exports. KPIs A–E with formulas and denominators, diagnostics against your own medians, the 5 tests, retention drop-offs, creative fatigue, unit economics.
 - **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 
@@ -72,6 +73,9 @@ python -m viral_scout dismiss <profile> <ID|url> ...                  # never sh
 python -m viral_scout status <profile> <note.md> scripted               # move a swipe note
 python -m viral_scout export [profiles]                                # data for the dashboard
 python -m viral_scout profiles
+python -m viral_scout perf <profile>                                   # your own videos and ads → performance report
+python -m viral_scout perf import <profile> export.csv --source meta   # or tiktok | youtube | generic
+python -m viral_scout perf auth youtube                                # one-time OAuth for YouTube Analytics
 ```
 
 Requirements: Python 3.10+, `pip install -r requirements.txt`. Set `VIRAL_SCOUT_YTDLP` to a yt-dlp clone to use newer extractors than the pip package (recommended).
@@ -104,7 +108,8 @@ Built after looking at the open-source [viral-shorts MCP](https://github.com/Xer
 ## Layout
 
 ```
-viral_scout/        code (sources/ = one module per platform)
+viral_scout/        code (sources/ = one module per platform, perf/ = own performance)
+tests/              tests (python tests/test_perf.py runs without pytest)
 profiles/           one YAML per business
 data/               SQLite history + latest JSON (git-ignored)
 reports/            default report folder when a profile has no output_dir (git-ignored)

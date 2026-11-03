@@ -53,3 +53,7 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 
 # Quota meter: the report warns at 80% of these caps
 # budget: {youtube_api_units_per_day: 10000, apify_items_per_month: 500}
+
+# Own performance (python -m viral_scout perf <profile>): unit economics and settings. See docs/performance.md
+# economics: {avg_order_value: 120, gross_margin: 0.6, ltv: 480, lead_to_customer_rate: 0.2, target_cpa: 40, payback_months: 3}
+# perf: {goal: sales, days: 28}     # goal: sales | leads | awareness

@@ -19,8 +19,10 @@ KEYS = [
      "get": "Google Cloud console → APIs & Services → enable YouTube Data API v3 → Credentials → API key.",
      "docs": "https://developers.google.com/youtube/v3/getting-started"},
     {"name": "IG_GRAPH_TOKEN", "group": "Instagram Graph API", "cost": "free (needs a business account)",
-     "unlocks": "Instagram watch list (Business Discovery) and hashtag top posts (30 hashtags / 7 days).",
-     "get": "Meta for Developers → app with instagram_basic + pages_read_engagement → long-lived token.",
+     "unlocks": "Instagram watch list (Business Discovery), hashtag top posts (30 hashtags / 7 days), and your own "
+                "reels' insights for Your performance (needs instagram_manage_insights).",
+     "get": "Meta for Developers → app with instagram_basic + pages_read_engagement (+ instagram_manage_insights, "
+            "instagram_manage_comments for own performance) → long-lived token.",
      "docs": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/business_discovery"},
     {"name": "IG_GRAPH_USER_ID", "group": "Instagram Graph API", "cost": "",
      "unlocks": "Your Instagram business account id (pairs with IG_GRAPH_TOKEN).",
@@ -46,6 +48,40 @@ KEYS = [
      "unlocks": "Where alerts go.",
      "get": "Message your bot, open https://api.telegram.org/bot<token>/getUpdates, copy message.chat.id.",
      "docs": "https://core.telegram.org/bots/api#getupdates"},
+    {"name": "YT_OAUTH_CLIENT_ID", "group": "YouTube Analytics (your channel)", "cost": "free",
+     "unlocks": "Your performance: your own channel's views, watch time, avg % viewed, retention curves, shares, "
+                "subscribers gained (OAuth client, pairs with the secret and refresh token).",
+     "get": "Google Cloud console → enable YouTube Analytics API + YouTube Data API v3 → OAuth consent screen → "
+            "Credentials → OAuth client ID → Desktop app.",
+     "docs": "https://developers.google.com/youtube/reporting/guides/authorization/installed-apps"},
+    {"name": "YT_OAUTH_CLIENT_SECRET", "group": "YouTube Analytics (your channel)", "cost": "",
+     "unlocks": "The Desktop OAuth client's secret.",
+     "get": "Same OAuth client → Client secret.",
+     "docs": "https://developers.google.com/identity/protocols/oauth2/native-app"},
+    {"name": "YT_OAUTH_REFRESH_TOKEN", "group": "YouTube Analytics (your channel)", "cost": "",
+     "unlocks": "Read-only access to your channel's analytics without logging in each time.",
+     "get": "Run: python -m viral_scout perf auth youtube (opens Google's consent page, saves the token here).",
+     "docs": "https://developers.google.com/youtube/analytics/reference/reports/query"},
+    {"name": "META_ADS_TOKEN", "group": "Meta Marketing API (your ads)", "cost": "free",
+     "unlocks": "Your performance: your Meta ads' impressions, hook rate (3-s plays), ThruPlays, quartiles, CTR, "
+                "CPC, CPM, leads, purchases, ROAS, daily frequency for fatigue.",
+     "get": "Meta for Developers → app with Marketing API → Business Settings → System user with ads_read on the "
+            "ad account → generate token.",
+     "docs": "https://developers.facebook.com/documentation/ads-commerce/marketing-api/insights"},
+    {"name": "META_AD_ACCOUNT_ID", "group": "Meta Marketing API (your ads)", "cost": "",
+     "unlocks": "Which ad account to read (act_123… or the number).",
+     "get": "Ads Manager → account dropdown, or Business Settings → Ad accounts.",
+     "docs": "https://developers.facebook.com/documentation/ads-commerce/marketing-api/insights"},
+    {"name": "TIKTOK_ADS_TOKEN", "group": "TikTok API for Business (your ads)", "cost": "free",
+     "unlocks": "Your performance: your TikTok ads' 2-s/6-s views, 25–100% views, avg play time, CTR, CPC, CPM, "
+                "conversions, CPA, ROAS, daily frequency.",
+     "get": "TikTok for Business developers → create an app with Reporting permission → authorize your advertiser "
+            "account → long-term access token.",
+     "docs": "https://business-api.tiktok.com/portal/docs"},
+    {"name": "TIKTOK_ADVERTISER_ID", "group": "TikTok API for Business (your ads)", "cost": "",
+     "unlocks": "Which advertiser account to read.",
+     "get": "TikTok Ads Manager → account info (Advertiser ID).",
+     "docs": "https://business-api.tiktok.com/portal/docs"},
     {"name": "VIRAL_SCOUT_YTDLP", "group": "Tools", "cost": "free",
      "unlocks": "Path to a yt-dlp clone with newer extractors than the pip package.",
      "get": "git clone https://github.com/yt-dlp/yt-dlp",
@@ -116,6 +152,33 @@ def test(name):
                               headers={"X-Goog-Api-Key": v, "X-Goog-FieldMask": "places.id"},
                               json={"textQuery": "coffee in Chicago", "pageSize": 1}, timeout=20)
             return r.ok, "ok (1 ID-only request)" if r.ok else r.json().get("error", {}).get("message", r.text[:120])
+        if name in ("YT_OAUTH_CLIENT_ID", "YT_OAUTH_CLIENT_SECRET", "YT_OAUTH_REFRESH_TOKEN"):
+            from .perf import youtube as ytp
+            if ytp.missing_keys():
+                return False, "set all three: " + ", ".join(ytp.missing_keys()) + " missing"
+            errs = []
+            tok = ytp.access_token(errs)
+            if not tok:
+                return False, errs[0] if errs else "token refresh failed"
+            r = requests.get(ytp.REPORTS, params={"ids": "channel==MINE", "startDate": "2026-01-01",
+                                                  "endDate": "2026-01-02", "metrics": "views"},
+                             headers={"Authorization": f"Bearer {tok}"}, timeout=20)
+            return r.ok, "ok (analytics read)" if r.ok else r.json().get("error", {}).get("message", r.text[:120])
+        if name in ("META_ADS_TOKEN", "META_AD_ACCOUNT_ID"):
+            from .perf.meta_ads import API, account
+            if not os.environ.get("META_AD_ACCOUNT_ID"):
+                return False, "META_AD_ACCOUNT_ID not set"
+            r = requests.get(f"{API}/{account()}", params={"fields": "name,currency",
+                                                          "access_token": os.environ.get("META_ADS_TOKEN", "")}, timeout=20)
+            d = r.json()
+            return r.ok, f"ok: {d.get('name')} ({d.get('currency')})" if r.ok else d.get("error", {}).get("message", "")
+        if name in ("TIKTOK_ADS_TOKEN", "TIKTOK_ADVERTISER_ID"):
+            r = requests.get("https://business-api.tiktok.com/open_api/v1.3/advertiser/info/",
+                             params={"advertiser_ids": json.dumps([os.environ.get("TIKTOK_ADVERTISER_ID", "")])},
+                             headers={"Access-Token": os.environ.get("TIKTOK_ADS_TOKEN", "")}, timeout=20)
+            d = r.json()
+            ok = d.get("code") == 0
+            return ok, "ok" if ok else d.get("message", r.text[:120])
         if name == "VIRAL_SCOUT_YTDLP":
             return os.path.isdir(os.path.join(v, "yt_dlp")), "ok" if os.path.isdir(os.path.join(v, "yt_dlp")) else "no yt_dlp folder there"
         return True, "set (no live test for this one)"

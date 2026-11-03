@@ -55,6 +55,14 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
 - **TikTok:** pick a trends actor in the Apify store, then set `APIFY_TRENDS_ACTOR=user~actor` (it uses `APIFY_TOKEN`) and pass its input in the profile under `trends.apify_input`.
 - **Instagram:** with the Graph API keys, list hashtags under `trends.instagram_hashtags`. Their top reels join the run. Meta allows 30 unique hashtags per 7 days, and the tool counts them.
 
+### Your own performance (optional, free)
+Reads **your own** accounts' private metrics for the [Your performance](performance.md) report. Each pair is optional:
+- **Instagram insights:** the `IG_GRAPH_TOKEN` above, with `instagram_manage_insights` (and `instagram_manage_comments` for comment sentiment) added.
+- **YouTube Analytics:** a Desktop OAuth client (`YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`), then `python -m viral_scout perf auth youtube` once; it saves `YT_OAUTH_REFRESH_TOKEN`. Step by step in [performance.md](performance.md#youtube-oauth-setup-once).
+- **Meta ads:** `META_ADS_TOKEN` (system-user token with `ads_read`) and `META_AD_ACCOUNT_ID`.
+- **TikTok ads:** `TIKTOK_ADS_TOKEN` (TikTok for Business developer app with Reporting) and `TIKTOK_ADVERTISER_ID`.
+- **No keys at all:** `python -m viral_scout perf import <profile> export.csv --source meta|tiktok|youtube|generic`.
+
 ### The easy way: the Setup page
 On the local dashboard (`cd web && npm run dev`), open **/setup**. Every key is listed with what it unlocks, its cost, how to get it and its docs link, and you can save and test each one. The CLI equivalent is `python -m viral_scout keys`, `keys test` and `keys set NAME -` (the value is read from stdin).
 
@@ -88,6 +96,7 @@ The launcher works from any folder. It gives Claude (or any MCP client) these to
 - `start_run`, then `get_job` (runs take minutes, so the client starts one and polls)
 - `get_results`, `get_post`, `get_ideas`, `usage`
 - `save_post`, `dismiss_posts`, `track_links`, `set_swipe_status`
+- `perf_run` (then `get_job`), `perf_results`, `perf_diagnose`: your own videos and ads
 
 ## Scheduling
 

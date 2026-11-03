@@ -74,6 +74,8 @@ Report sections:
 | `items` | one row per post: key (`platform:id`), url, title, channel, followers, published, found_by, first/last seen, `tracked`, `dismissed`, `saved`, `alerted`, `hook`, `transcript`, `description` |
 | `snapshots` | (key, timestamp) → views, likes, comments. Each run adds one snapshot per post seen |
 | `runs` | timestamp, profile, a summary |
+| `perf_records` | own performance: the latest normalized record per own video/ad (API pulls and CSV imports) |
+| `perf_snapshots` | own performance: (key, timestamp) → a few KPIs and counts, written when they change, for trends and fatigue |
 
 `data/<profile>-latest.json` holds every post from the last run with all scores, the hook and the transcript. The skill reads it.
 
@@ -107,6 +109,7 @@ Report sections:
 | `sources/instagram.py` | Graph API Business Discovery |
 | `sources/tiktok.py` | Apify |
 | `sources/links.py` | any single post URL |
+| `perf/` | own performance: `kpis.py` (formulas), `diagnose.py`, `instagram.py`, `youtube.py` (+ OAuth), `meta_ads.py`, `tiktok_ads.py`, `csvimport.py`, `store.py`, `run.py`, `report.py`, `cli.py`. See [performance.md](performance.md) |
 
 **Adding a platform:** write a module in `sources/` that returns `Item`s, wire it into `run.scout`, and add a line to `skipped` when its key is missing.
 
