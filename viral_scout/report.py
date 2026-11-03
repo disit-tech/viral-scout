@@ -193,7 +193,7 @@ def write(cfg, res):
     def js(it):
         return {"key": it.key, "platform": it.platform, "id": it.id, "url": it.url, "title": it.title, "channel": it.channel,
                 "channel_url": it.channel_url, "followers": it.followers, "views": it.views, "likes": it.likes,
-                "comments": it.comments, "published": it.published.isoformat() if it.published else None,
+                "comments": it.comments, "shares": it.shares, "saves": it.saves, "published": it.published.isoformat() if it.published else None,
                 "per_day": it.per_day, "rise_per_day": it.rise_per_day, "outlier": it.outlier, "label": it.label,
                 "weighted": it.weighted, "thumbnail": it.thumbnail, "duration": it.duration, "early": it.early,
                 "channel_median": it.channel_median, "description": it.description[:500],

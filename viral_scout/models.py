@@ -17,6 +17,8 @@ class Item:
     views: Optional[int] = None
     likes: Optional[int] = None
     comments: Optional[int] = None
+    shares: Optional[int] = None                   # public on TikTok (via Apify); not on YouTube/Instagram
+    saves: Optional[int] = None
     duration: Optional[float] = None
     published: Optional[datetime] = None
     found_by: list = field(default_factory=list)   # e.g. ["search:english idioms", "watch:@x", "seed"]
@@ -137,7 +139,7 @@ class Item:
             v = getattr(other, f)
             if v not in (None, "") and getattr(self, f) in (None, ""):
                 setattr(self, f, v)
-        for f in ("views", "likes", "comments", "followers"):   # newest numbers win
+        for f in ("views", "likes", "comments", "followers", "shares", "saves"):   # newest numbers win
             v = getattr(other, f)
             if v is not None:
                 setattr(self, f, max(v, getattr(self, f) or 0))

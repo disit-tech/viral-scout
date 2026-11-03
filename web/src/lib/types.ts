@@ -1,3 +1,26 @@
+export type Scorecard = {
+  criteria: Record<string, { score: number; why: string }>;
+  compliance?: { score: number; why: string };
+  groups: Record<string, { label: string; rating: number; points: number; max: number }>;
+  total: number | null;
+  verdict: string;
+  summary?: string;
+  fix_first?: string;
+  scored?: string;
+};
+
+export type Check = {
+  name: string; slug: string; platform: string; checked: string;
+  probe: { width: number; height: number; fps: number; duration: number; has_audio: boolean };
+  loudness: { lufs: number | null; true_peak: number | null };
+  cuts: number[]; shots: number[];
+  transcript: { transcript: string; hook: string; cta: string; wpm: number | null } | null;
+  results: { area: string; status: "pass" | "warn" | "fail"; detail: string }[];
+  manual: string[];
+  summary: { pass: number; warn: number; fail: number };
+  scorecard?: Scorecard | null;
+};
+
 export type Item = {
   key: string;
   platform: "youtube" | "instagram" | "tiktok" | string;
@@ -30,6 +53,9 @@ export type Item = {
   emerging?: boolean;
   own?: boolean;
   questions?: string[];
+  scorecard?: Scorecard;
+  shares?: number | null;
+  saves?: number | null;
   top_comments?: { text: string; likes: number | null }[];
   transcript?: string;
   description?: string;
@@ -74,6 +100,7 @@ export type Profile = {
   swipe: SwipeNote[];
   runs: { ts: string; items?: number; errors?: number; usage?: Record<string, number> }[];
   usage?: Record<string, number>;
+  checks?: Check[];
   budget?: string[];
   trends?: { hashtag: string; views: number | null; posts: number | null; rank: number; on_topic: boolean }[];
   sources: { keywords: number; hashtags: number; watch: number; seeds: number };

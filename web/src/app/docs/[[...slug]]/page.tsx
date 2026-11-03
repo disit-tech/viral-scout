@@ -6,7 +6,7 @@ export async function generateStaticParams() {
   return [{ slug: [] }, ...(await docSlugs()).map((s) => ({ slug: [s] }))];
 }
 
-const ORDER = ["readme", "marketing-workflow", "originality-and-duplicate-detection", "dashboard", "how-it-works",
+const ORDER = ["readme", "video-quality-framework", "marketing-workflow", "originality-and-duplicate-detection", "dashboard", "how-it-works",
   "setup", "profiles", "similar-tools", "references"];
 
 export async function generateMetadata({ params }: { params: Promise<{ slug?: string[] }> }) {

@@ -27,6 +27,8 @@ And it turns numbers into something you can film:
 - **Trending hashtags** (Apify) and **Instagram hashtag top posts** (Graph API), when the keys are set.
 - **Local competitors**: nearby businesses in your niche (Google Places API) and their public social channels, as watch-list candidates.
 - **Search** across everything ever collected; **New research** from a description; a **Setup** page for keys (dashboard and CLI).
+- **Video analysis page**: click any tile for the full breakdown: the 5 tests, a **20-criteria / 100-point creative scorecard** (AI), every number explained, growth, hook/CTA, viewer questions, transcript. See [docs/video-quality-framework.md](docs/video-quality-framework.md).
+- **Pre-publish check** for your own drafts (`check` command or the dashboard's Check a video page): format, loudness, peaks, silences, cuts and pacing, pattern interrupts, speech start, CTA, frames for the AI scorecard.
 - **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 

@@ -26,6 +26,12 @@ Then write **5 ideas adapted to the business**: each with title, which viral pos
 
 Write it to the vault next to the report as `<date>-viral-ideas.md` (frontmatter `type: viral-ideas`, `profile`, `date`, link to the report), with sections: Patterns this week (formats/hooks that repeat), Breakdown (table: post · format · hook type · why it works), What viewers ask (the best questions from the comments, each with the idea it suggests), Ideas (the 5), Your posts (if the profile has `own:`: which of yours beat your usual and why), Watch list candidates (🌱 emerging creators first), Suggested hashtags worth adding.
 
+## 2b. Score the strongest posts (creative scorecard, 100 points)
+For the top 5–8 posts (and any post the user names: `/viral-scout <profile> score <post_id>`): look at the frame image, hook, CTA, transcript, comments and numbers, then rate the 20 criteria 1–5 with one concrete line each. Get the shape with `python -m viral_scout score template`, fill it, and save with `python -m viral_scout score set <profile> <post_id>` (JSON on stdin). Include `summary` (one sentence) and `fix_first` (the single change that would help most, phrased for THIS business). Be calibrated: 5 = best-in-class, 3 = ordinary; don't inflate. It's a subjective creative assessment: say so, and never present it as a prediction.
+
+## 2c. Pre-publish check of the user's own draft (`/viral-scout <profile> check <file or check id>`)
+Run `python -m viral_scout check <profile> <file>` (or use an existing check id). Read the check JSON in data/checks/<profile>/<id>/ and Read its frame images (first, 1s, 3s, middle, last): judge first-frame impact, on-screen text, captions (readable, high contrast, inside safe zones), branding, visual quality. Score it with the scorecard (`score set <profile> check:<id>`). Then give the 3 most important fixes in order, mixing technical results (format, loudness, pacing, silence in the hook, CTA) and creative ones.
+
 ## 3. Save and clean up
 - Save the 2–3 best references: `python -m viral_scout save <profile> <ID> --note "<format>: <why it works>"`; then set `format:` in each saved note's frontmatter.
 - Off-topic posts: `python -m viral_scout dismiss <profile> <ID> ...`.

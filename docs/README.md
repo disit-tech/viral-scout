@@ -2,6 +2,7 @@
 
 | Doc | For |
 |---|---|
+| [Video quality framework](video-quality-framework.md) | The 5 tests, 20 criteria and the 100-point scorecard, structure, production standards, testing, and what each one is measured with |
 | [Marketing workflow](marketing-workflow.md) | Using viral-scout every week: from "what's viral" to a filmed video |
 | [Originality and duplicate detection](originality-and-duplicate-detection.md) | How Instagram, TikTok and YouTube detect reposts and copies, what happens, and how to stay original |
 | [Dashboard](dashboard.md) | The web UI: local with actions, or published read-only on Vercel (free) |

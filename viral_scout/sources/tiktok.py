@@ -43,7 +43,8 @@ def _item(d, found_by):
         title=(d.get("text") or "").split("\n")[0][:140],
         channel="@" + handle if handle else "", channel_url=f"https://www.tiktok.com/@{handle}" if handle else "",
         followers=author.get("fans"), views=d.get("playCount"), likes=d.get("diggCount"),
-        comments=d.get("commentCount"), duration=(d.get("videoMeta") or {}).get("duration"),
+        comments=d.get("commentCount"),
+        shares=d.get("shareCount"), saves=d.get("collectCount"), duration=(d.get("videoMeta") or {}).get("duration"),
         published=parse_date(d.get("createTimeISO") and int(_iso(d["createTimeISO"])) or d.get("createTime")),
         found_by=[found_by],
     )

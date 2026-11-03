@@ -6,6 +6,8 @@ import { aiMentions, embedUrl, whyNotable } from "@/lib/analysis";
 import { age, deObsidian, num, tier, times } from "@/lib/format";
 import GrowthChart from "@/components/GrowthChart";
 import PostActions from "@/components/PostActions";
+import ScorecardView from "@/components/ScorecardView";
+import FiveTests from "@/components/FiveTests";
 
 export async function generateStaticParams() {
   const out: { name: string; id: string }[] = [];
@@ -91,6 +93,15 @@ export default async function VideoPage({ params }: { params: Promise<{ name: st
             </Section>
           )}
 
+          <Section title="The 5 tests">
+            <FiveTests item={item} />
+            <p className="mt-2 text-[11px] text-muted">For someone else&apos;s video these use public signals; watch time, clicks and sales stay private to the creator.</p>
+          </Section>
+
+          <Section title="Creative scorecard (100 points)">
+            <ScorecardView card={item.scorecard} cmd={`/viral-scout ${name} score ${item.id}`} />
+          </Section>
+
           <Section title="Numbers">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Metric label="Views" value={num(item.views)} />
@@ -105,6 +116,8 @@ export default async function VideoPage({ params }: { params: Promise<{ name: st
               <Metric label="× pace" value={times(item.vs_pace)} hint="vs the creator's usual views/day (YouTube API)" />
               <Metric label="Followers" value={num(item.followers)} />
               <Metric label="Words / min" value={item.wpm ? String(item.wpm) : "—"} hint="speaking pace" />
+              {item.shares != null && <Metric label="Share rate" value={item.views ? `${((item.shares / item.views) * 100).toFixed(2)}%` : num(item.shares)} hint="shares ÷ views (TikTok only)" />}
+              {item.saves != null && <Metric label="Save rate" value={item.views ? `${((item.saves / item.views) * 100).toFixed(2)}%` : num(item.saves)} hint="saves ÷ views (TikTok only)" />}
             </div>
           </Section>
 

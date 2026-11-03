@@ -69,6 +69,14 @@ def main(argv=None):
     co.add_argument("profile")
     co.add_argument("query", nargs="?")
     co.add_argument("--near")
+    ck = sub.add_parser("check", help="pre-publish check of your own video file (technical, pacing, sound, script)")
+    ck.add_argument("profile")
+    ck.add_argument("file")
+    ck.add_argument("--platform", default="any", choices=["any", "tiktok", "reels", "shorts"])
+    sc = sub.add_parser("score", help="creative scorecard: show, template, or set (JSON on stdin)")
+    sc.add_argument("action", choices=["show", "set", "template"])
+    sc.add_argument("profile", nargs="?")
+    sc.add_argument("post_id", nargs="?")
     ke = sub.add_parser("keys", help="API key status / test / set")
     ke.add_argument("rest", nargs="*")
     sub.add_parser("profiles", help="list profiles")
@@ -80,6 +88,27 @@ def main(argv=None):
         if len(rest) == 3 and rest[0] == "set" and rest[2] == "-":      # value from stdin (not in the process list)
             rest[2] = sys.stdin.readline().strip()
         return keys.cli(rest)
+
+    if args.cmd == "score":
+        import json as _json
+        from . import scorecard
+        if args.action == "template":
+            print(_json.dumps(scorecard.template(), ensure_ascii=False, indent=1))
+            return 0
+        if args.action == "set":
+            card = scorecard.save(args.profile, args.post_id, _json.loads(sys.stdin.read()))
+            print(f"{args.post_id}: {card['total']}/100 · {card['verdict']}")
+            try:
+                from .export import export_all
+                export_all([args.profile])
+            except Exception:
+                pass
+            return 0
+        data = scorecard.load(args.profile)
+        for pid, c in data.items():
+            if not args.post_id or pid == args.post_id:
+                print(f"{pid}: {c.get('total')}/100 · {c.get('verdict')} · {c.get('summary', '')[:80]}")
+        return 0
 
     if args.cmd == "search":
         import json as _json
@@ -119,6 +148,20 @@ def main(argv=None):
         return 0
 
     cfg = config.load(args.profile)
+    if args.cmd == "check":
+        from .check import run_check
+        rep, note = run_check(cfg, args.file, args.platform)
+        icon = {"pass": "✅", "warn": "⚠️", "fail": "❌"}
+        for r in rep["results"]:
+            print(f"{icon[r['status']]} {r['area']}: {r['detail']}")
+        print(f"report: {note}")
+        print(f"id: check:{rep['slug']}")
+        try:
+            from .export import export_all
+            export_all([cfg["name"]])
+        except Exception:
+            pass
+        return 0
     if args.cmd == "competitors":
         from . import places
         if not places.available():

@@ -99,12 +99,27 @@ def profile(cfg):
         swipe.append(_jsonable(dict(fm, file=p.name, body=body)))
 
     sections = latest.get("sections") or _sections(items, cfg["report"]["top"])
+    from . import scorecard
+    scores = scorecard.load(cfg["name"])
+    for it in items:
+        if it["id"] in scores:
+            it["scorecard"] = scores[it["id"]]
+    checks = []
+    cdir = config.ROOT / "data" / "checks" / cfg["name"]
+    if cdir.exists():
+        for f in sorted(cdir.glob("*/check.json"), reverse=True)[:30]:
+            c = json.loads(f.read_text(encoding="utf-8"))
+            c.pop("file", None)                      # local path stays local
+            c["frames"] = []                         # images aren't exported
+            c["scorecard"] = scores.get(f"check:{c['slug']}")
+            checks.append(c)
     return {
         "name": cfg["name"],
         "business": (cfg.get("business") or "").strip(),
         "date": latest.get("date"),
         "items": items,
         "sections": sections,
+        "checks": checks,
         "suggested_hashtags": latest.get("suggested_hashtags", []),
         "repeat_creators": latest.get("repeat_creators", []),
         "skipped": latest.get("skipped", []),
