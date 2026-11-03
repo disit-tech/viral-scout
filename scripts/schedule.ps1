@@ -18,6 +18,8 @@ if (-not $pwsh) { $pwsh = (Get-Command powershell).Source }
 $existing = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "viral-scout *" }
 if ($Remove) { $existing | Unregister-ScheduledTask -Confirm:$false; "removed $($existing.Count) tasks"; return }
 if (-not $Profiles) { throw "Pass -Profiles name1,name2" }
+# `pwsh -File` passes "a,b,c" as one string: split it.
+$Profiles = @($Profiles | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
 $settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 $at = [datetime]::ParseExact($Start, "HH:mm", $null)
