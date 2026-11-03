@@ -6,7 +6,11 @@
 export const SESSION_COOKIE = "vs_session";
 const DAY = 86_400_000;
 
+/** Public demo deployments (sample data only) skip the login: VIRAL_SCOUT_PUBLIC_DEMO=1. */
+export const isPublicDemo = process.env.VIRAL_SCOUT_PUBLIC_DEMO === "1";
+
 export function authRequired(): boolean {
+  if (isPublicDemo) return false;
   return Boolean(process.env.SITE_PASSWORD) || Boolean(process.env.VERCEL);
 }
 

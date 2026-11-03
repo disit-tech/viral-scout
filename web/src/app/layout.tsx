@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { isLocal } from "@/lib/data";
+import { isPublicDemo } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: { default: "Viral Scout", template: "%s · Viral Scout" },
@@ -29,10 +30,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/setup" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Setup</Link>
             </nav>
             <span className={`ml-auto hidden rounded-full sm:inline border px-2.5 py-0.5 text-xs ${isLocal ? "border-above/40 text-above" : "border-line text-muted"}`}>
-              {isLocal ? "local · actions on" : "published · read-only"}
+              {isLocal ? "local · actions on" : isPublicDemo ? "demo · read-only" : "published · read-only"}
             </span>
           </div>
         </header>
+        {isPublicDemo && (
+          <div className="border-b border-line bg-panel-2 px-4 py-2 text-center text-xs text-muted">
+            Public demo with sample data: two example businesses, real public YouTube posts. Read-only.{" "}
+            <a href="https://github.com/disit-tech/viral-scout" className="text-rise underline">Source on GitHub</a>
+          </div>
+        )}
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
         <footer className="mx-auto max-w-7xl px-4 pb-10 pt-4 text-xs text-muted">
           Data from public posts (yt-dlp), official APIs and Apify. Viral posts are references for formats, never footage to reuse.
