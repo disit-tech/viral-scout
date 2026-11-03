@@ -1,0 +1,38 @@
+# Example: an online English school. Copy to profiles/<yours>.yaml (business profiles are git-ignored).
+name: example-language-school
+
+discover:
+  youtube:
+    window: month
+    shorts: true
+    per_query: 30
+    keywords:
+      - english idioms
+      - how native speakers say
+      - stop saying in english
+      - english phrases for everyday life
+      - american english phrases
+    hashtags: [englishidioms, learnenglish, englishteacher, americanenglish, englishphrases, englishvocabulary]
+  tiktok:
+    keywords: [english idioms]
+    hashtags: [englishidioms, learnenglish]
+
+watch:
+  youtube: []
+  instagram: []
+  tiktok: []
+
+seeds: []
+
+filters:
+  min_views: 5000
+  max_age_days: 45
+  must_match: english|idiom|phrase|pronunc|vocab|grammar|accent|native speaker|slang|word|speak
+  exclude:
+    - ielts|toefl|for kids
+    - '🔴|\blive:|24/7'
+    - \bnews\b|election
+
+enrich_top: 60
+recheck: {max_age_days: 30, limit: 60}
+report: {top: 25}

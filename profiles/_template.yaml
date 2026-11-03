@@ -1,0 +1,33 @@
+# Copy to profiles/<business>.yaml and fill in. Everything except keywords/hashtags is optional.
+name: mybusiness
+output_dir: ${OBSIDIAN_VAULT}/projects/mybusiness/marketing/viral   # default: reports/<name>/
+
+discover:
+  youtube:
+    window: month          # hour | today | week | month | year
+    shorts: true           # under 4 minutes
+    per_query: 30
+    keywords: []           # needs YOUTUBE_API_KEY for Shorts
+    languages: {}          # keyword: ISO language code (ru, uk, es...) for the API's relevanceLanguage
+    # region: US           # optional regionCode for the API
+    hashtags: []           # work without a key
+  tiktok:                  # needs APIFY_TOKEN
+    keywords: []
+    hashtags: []
+
+watch:
+  youtube: []              # @handle, channel URL or UC... id
+  instagram: []            # usernames; needs IG_GRAPH_TOKEN
+  tiktok: []               # usernames; needs APIFY_TOKEN
+
+seeds: []                  # post URLs to track
+
+filters:
+  min_views: 5000
+  max_age_days: 45
+  must_match: ""           # regex; title without hashtags + channel must match (topic check)
+  exclude: []              # regexes on title + channel
+
+enrich_top: 60             # YouTube videos to open for likes/comments/date/subscribers
+recheck: {max_age_days: 30, limit: 60}
+report: {top: 25}
