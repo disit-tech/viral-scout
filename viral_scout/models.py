@@ -26,6 +26,11 @@ class Item:
     caption_url: str = ""                          # public caption track (json3), fetched only for top posts
     transcript: str = ""
     hook: str = ""                                 # what is said in the first seconds
+    cta: str = ""                                  # what is said in the last seconds (call to action)
+    wpm: Optional[float] = None                    # speaking pace, words per minute
+    creator_pct: Optional[float] = None            # share of the creator's recent posts this one beats (0–100)
+    thumb_url: str = ""                            # thumbnail for non-YouTube posts (from yt-dlp)
+    frame: str = ""                                # local copy of the thumbnail/first frame (for on-screen text)
 
     @property
     def key(self):
@@ -96,12 +101,14 @@ class Item:
 
     @property
     def thumbnail(self):
-        return f"https://i.ytimg.com/vi/{self.id}/hqdefault.jpg" if self.platform == "youtube" else ""
+        if self.platform == "youtube":
+            return f"https://i.ytimg.com/vi/{self.id}/hqdefault.jpg"
+        return self.thumb_url
 
     def merge(self, other: "Item"):
         for f in ("title", "channel", "channel_url", "channel_id", "followers", "views", "likes",
                   "comments", "duration", "published", "channel_median", "description", "caption_url",
-                  "transcript", "hook"):
+                  "transcript", "hook", "cta", "wpm", "creator_pct", "thumb_url", "frame"):
             v = getattr(other, f)
             if v not in (None, "") and getattr(self, f) in (None, ""):
                 setattr(self, f, v)

@@ -16,10 +16,11 @@ Args: `<profile> [analyze] [urls...]`. No profile → `python -m viral_scout pro
 ## 2. Analyze (the part that makes it useful)
 Read the profile (`business:`, `taste_note:` if set) and the latest JSON. Take the strongest 8–10 posts: Rising now first, then Outliers (🔥/⚡), then Fastest. Skip off-topic ones the filters missed (and offer `dismiss`).
 
-For each, from title + hook + transcript (+ description):
+For each, from title + hook + CTA + transcript (+ description), **and look at its `frame` image** (Read the local path in the JSON): many Shorts/reels carry the hook as on-screen text ("CRISPS vs FRIES vs CHIPS") or show the format visually (split screen, before/after, text cards). Note the on-screen text and visual format. Use `wpm` (pace) and `creator_pct` (how it ranks among the creator's posts) when they explain why it worked.
 - **Format** (one of: talking head tip, skit/POV, A-vs-B contrast, list/phrase pack, myth-buster, reaction, story, tutorial, question-to-comments, other)
 - **Hook type** (question, bold claim, mistake call-out, contrast, relatable situation, curiosity gap, shock) and the hook words
-- **Structure** in 3 beats (hook → body → payoff/CTA) and **why people watch to the end**
+- **On-screen text / visual** (from the frame)
+- **Structure** in 3 beats (hook → body → payoff/CTA; the `cta` field is what's said in the last 5 s) and **why people watch to the end**
 
 Then write **5 ideas adapted to the business**: each with title, which viral post it borrows from (link), hook line (in the language the business films in), 3-beat outline, on-screen text, and why it fits `business:`. Respect the taste note and hard rules (e.g. never reuse others' footage).
 
@@ -35,6 +36,9 @@ Write it to the vault next to the report as `<date>-viral-ideas.md` (frontmatter
 
 ## New business
 Copy `profiles/_template.yaml` to `profiles/<name>.yaml` (git-ignored). Fill `business:`, keywords (formats + the customer's situations, in every language the audience speaks, with `languages:`), hashtags, `must_match` (topic words, so hashtag spam is dropped), `exclude`, `output_dir`/`swipe_dir` in the vault. Run once, tune the filters from what slipped through.
+
+## MCP alternative
+If the `viral-scout` MCP server is connected (`claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py`), the same steps are tools: list_profiles, start_run → get_job (poll ~30 s), get_results, get_post, get_ideas, save_post, dismiss_posts, track_links, set_swipe_status, usage.
 
 ## Rules
 - Never call Instagram's or TikTok's private web APIs or spoof headers; only yt-dlp on public posts, the official APIs, or Apify.

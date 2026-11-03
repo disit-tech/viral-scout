@@ -11,6 +11,7 @@ from .models import Item
 
 HOOK_SECONDS = 4.0
 HOOK_MAX_WORDS = 25
+CTA_SECONDS = 5.0
 
 
 def _clean(text):
@@ -18,23 +19,35 @@ def _clean(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def from_json3(data):
-    """json3 caption events → (full transcript, hook)."""
-    words_hook, parts = [], []
+def split(segments, duration=None):
+    """[(start_s, text)] → dict(transcript, hook, cta, wpm). Hook = first 4 s, CTA = last 5 s (Apify-style)."""
+    segments = [(t, x) for t, x in segments if x and x.strip()]
+    if not segments:
+        return {"transcript": "", "hook": "", "cta": "", "wpm": None}
+    full = _clean(" ".join(x for _, x in segments))
+    hook = _clean(" ".join(x for t, x in segments if t < HOOK_SECONDS)) or _clean(segments[0][1])
+    end = duration or segments[-1][0] + 2
+    cta = _clean(" ".join(x for t, x in segments if t >= end - CTA_SECONDS)) if end > 2 * CTA_SECONDS else ""
+    words = hook.split()
+    if len(words) > HOOK_MAX_WORDS:
+        hook = " ".join(words[:HOOK_MAX_WORDS]) + "…"
+    span = max(end - segments[0][0], 1)
+    wpm = round(len(full.split()) / span * 60) if span >= 5 else None
+    return {"transcript": full[:4000], "hook": hook, "cta": cta[:300] if cta != hook else "", "wpm": wpm}
+
+
+def from_json3(data, duration=None):
+    """json3 caption events → split()."""
+    segs = []
     for ev in data.get("events") or []:
-        start = (ev.get("tStartMs") or 0) / 1000
         seg = "".join(s.get("utf8", "") for s in ev.get("segs") or [])
-        if not seg.strip():
-            continue
-        parts.append(seg)
-        if start < HOOK_SECONDS:
-            words_hook.append(seg)
-    full = _clean(" ".join(parts))
-    hook = _clean(" ".join(words_hook)) or full
-    hook_words = hook.split()
-    if len(hook_words) > HOOK_MAX_WORDS:
-        hook = " ".join(hook_words[:HOOK_MAX_WORDS]) + "…"
-    return full, hook
+        if seg.strip():
+            segs.append(((ev.get("tStartMs") or 0) / 1000, seg))
+    return split(segs, duration)
+
+
+def apply(item, parts):
+    item.transcript, item.hook, item.cta, item.wpm = parts["transcript"], parts["hook"], parts["cta"], parts["wpm"]
 
 
 class RateLimited(Exception):
@@ -51,8 +64,7 @@ def fill(item: Item, errors=None, captions=True):
             if r.status_code == 429:
                 raise RateLimited()
             if r.ok:
-                item.transcript, item.hook = from_json3(r.json())
-                item.transcript = item.transcript[:4000]
+                apply(item, from_json3(r.json(), item.duration))
                 if item.transcript:
                     return
         except (requests.RequestException, ValueError) as err:

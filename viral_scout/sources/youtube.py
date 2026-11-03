@@ -90,6 +90,14 @@ def median_views(items):
     return statistics.median(v) if len(v) >= 3 else None
 
 
+def percentile(views, recent_views):
+    """Share of the creator's recent posts this view count beats (0–100), like Virlo's percentile."""
+    v = [x for x in recent_views if x]
+    if views is None or len(v) < 3:
+        return None
+    return round(100 * sum(1 for x in v if x < views) / len(v))
+
+
 BLOCKED = {"hit": False}      # set once YouTube asks to "confirm you're not a bot": stop opening videos this run
 
 

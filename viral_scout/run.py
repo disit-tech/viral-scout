@@ -3,7 +3,7 @@ import re
 import time
 from collections import Counter
 
-from . import alerts, report, swipe, transcripts
+from . import alerts, frames, report, swipe, transcripts, usage, whisper
 from .db import Store
 from .sources import instagram, links, tiktok, youtube, youtube_api
 
@@ -15,6 +15,7 @@ def _log(msg, quiet):
 
 def scout(cfg, quiet=False, recheck=True, discover=True):
     errors, skipped = [], []
+    usage.reset()
     pool = {}                       # key -> Item
     tracked = set()
     watched = set()
@@ -65,8 +66,10 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         _log(f"watch: YouTube {ch}", quiet)
         recent = youtube.channel_recent(ch, 30, errors)
         med = youtube.median_views(recent)
+        vs = [r.views for r in recent]
         for it in recent:
             it.channel_median = med
+            it.creator_pct = youtube.percentile(it.views, vs)
         add(recent, is_watch=True)
         time.sleep(0.5)
     if cfg["watch"]["instagram"]:
@@ -153,8 +156,10 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
     seen_ch = {}
     for it in top:
         if it.channel_url not in seen_ch:
-            seen_ch[it.channel_url] = youtube.median_views(youtube.channel_recent(it.channel_url, 30, []))
-        it.channel_median = seen_ch[it.channel_url]
+            recent = youtube.channel_recent(it.channel_url, 30, [])
+            seen_ch[it.channel_url] = (youtube.median_views(recent), [r.views for r in recent])
+        it.channel_median, vs = seen_ch[it.channel_url]
+        it.creator_pct = youtube.percentile(it.views, vs)
 
     # 7. Velocity, then transcripts for the posts that make the report, then history.
     for it in pool.values():
@@ -172,6 +177,7 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         if cached and cached[1]:                 # only a real transcript is final; fallbacks are retried
             it.hook, it.transcript = cached[0] or "", cached[1]
             it.description = cached[2] or it.description
+            it.cta, it.wpm = cached[3] or "", cached[4]
             continue
         if it.platform == "youtube" and not it.caption_url and captions_ok:
             youtube.enrich(it, errors)       # API finds come without caption links
@@ -189,6 +195,25 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
     if fetched:
         _log(f"transcripts: {fetched} posts", quiet)
 
+    # Local Whisper for posts with no captions (Instagram/TikTok audio first), if enabled and installed.
+    tcfg = cfg.get("transcribe") or {}
+    if tcfg.get("whisper"):
+        if whisper.available():
+            todo = [i for i in chosen if not i.transcript and i.platform != "youtube"]
+            todo += [i for i in chosen if not i.transcript and i.platform == "youtube" and captions_ok]
+            todo = todo[: tcfg.get("max_per_run", 8)]
+            if todo:
+                _log(f"whisper: transcribing {len(todo)} posts locally", quiet)
+            for it in todo:
+                whisper.transcribe(it, cfg, errors)
+        else:
+            skipped.append("Local transcription: transcribe.whisper is on but faster-whisper isn't installed "
+                           "(pip install faster-whisper).")
+
+    # Local copies of thumbnails for on-screen text (read by the skill).
+    for it in chosen[: cfg["report"].get("frames", 30)]:
+        frames.fetch(cfg, it, errors)
+
     new_keys = set()
     for it in pool.values():
         if not store.seen_before(it.key):
@@ -203,6 +228,13 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         "items": list(pool.values()), "tracked": tracked, "watched": watched, "new": new_keys,
         "errors": errors, "skipped": skipped, "repeat_creators": [c for c, n in creators.most_common(15) if n >= 2],
     }
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    result["usage"] = usage.snapshot()
+    result["budget"] = usage.warnings(
+        cfg,
+        store.usage_since(now.strftime("%Y-%m-%dT00:00:00"), "youtube_api_units") + usage.COUNTS["youtube_api_units"],
+        store.usage_since(now.strftime("%Y-%m-01T00:00:00"), "apify_items") + usage.COUNTS["apify_items"])
     paths = report.write(cfg, result)
     if cfg.get("alerts"):
         if alerts.available(cfg):
@@ -214,7 +246,8 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
                 _log(f"alerts: sent {len(hits)}", quiet)
         else:
             _log("alerts: skipped (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)", quiet)
-    store.log_run(cfg["name"], {"items": len(pool), "errors": len(errors), "report": paths[0]})
+    store.log_run(cfg["name"], {"items": len(pool), "errors": len(errors), "report": paths[0],
+                                "usage": usage.snapshot()})
     try:                                   # keep the web dashboard's data fresh
         from .export import export_all
         export_all([cfg["name"]])

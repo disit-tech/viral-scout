@@ -38,6 +38,8 @@ Optional sources never fail a run. If a key is missing, the source is listed und
 | `rise_per_day` | (reach now − reach at the previous snapshot) ÷ days between them | ignored if the snapshots are under ~1 h apart; needs two runs |
 | `engagement` | (likes + comments) ÷ views | |
 | `early` ⏳ | age < 6 h | |
+| `creator_pct` | share of the creator's recent posts with fewer views (0–100) | Virlo/TubeLab-style percentile |
+| `wpm` | words in the transcript ÷ speaking time × 60 | pace; fast talkers vs slow explainers |
 
 Report sections:
 - **Rising now:** sorted by `rise_per_day`.
@@ -49,6 +51,9 @@ Report sections:
 ## Hooks and transcripts (`viral_scout/transcripts.py`)
 
 - **YouTube:** yt-dlp lists the public caption tracks. We pick the track in the **video's own language**: first `<lang>-orig`, then `<lang>`, then en/ru/uk/es, then any `-orig`. AI-dubbed videos list many `-orig` tracks, so the language has to come first. The `json3` track is downloaded. Text that starts before **4.0 s** becomes the hook (at most 25 words), and the whole text is the transcript (at most 4,000 characters).
+- **Hook / CTA:** text starting before 4 s is the hook; text in the last 5 s is the CTA (`cta`).
+- **Local Whisper** (optional): posts still without a transcript (Instagram/TikTok first) are transcribed from their public audio with faster-whisper, up to `transcribe.max_per_run` per run.
+- **Frames:** thumbnails of the report's posts are cached in `data/frames/<profile>/`, so the skill can read on-screen text with Claude's vision.
 - **Instagram/TikTok:** there are no public captions, so the first line of the post caption (8+ words, hashtags removed) stands in for the hook.
 - **Throttling:** captions are fetched only for posts that make the report (`report.transcripts`, default 40), 2 seconds apart. The first HTTP 429 stops caption fetching for the rest of the run, and those posts are retried next run. Only a real transcript is cached as final.
 
@@ -82,6 +87,11 @@ Report sections:
 | `transcripts.py` | captions → hook + transcript |
 | `swipe.py` | swipe notes + `swipe.base` |
 | `alerts.py` | Telegram |
+| `whisper.py` | local transcription (optional) |
+| `frames.py` | thumbnail / first-frame cache |
+| `usage.py` | per-run counters and budget warnings |
+| `export.py` | data for the dashboard |
+| `mcp_server.py` | MCP tools |
 | `ytdlp.py` | loads yt-dlp (the clone in `$VIRAL_SCOUT_YTDLP`, or the pip package) |
 | `sources/youtube.py` | hashtag feeds, channel lists, enrichment, caption link (yt-dlp) |
 | `sources/youtube_api.py` | YouTube Data API search |

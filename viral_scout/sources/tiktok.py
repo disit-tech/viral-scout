@@ -26,7 +26,10 @@ def _run(payload, label, errors):
         if r.status_code >= 400:
             errors.append(f"{label}: Apify HTTP {r.status_code} {r.text[:200]}")
             return []
-        return r.json()
+        rows = r.json()
+        from .. import usage
+        usage.add("apify_items", len(rows) if isinstance(rows, list) else 0)
+        return rows
     except (requests.RequestException, ValueError) as err:
         errors.append(f"{label}: {err}")
         return []

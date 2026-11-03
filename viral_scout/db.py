@@ -23,7 +23,7 @@ class Store:
         self.db = sqlite3.connect(path)
         self.db.executescript(SCHEMA)
         cols = {r[1] for r in self.db.execute("pragma table_info(items)")}
-        for col in ("hook", "transcript", "description"):
+        for col in ("hook", "transcript", "description", "cta", "wpm"):
             if col not in cols:
                 self.db.execute(f"alter table items add column {col} text")
         for col in ("dismissed", "saved", "alerted"):
@@ -87,11 +87,21 @@ class Store:
 
     def text(self, key):
         """Cached (hook, transcript, description) for a post."""
-        return self.db.execute("select hook, transcript, description from items where key=?", (key,)).fetchone()
+        return self.db.execute("select hook, transcript, description, cta, wpm from items where key=?", (key,)).fetchone()
 
     def save_text(self, item: Item):
-        self.db.execute("update items set hook=?, transcript=?, description=? where key=?",
-                        (item.hook, item.transcript, item.description, item.key))
+        self.db.execute("update items set hook=?, transcript=?, description=?, cta=?, wpm=? where key=?",
+                        (item.hook, item.transcript, item.description, item.cta, item.wpm, item.key))
+
+    def usage_since(self, since_iso, key):
+        """Sum of a usage counter over runs since a timestamp (runs.summary.usage)."""
+        total = 0
+        for (summary,) in self.db.execute("select summary from runs where ts>=?", (since_iso,)):
+            try:
+                total += (json.loads(summary or "{}").get("usage") or {}).get(key, 0)
+            except ValueError:
+                pass
+        return total
 
     def find(self, ref):
         """A post by id, key or URL → (key, url) or None."""

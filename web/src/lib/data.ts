@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { IndexEntry, Profile } from "./types";
 
-const DATA = path.join(process.cwd(), "data");
+const DATA = path.join(process.cwd(), process.env.VIRAL_SCOUT_DATA_DIR || "data");
 
 export async function loadIndex(): Promise<{ exported: string | null; profiles: IndexEntry[] }> {
   try {

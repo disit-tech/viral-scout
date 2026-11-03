@@ -18,7 +18,12 @@ def available():
     return bool(os.environ.get("YOUTUBE_API_KEY"))
 
 
+COST = {"search": 100, "videos": 1, "channels": 1}
+
+
 def _get(path, params, errors, label):
+    from .. import usage
+    usage.add("youtube_api_units", COST.get(path, 1))
     params = dict(params, key=os.environ["YOUTUBE_API_KEY"])
     try:
         r = requests.get(f"{API}/{path}", params=params, timeout=30)

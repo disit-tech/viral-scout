@@ -22,6 +22,9 @@ export type Item = {
   engagement: number | null;
   found_by: string[];
   hook?: string;
+  cta?: string;
+  wpm?: number | null;
+  creator_pct?: number | null;
   transcript?: string;
   description?: string;
   new: boolean;

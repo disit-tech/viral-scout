@@ -65,6 +65,20 @@ alerts:
 ### Your own cookies (only if needed)
 `VIRAL_SCOUT_COOKIES=path/to/cookies.txt` passes **your own** Netscape cookies file to yt-dlp, for when a site starts asking for a login on public posts. viral-scout never reads your browser's cookies by itself.
 
+## Local transcription (optional, free)
+`pip install faster-whisper`, then add `transcribe: {whisper: true, model: base}` to the profile. Posts without captions (Instagram reels, TikTok, uncaptioned Shorts) are transcribed on the CPU: about 5 s per minute of audio with `base`. The model downloads once (~150 MB). Audio is decoded with the system `ffmpeg`, which must be on PATH, and the file is deleted straight after.
+
+## MCP server (optional)
+`pip install mcp`, then register it once in Claude Code:
+```
+claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py
+```
+The launcher works from any folder. It gives Claude (or any MCP client) these tools:
+- `list_profiles`
+- `start_run`, then `get_job` (runs take minutes, so the client starts one and polls)
+- `get_results`, `get_post`, `get_ideas`, `usage`
+- `save_post`, `dismiss_posts`, `track_links`, `set_swipe_status`
+
 ## Scheduling
 
 ### Windows (Task Scheduler)

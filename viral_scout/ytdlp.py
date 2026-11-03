@@ -46,6 +46,8 @@ def extract(url, flat=False, limit=None):
     cookies = os.environ.get("VIRAL_SCOUT_COOKIES")
     if cookies and os.path.isfile(cookies):
         opts["cookiefile"] = cookies
+    from . import usage
+    usage.add("page_requests")
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             return ydl.extract_info(url, download=False)

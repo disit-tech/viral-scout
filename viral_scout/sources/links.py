@@ -55,6 +55,7 @@ def fetch(url, found_by="seed", errors=None):
         found_by=[found_by],
         description=(info.get("description") or "")[:2000],
         caption_url=_caption(info),
+        thumb_url=info.get("thumbnail") or "",
     )
 
 

@@ -82,6 +82,15 @@ def hooks(items, new, limit):
         if it.hook:
             out.append(f"> **Hook:** {it.hook}")
             out.append("")
+        if it.cta:
+            out += [f"> **Ending / CTA:** {it.cta}", ""]
+        extras = []
+        if it.wpm:
+            extras.append(f"{it.wpm} words/min")
+        if it.creator_pct is not None:
+            extras.append(f"beats {it.creator_pct:.0f}% of the creator's recent posts")
+        if extras:
+            out += ["_" + " · ".join(extras) + "_", ""]
         if it.transcript and it.transcript != it.hook:
             t = it.transcript if len(it.transcript) <= 700 else it.transcript[:700] + "…"
             out += ["> [!quote]- Transcript", "> " + t, ""]
@@ -143,6 +152,11 @@ def write(cfg, res):
     if res["repeat_creators"]:
         lines += ["## Creators who keep showing up (candidates for the watch list)", "",
                   ", ".join(res["repeat_creators"]), ""]
+    u = res.get("usage") or {}
+    if u or res.get("budget"):
+        lines += ["## Usage this run", "",
+                  " · ".join(f"{k.replace('_', ' ')}: {v:,}" for k, v in sorted(u.items())) or "nothing counted", ""]
+        lines += [f"- ⚠️ {w}" for w in res.get("budget") or []] + [""]
     if res["skipped"]:
         lines += ["## Skipped sources", ""] + [f"- {s}" for s in res["skipped"]] + [""]
     if res["errors"]:
@@ -161,13 +175,16 @@ def write(cfg, res):
                 "weighted": it.weighted, "thumbnail": it.thumbnail, "duration": it.duration, "early": it.early,
                 "channel_median": it.channel_median, "description": it.description[:500],
                 "engagement": it.engagement, "found_by": it.found_by, "hook": it.hook,
-                "transcript": it.transcript, "new": it.key in new,
+                "transcript": it.transcript, "cta": it.cta, "wpm": it.wpm,
+                "creator_pct": it.creator_pct, "frame": it.frame, "new": it.key in new,
                 "tracked": it.key in tracked, "watched": it.key in watched}
 
     data = Path(cfg["db"]).parent / f"{cfg['name']}-latest.json"
     data.write_text(json.dumps({"date": now.isoformat(), "report": str(md), "items": [js(i) for i in items],
                                 "sections": {k: [i.key for i in v] for k, v in sec.items()},
                                 "suggested_hashtags": sug, "repeat_creators": res["repeat_creators"],
-                                "skipped": res["skipped"], "errors": res["errors"]}, ensure_ascii=False, indent=1),
+                                "skipped": res["skipped"], "errors": res["errors"],
+                                "usage": res.get("usage", {}), "budget": res.get("budget", [])},
+                               ensure_ascii=False, indent=1),
                     encoding="utf-8")
     return str(md), str(data)

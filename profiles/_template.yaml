@@ -47,3 +47,9 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 #   min_rise_per_day: 50000
 #   min_per_day: ""        # optional: views/day threshold
 #   max: 5
+
+# Local speech-to-text for posts without public captions (Instagram/TikTok audio). pip install faster-whisper
+# transcribe: {whisper: true, model: base, max_per_run: 8, max_seconds: 180}
+
+# Quota meter: the report warns at 80% of these caps
+# budget: {youtube_api_units_per_day: 10000, apify_items_per_month: 500}

@@ -19,6 +19,10 @@ And it turns numbers into something you can film:
 - **Swipe file**: `save` writes one Obsidian note per post (stats, thumbnail, hook, transcript, "why it works", "our version", status idea → scripted → filmed → posted) plus a `swipe.base` table/cards view. `dismiss` hides a post from future reports.
 - **Telegram alerts** for new mega-outliers and fast risers (official Bot API; each post alerted once).
 - **Suggested hashtags** that keep appearing on the hits but aren't in your profile yet.
+- **Hook / CTA / pace**: what's said in the first 4 s and the last 5 s, plus words per minute; **percentile** among the creator's posts.
+- **Local Whisper transcripts** for Instagram/TikTok audio (optional, free, CPU) and **cached frames** so the AI step can read on-screen text.
+- **Quota meter**: YouTube API units, Apify results, requests and Whisper time per run, with warnings at 80% of your caps.
+- **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 
 ### How "viral" is scored

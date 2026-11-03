@@ -78,12 +78,21 @@ What we do that most of them don't:
 - **Per-business profiles**, including the business description the AI uses.
 - **Free on YouTube**, and **output into Obsidian**.
 
-## Not built yet (ranked)
+## Added in round 2 (after this research)
 
-1. **On-screen text (OCR)** for silent videos, where the hook is a text card. Possible approach: grab the frame at 0–1 s with ffmpeg from a public download, then Tesseract (free) or a vision LLM.
-2. **Local Whisper transcripts** for Instagram and TikTok audio, which have no public captions. The approach: download the audio of public posts with yt-dlp and run faster-whisper on the CPU.
-3. **Trending sounds and hashtags.** TikTok Creative Center doesn't export, so this would need an Apify trends actor (paid). For Instagram, Graph API hashtag search (30 a week).
-4. **Age-matched baseline** (the vidIQ approach): compare views per day with the channel's median views per day at a similar age. This needs per-video dates in channel listings, which costs more requests.
-5. **Budget tracking:** count YouTube API units and Apify results per run, and warn at 80% of a cap set in the profile.
-6. **MCP server**, so other agents can start runs and read results.
-7. **Local competitors:** use the official Google Places API to find nearby businesses in the same niche, then look up their public channels as watch-list candidates.
+| Feature | From | In viral-scout |
+|---|---|---|
+| Hook / body / **CTA** split of the transcript, **words per minute** | Apify hook scraper | `cta` (last 5 s), `wpm`; shown in the report, the dashboard and the JSON |
+| **Percentile** among the creator's recent posts | Virlo, TubeLab | `creator_pct` ("beats 87% of their posts") |
+| **Local Whisper transcripts** for Instagram/TikTok audio | ViralMint | `transcribe.whisper` (faster-whisper, CPU, int8; audio decoded by the system ffmpeg) |
+| **On-screen text** of silent hooks | Sandcastles, TubeLab (vision LLM) | thumbnails cached in `data/frames/`; the skill reads them with Claude's vision, so no OCR install is needed |
+| **Quota meter and budget warnings** | wisnuhid7 (quota meter), omivibe (80% alerts) | `usage` per run (YouTube API units, Apify results, page requests, Whisper seconds), warnings at 80% of `budget:` caps |
+| **MCP server** with start-then-poll jobs | Virlo, Sandcastles, omivibe | `python -m viral_scout.mcp_server` (11 tools) |
+| **Web dashboard** with collections and status board | 1of10, Sandcastles | `web/` (Next.js), local with actions, or read-only on Vercel |
+
+## Still not built (ranked)
+
+1. **Trending sounds and hashtags.** TikTok Creative Center has no export, so this needs an Apify trends actor (paid). For Instagram, Graph API hashtag search (30 a week).
+2. **Age-matched baseline** (vidIQ): compare views per day with the channel's median views per day at a similar age. It needs per-video dates in channel listings, which costs more requests.
+3. **Local competitors:** use the official Google Places API to find nearby businesses in the same niche, then look up their public channels as watch-list candidates.
+4. **Semantic search** over saved transcripts (TubeLab): an embeddings index of the swipe file.

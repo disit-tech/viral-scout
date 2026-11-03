@@ -80,6 +80,16 @@ export default function PostCard({ item, profile, local, onChange }: {
           <blockquote className="border-l-2 border-accent pl-2.5 text-sm italic text-text/90">“{item.hook}”</blockquote>
         )}
 
+        {(item.cta || item.wpm || item.creator_pct != null) && (
+          <div className="space-y-1 text-xs text-muted">
+            {item.cta && <p><span className="text-text/70">Ends with:</span> “{item.cta}”</p>}
+            <p className="flex flex-wrap gap-x-3">
+              {item.wpm ? <span>{item.wpm} words/min</span> : null}
+              {item.creator_pct != null ? <span>beats {Math.round(item.creator_pct)}% of their posts</span> : null}
+            </p>
+          </div>
+        )}
+
         {(item.transcript || item.description) && (
           <div>
             <button onClick={() => setOpen(!open)} className="text-xs text-rise hover:underline">
