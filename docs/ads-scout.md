@@ -122,3 +122,12 @@ Nobody outside the advertiser can see spend, conversions or ROAS. Everything bel
 - Field definitions: [Meta `ads_archive`](https://developers.facebook.com/docs/graph-api/reference/ads_archive/), [ArchivedAd fields](https://developers.facebook.com/docs/marketing-api/reference/archived-ad/), [TikTok Query Ads](https://developers.tiktok.com/doc/commercial-content-api-query-ads).
 
 All links: [references.md](references.md#ads-scout).
+
+## When you add keys: checklist
+
+1. **US ads (recommended):** create an Apify account, then on the dashboard's **Setup** page save `APIFY_TOKEN` and `APIFY_ADS_ACTOR=apify~facebook-ads-scraper`, and click **Test**. That actor charges about $3.40–5.80 per 1,000 ads, depending on your Apify plan.
+2. **Optional official EU sources:** `META_AD_LIBRARY_TOKEN` (Meta identity verification) and `TIKTOK_RESEARCH_CLIENT_KEY` / `_SECRET` (approval). These only cover ads shown in the EU.
+3. Run one profile by hand: `python -m viral_scout ads nfSolarPanels`. Check the report: advertisers found, days running, hooks and offers. The field mapping follows the actor's documented output and is covered by tests (`tests/test_ads.py`, `ApifyFacebookAdsScraperShape`). If an actor version renames a field, adjust `viral_scout/ads/sources.py` → `_meta_apify_ad`.
+4. Keep costs predictable: `ads.per_query` caps the ads fetched per advertiser or keyword (each one is a separate actor run), and `budget.apify_items_per_month` warns at 80%.
+5. **Schedule:** `scripts/run-daily.ps1` runs the ads scout **weekly** (`-AdsDay Monday` by default; `Never` turns it off), before the AI step, so the ideas note covers ads too.
+6. **Alerts:** if the profile has an `alerts:` block, competitor ads that just passed `ads.alert_days` (default 30) and are still running are sent to Telegram once each. `ads.alert_max` caps the count (default 3).

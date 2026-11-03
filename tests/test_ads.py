@@ -247,3 +247,54 @@ class RunWithoutKeys(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ApifyFacebookAdsScraperShape(unittest.TestCase):
+    """Rows shaped like the documented output of apify~facebook-ads-scraper (field names from its store page)."""
+
+    def row(self, **over):
+        r = {
+            "adArchiveID": "1234567890", "pageID": "111", "pageName": "Sunny Solar Co",
+            "startDate": int((now() - timedelta(days=75)).timestamp()), "endDate": int(now().timestamp()),
+            "isActive": True, "collationCount": 4, "publisherPlatform": ["FACEBOOK", "INSTAGRAM"],
+            "totalActiveTime": 75 * 86400,
+            "snapshot": {
+                "body": {"text": "Keep the lights on when the grid goes down. $0 down, 25-year warranty."},
+                "title": "Free Backup Power Check", "linkUrl": "https://sunnysolar.example/check?utm_source=fb",
+                "ctaText": "Learn More", "displayFormat": "VIDEO",
+                "videos": [{"videoPreviewImageUrl": "https://img.example/p.jpg", "videoHdUrl": "https://v.example/v.mp4"}],
+                "cards": [], "images": [],
+            },
+        }
+        r.update(over)
+        return r
+
+    def test_documented_row_maps(self):
+        ad = sources._meta_apify_ad(self.row(), "apify meta keyword solar", "US")
+        self.assertEqual(ad.id, "1234567890")
+        self.assertEqual(ad.advertiser, "Sunny Solar Co")
+        self.assertEqual(ad.advertiser_id, "111")
+        self.assertTrue(ad.is_active)
+        self.assertIsNone(ad.stop)                       # endDate = today on a running ad is ignored
+        self.assertGreaterEqual(ad.days_running, 74)
+        self.assertEqual(ad.variants_reported, 4)
+        self.assertEqual(ad.platforms, ["facebook", "instagram"])
+        self.assertEqual(ad.image, "https://img.example/p.jpg")
+        self.assertEqual(ad.cta_text, "Learn More")
+        self.assertIn("25-year warranty", ad.body)
+        self.assertEqual(ad.landing_domain, "sunnysolar.example")
+
+    def test_total_active_time_fallback(self):
+        r = self.row()
+        r.pop("startDate")
+        ad = sources._meta_apify_ad(r, "x", "US")
+        self.assertIsNotNone(ad.start)
+        self.assertGreaterEqual(ad.days_running, 74)
+
+    def test_scored_and_offers(self):
+        ads = [sources._meta_apify_ad(self.row(), "x", "US")]
+        extract_offers = getattr(extract, "offers", None)
+        score.enrich(ads)
+        score.score(ads)
+        self.assertGreater(ads[0].ad_score, 50)
+        self.assertTrue(any("60" in l or "🏆" in l for l in ads[0].labels))

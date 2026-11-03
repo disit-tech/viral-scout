@@ -349,6 +349,10 @@ def _meta_apify_ad(row, found_by, country):
         active = active.lower() in ("true", "active", "1")
     if active and stop and stop > now() - timedelta(days=1):
         stop = None                                  # some actors set endDate = today for running ads
+    if not start:                                    # apify~facebook-ads-scraper also gives totalActiveTime (seconds)
+        secs = parse_count(pick(row, "totalActiveTime", "total_active_time"))
+        if secs:
+            start = (stop or now()) - timedelta(seconds=secs)
     plats = pick(row, "publisherPlatform", "publisher_platform", "publisherPlatforms", "publisher_platforms", default=[])
     if isinstance(plats, str):
         plats = [plats]
