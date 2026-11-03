@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Item } from "@/lib/types";
 import { age, num, tier, times } from "@/lib/format";
 import Sparkline from "./Sparkline";
@@ -25,6 +26,7 @@ export default function PostCard({ item, profile, local, onChange }: {
   const t = tier(item.outlier);
   const reachLabel = item.views !== null ? "views" : "likes";
   const reach = item.views ?? item.likes;
+  const detail = `/p/${profile}/v/${encodeURIComponent(item.id)}`;
 
   async function act(body: ActionBody, patch: Partial<Item>) {
     if (!local) {
@@ -42,7 +44,7 @@ export default function PostCard({ item, profile, local, onChange }: {
 
   return (
     <article className={`flex flex-col overflow-hidden rounded-2xl border bg-panel transition ${item.saved ? "border-above/50" : "border-line"} ${item.dismissed ? "opacity-40" : ""}`}>
-      <a href={item.url} target="_blank" rel="noreferrer" className="relative block aspect-video bg-panel-2">
+      <Link href={detail} className="group relative block aspect-video bg-panel-2" title="Open the full analysis">
         {item.thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={item.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -55,12 +57,14 @@ export default function PostCard({ item, profile, local, onChange }: {
           {item.early && <span className="rounded-full border border-line bg-ink/90 px-2 py-0.5 text-xs text-text">⏳ early</span>}
         </div>
         <span className="absolute bottom-2 right-2 rounded bg-ink/80 px-1.5 py-0.5 text-[11px] text-muted">{PLATFORM[item.platform] ?? item.platform} · {age(item.published)}</span>
-      </a>
+        <span className="absolute inset-0 flex items-center justify-center bg-ink/0 text-sm font-semibold text-transparent transition group-hover:bg-ink/55 group-hover:text-text">Open analysis →</span>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-2.5 p-3.5">
-        <a href={item.url} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium leading-snug hover:text-accent">
-          {item.title || item.id}
-        </a>
+        <div className="flex items-start gap-2">
+          <Link href={detail} className="line-clamp-2 flex-1 font-medium leading-snug hover:text-accent">{item.title || item.id}</Link>
+          <a href={item.url} target="_blank" rel="noreferrer" title={`Open on ${PLATFORM[item.platform] ?? "the platform"}`} className="text-muted hover:text-text">↗</a>
+        </div>
         <a href={item.channel_url || undefined} target="_blank" rel="noreferrer" className="truncate text-sm text-muted hover:text-text">
           {item.channel}{item.followers ? ` · ${num(item.followers)} followers` : ""}
         </a>
