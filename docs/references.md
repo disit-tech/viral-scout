@@ -84,6 +84,20 @@ Every external source viral-scout relies on, compares itself with, or cites. URL
 
 Our rule, from these terms: public pages via yt-dlp, official APIs, or paid providers only. No private APIs, no spoofed headers, no logging in with someone's account behind their back, and other creators' footage is never reused.
 
+## Originality and duplicate detection
+
+The full write-up, with every source, is [originality-and-duplicate-detection.md](originality-and-duplicate-detection.md). Key sources:
+- Meta Rights Manager and Audible Magic: https://transparency.meta.com/reports/intellectual-property/protecting-intellectual-property-rights/
+- Instagram on reposts, watermarks and aggregators: https://creators.instagram.com/blog/tips-for-improving-your-reach
+- Facebook unoriginal content (2025): https://creators.facebook.com/blog/combating-unoriginal-content
+- YouTube Content ID: https://support.google.com/youtube/answer/2797370 · reused content policy: https://support.google.com/youtube/answer/1311392
+- TikTok integrity and authenticity: https://www.tiktok.com/community-guidelines/en/integrity-authenticity · copyright policy: https://www.tiktok.com/legal/page/global/copyright-policy/en
+- PDQ / TMK+PDQF: https://github.com/facebook/ThreatExchange/tree/main/pdq · https://about.fb.com/news/2019/08/open-source-photo-video-matching/
+- Shazam fingerprinting (Wang 2003): https://www.princeton.edu/~cuff/ele201/files/Wang03-shazam.pdf
+- Meta copy-detection challenges: https://arxiv.org/abs/2106.09672 · https://arxiv.org/abs/2306.09489
+- Remix / Duet / Stitch / Shorts remix: https://help.instagram.com/139004934231412 · https://support.tiktok.com/en/using-tiktok/creating-videos/duets · https://support.google.com/youtube/answer/10623810
+- US Copyright Office Fair Use Index: https://www.copyright.gov/fair-use/
+
 ## Scoring references
 
 | Idea | Source |

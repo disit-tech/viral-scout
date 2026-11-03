@@ -28,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/search" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Search</Link>
               <Link href="/new" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">New research</Link>
               <Link href="/setup" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Setup</Link>
+              <Link href="/docs" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Docs</Link>
             </nav>
             <span className={`ml-auto hidden rounded-full sm:inline border px-2.5 py-0.5 text-xs ${isLocal ? "border-above/40 text-above" : "border-line text-muted"}`}>
               {isLocal ? "local · actions on" : isPublicDemo ? "demo · read-only" : "published · read-only"}

@@ -6,7 +6,9 @@
     "dev": "next dev -p 3210",
     "build": "next build",
     "start": "next start -p 3210",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "predev": "node scripts/copy-docs.mjs",
+    "prebuild": "node scripts/copy-docs.mjs"
   },
   "dependencies": {
     "marked": "^15.0.0",
