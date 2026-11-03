@@ -22,6 +22,10 @@ class Item:
     found_by: list = field(default_factory=list)   # e.g. ["search:english idioms", "watch:@x", "seed"]
     channel_median: Optional[float] = None
     rise_per_day: Optional[float] = None          # view growth between our snapshots
+    description: str = ""
+    caption_url: str = ""                          # public caption track (json3), fetched only for top posts
+    transcript: str = ""
+    hook: str = ""                                 # what is said in the first seconds
 
     @property
     def key(self):
@@ -31,7 +35,7 @@ class Item:
     def age_days(self):
         if not self.published:
             return None
-        return max((datetime.now(timezone.utc) - self.published).total_seconds() / 86400, 0.25)
+        return max((datetime.now(timezone.utc) - self.published).total_seconds() / 86400, 1 / 24)
 
     @property
     def reach(self):
@@ -42,7 +46,7 @@ class Item:
     def per_day(self):
         if self.reach is None or self.age_days is None:
             return None
-        return self.reach / self.age_days
+        return self.reach / max(self.age_days, 0.25)   # under 6 h: don't extrapolate wildly
 
     @property
     def vs_followers(self):
@@ -67,9 +71,37 @@ class Item:
         """How far above normal for its creator: channel median first, else follower count."""
         return self.vs_channel or self.vs_followers
 
+    @property
+    def label(self):
+        """Outlier band, the way Virlo/vidIQ label them."""
+        o = self.outlier
+        if o is None:
+            return ""
+        return "🔥 mega" if o >= 10 else "⚡ viral" if o >= 3 else "↑ above" if o >= 1.5 else ""
+
+    @property
+    def weighted(self):
+        """ln(× usual) × ln(baseline): a 20× hit on a 50-view channel ranks below a 5× hit on a 100K channel."""
+        import math
+        o = self.outlier
+        base = self.channel_median or self.followers
+        if not o or o <= 1 or not base or base <= 1:
+            return 0.0
+        return math.log(o) * math.log(base)
+
+    @property
+    def early(self):
+        """Under 6 hours old: per-day numbers are still unreliable."""
+        return self.age_days is not None and self.age_days < 0.25
+
+    @property
+    def thumbnail(self):
+        return f"https://i.ytimg.com/vi/{self.id}/hqdefault.jpg" if self.platform == "youtube" else ""
+
     def merge(self, other: "Item"):
         for f in ("title", "channel", "channel_url", "channel_id", "followers", "views", "likes",
-                  "comments", "duration", "published", "channel_median"):
+                  "comments", "duration", "published", "channel_median", "description", "caption_url",
+                  "transcript", "hook"):
             v = getattr(other, f)
             if v not in (None, "") and getattr(self, f) in (None, ""):
                 setattr(self, f, v)

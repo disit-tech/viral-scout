@@ -22,6 +22,13 @@ class Store:
     def __init__(self, path):
         self.db = sqlite3.connect(path)
         self.db.executescript(SCHEMA)
+        cols = {r[1] for r in self.db.execute("pragma table_info(items)")}
+        for col in ("hook", "transcript", "description"):
+            if col not in cols:
+                self.db.execute(f"alter table items add column {col} text")
+        for col in ("dismissed", "saved", "alerted"):
+            if col not in cols:
+                self.db.execute(f"alter table items add column {col} integer default 0")
         self.now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
     def previous(self, key):
@@ -77,6 +84,30 @@ class Store:
                       found_by=json.loads(r[9] or "[]"))
             out.append((it, bool(r[10])))
         return out
+
+    def text(self, key):
+        """Cached (hook, transcript, description) for a post."""
+        return self.db.execute("select hook, transcript, description from items where key=?", (key,)).fetchone()
+
+    def save_text(self, item: Item):
+        self.db.execute("update items set hook=?, transcript=?, description=? where key=?",
+                        (item.hook, item.transcript, item.description, item.key))
+
+    def find(self, ref):
+        """A post by id, key or URL → (key, url) or None."""
+        return self.db.execute("select key, url from items where id=? or key=? or url=? limit 1",
+                               (ref, ref, ref)).fetchone()
+
+    def flag(self, key, col, value=1):
+        assert col in ("dismissed", "saved", "alerted", "tracked")
+        self.db.execute(f"update items set {col}=? where key=?", (value, key))
+
+    def dismissed(self):
+        return {r[0] for r in self.db.execute("select key from items where dismissed=1")}
+
+    def was_alerted(self, key):
+        r = self.db.execute("select alerted from items where key=?", (key,)).fetchone()
+        return bool(r and r[0])
 
     def log_run(self, profile, summary):
         self.db.execute("insert or replace into runs values (?,?,?)", (self.now, profile, json.dumps(summary)))

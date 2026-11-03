@@ -2,6 +2,11 @@
 name: mybusiness
 output_dir: ${OBSIDIAN_VAULT}/projects/mybusiness/marketing/viral   # default: reports/<name>/
 
+# Who the ideas are for: audience, offer, who films, language, tone, formats you like, hard rules.
+# The /viral-scout skill reads this when it turns viral formats into ideas for you.
+business: ""
+# taste_note: path to a note with likes/dislikes the skill should respect (optional)
+
 discover:
   youtube:
     window: month          # hour | today | week | month | year
@@ -30,4 +35,15 @@ filters:
 
 enrich_top: 60             # YouTube videos to open for likes/comments/date/subscribers
 recheck: {max_age_days: 30, limit: 60}
-report: {top: 25}
+report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetched per run
+
+# swipe_dir: ${OBSIDIAN_VAULT}/projects/mybusiness/marketing/swipe   # default: <output_dir>/swipe
+
+# Telegram alerts (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env, or env_file to reuse another app's bot)
+# alerts:
+#   env_file: ""
+#   min_outlier: 10        # × the creator's usual
+#   min_baseline: 1000     # creator's usual views must be at least this
+#   min_rise_per_day: 50000
+#   min_per_day: ""        # optional: views/day threshold
+#   max: 5

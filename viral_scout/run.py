@@ -3,7 +3,7 @@ import re
 import time
 from collections import Counter
 
-from . import report
+from . import alerts, report, swipe, transcripts
 from .db import Store
 from .sources import instagram, links, tiktok, youtube, youtube_api
 
@@ -100,7 +100,10 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         add([it], is_tracked=is_tracked)
         time.sleep(0.3)
 
-    # 5. Filters.
+    # 5. Filters. Dismissed posts never come back (unless tracked).
+    for key in store.dismissed() - tracked:
+        pool.pop(key, None)
+
     f = cfg["filters"]
     excl = [re.compile(p, re.I) for p in f["exclude"]]
     must = re.compile(f["must_match"], re.I) if f.get("must_match") else None
@@ -149,13 +152,46 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
             seen_ch[it.channel_url] = youtube.median_views(youtube.channel_recent(it.channel_url, 30, []))
         it.channel_median = seen_ch[it.channel_url]
 
-    # 7. Velocity and history.
-    new_keys = set()
+    # 7. Velocity, then transcripts for the posts that make the report, then history.
     for it in pool.values():
         store.add_rise(it)
+    sec = report.sections(list(pool.values()), tracked, watched, cfg["report"]["top"])
+    chosen = []
+    for group in ("rising", "outliers", "by_day", "seeds"):
+        for it in sec[group]:
+            if it not in chosen:
+                chosen.append(it)
+    chosen = chosen[: cfg["report"].get("transcripts", 40)]
+    fetched, captions_ok, limited = 0, True, False
+    for it in chosen:
+        cached = store.text(it.key)
+        if cached and cached[1]:                 # only a real transcript is final; fallbacks are retried
+            it.hook, it.transcript = cached[0] or "", cached[1]
+            it.description = cached[2] or it.description
+            continue
+        if it.platform == "youtube" and not it.caption_url and captions_ok:
+            youtube.enrich(it, errors)       # API finds come without caption links
+        try:
+            transcripts.fill(it, errors, captions=captions_ok)
+        except transcripts.RateLimited:
+            captions_ok, limited = False, True
+            transcripts.fill(it, errors, captions=False)
+        fetched += 1
+        if it.caption_url and captions_ok:
+            time.sleep(2.0)                  # be gentle: YouTube rate-limits caption downloads
+    if limited:
+        skipped.append("Some transcripts: YouTube rate-limited caption downloads (HTTP 429). "
+                       "Captions are retried next run; the post caption is shown meanwhile.")
+    if fetched:
+        _log(f"transcripts: {fetched} posts", quiet)
+
+    new_keys = set()
+    for it in pool.values():
         if not store.seen_before(it.key):
             new_keys.add(it.key)
         store.save(it, tracked=it.key in tracked)
+        if it.hook or it.transcript:
+            store.save_text(it)
     store.commit()
 
     creators = Counter(i.channel for i in pool.values() if i.channel and i.key not in watched and i.key not in tracked)
@@ -164,8 +200,63 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         "errors": errors, "skipped": skipped, "repeat_creators": [c for c, n in creators.most_common(15) if n >= 2],
     }
     paths = report.write(cfg, result)
+    if cfg.get("alerts"):
+        if alerts.available(cfg):
+            hits = alerts.pick(cfg, list(pool.values()), store)
+            if alerts.send(cfg, hits, paths[0], errors):
+                for it, _ in hits:
+                    store.flag(it.key, "alerted")
+                store.commit()
+                _log(f"alerts: sent {len(hits)}", quiet)
+        else:
+            _log("alerts: skipped (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)", quiet)
     store.log_run(cfg["name"], {"items": len(pool), "errors": len(errors), "report": paths[0]})
     return result, paths
+
+
+def save(cfg, refs, note=""):
+    """Save posts (id, key or URL) to the swipe file with fresh numbers and transcript; keep tracking them."""
+    store = Store(cfg["db"])
+    errors, out = [], []
+    for ref in refs:
+        row = store.find(ref)
+        url = row[1] if row else ref
+        if not url.startswith("http"):
+            errors.append(f"{ref}: not found in history; pass the post URL instead")
+            continue
+        it = links.fetch(url, "saved", errors)
+        if not it:
+            continue
+        cached = store.text(it.key)
+        if cached and cached[1]:
+            it.hook, it.transcript = cached[0] or "", cached[1]
+        try:
+            transcripts.fill(it, errors)
+        except transcripts.RateLimited:
+            errors.append(f"{ref}: YouTube rate-limited captions; saved without transcript (run save again later)")
+            transcripts.fill(it, errors, captions=False)
+        if it.platform == "youtube":
+            it.channel_median = youtube.median_views(youtube.channel_recent(it.channel_url, 30, [])) if it.channel_url else None
+        store.save(it, tracked=True)
+        store.save_text(it)
+        store.flag(it.key, "saved")
+        out.append(swipe.write(cfg, it, note))
+    store.commit()
+    return out, errors
+
+
+def dismiss(cfg, refs):
+    store = Store(cfg["db"])
+    done, missing = [], []
+    for ref in refs:
+        row = store.find(ref)
+        if row:
+            store.flag(row[0], "dismissed")
+            done.append(row[0])
+        else:
+            missing.append(ref)
+    store.commit()
+    return done, missing
 
 
 def add_seeds(cfg, urls):

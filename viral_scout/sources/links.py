@@ -53,4 +53,11 @@ def fetch(url, found_by="seed", errors=None):
         views=info.get("view_count"), likes=info.get("like_count"), comments=info.get("comment_count"),
         duration=info.get("duration"), published=parse_date(info.get("timestamp") or info.get("upload_date")),
         found_by=[found_by],
+        description=(info.get("description") or "")[:2000],
+        caption_url=_caption(info),
     )
+
+
+def _caption(info):
+    from .youtube import caption_url
+    return caption_url(info)

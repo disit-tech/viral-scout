@@ -10,6 +10,25 @@ It answers three questions:
 
 Plus a **watch list** of creators you follow and **seeds**: posts someone sent you, re-measured every run.
 
+And it turns numbers into something you can film:
+
+- **Hooks and transcripts**: what the strongest posts say in their first 4 seconds, and the full transcript (YouTube's public captions in the video's own language; post captions for Instagram/TikTok).
+- **AI breakdown and ideas** (the `/viral-scout` Claude Code skill): format, hook type, 3-beat structure and why people watch to the end for the top posts, then 5 ideas adapted to the business described in the profile. Runs on your Claude Code subscription; no extra API key.
+- **Swipe file**: `save` writes one Obsidian note per post (stats, thumbnail, hook, transcript, "why it works", "our version", status idea → scripted → filmed → posted) plus a `swipe.base` table/cards view. `dismiss` hides a post from future reports.
+- **Telegram alerts** for new mega-outliers and fast risers (official Bot API; each post alerted once).
+- **Suggested hashtags** that keep appearing on the hits but aren't in your profile yet.
+
+### How "viral" is scored
+
+| Measure | Formula | Why |
+|---|---|---|
+| Per day | views ÷ age (age floored at 6 h) | fair between old and new posts |
+| × usual | views ÷ the creator's **median** recent views (else ÷ followers) | median ignores the creator's own one-off hits; same idea as 1of10 / vidIQ / Virlo |
+| Labels | ↑ ≥1.5×, ⚡ ≥3×, 🔥 ≥10× | Virlo's bands |
+| Outlier rank | ln(× usual) × ln(creator baseline) | Virlo's weighting: a 20× hit on a 50-view channel ranks below 5× on a 100K channel |
+| Rise/day | growth between two runs ÷ days | what is taking off *now* |
+| ⏳ early | under 6 hours old | numbers still settling |
+
 ## Sources
 
 | Source | What | Needs |
@@ -20,6 +39,7 @@ Plus a **watch list** of creators you follow and **seeds**: posts someone sent y
 | Any post URL (Instagram reel, TikTok, YouTube) | views/likes/comments/date of one post | nothing (yt-dlp) |
 | Instagram watch list | another professional account's recent reels, likes, comments, followers | `IG_GRAPH_TOKEN` + `IG_GRAPH_USER_ID` (official Graph API, Business Discovery) |
 | TikTok discovery + watch list | hashtags, keyword search, profiles | `APIFY_TOKEN` (Apify, paid per result) |
+| Telegram alerts | push new outliers/risers | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`, or `alerts.env_file` to reuse an existing bot |
 
 What it deliberately doesn't do: call Instagram's or TikTok's private web APIs, spoof app headers, or log in with someone's account behind their back. Instagram profiles and TikTok lists only come through the official API or a paid provider that handles it.
 
@@ -35,12 +55,16 @@ Copy `.env.example` to `.env` (git-ignored):
 python -m viral_scout run <profile>              # full run → report
 python -m viral_scout run <profile> --no-discover # only watch list, seeds, re-checks
 python -m viral_scout add <profile> <url> ...      # track posts someone sent you
+python -m viral_scout save <profile> <ID|url> --note "why it works"   # → swipe file note
+python -m viral_scout dismiss <profile> <ID|url> ...                  # never show again
 python -m viral_scout profiles
 ```
 
 Requirements: Python 3.10+, `pip install -r requirements.txt`. Set `VIRAL_SCOUT_YTDLP` to a yt-dlp clone to use newer extractors than the pip package (recommended).
 
-Daily run on Windows: `scripts/run-daily.ps1 -Profile <name>` (logs in `data/logs/`). Register it in Task Scheduler with "wake the computer to run" on.
+Daily run on Windows: `scripts/run-daily.ps1 -Profile <name> [-Analyze]` (logs in `data/logs/`). `-Analyze` then runs the skill headless to write the ideas note. Register it in Task Scheduler with "wake the computer to run" on.
+
+In Claude Code: `/viral-scout <profile>` runs, analyzes and writes the ideas note; `/viral-scout <profile> analyze` only analyzes the latest run.
 
 ## Profiles
 
@@ -54,8 +78,14 @@ Filters matter: hashtag feeds are full of spam (`#english` on gaming clips). `mu
 - **Fastest new posts on the topic**: independent discovery, by views per day.
 - **Outliers**: 3× or more above the creator's usual.
 - **Tracked links**: your seeds.
+- **Hooks**: first words + transcript of the strongest posts, with thumbnails.
+- **Suggested hashtags**: from the hits, not yet in the profile.
 - **Creators who keep showing up**: candidates for the watch list.
 - **Skipped sources / Errors**: what didn't run and why.
+
+## How it compares
+
+Built after looking at the open-source [viral-shorts MCP](https://github.com/Xeron2000/shorts), [viral_short_research_tool](https://github.com/wisnuhid7/viral_short_research_tool) and [ViralMint](https://github.com/openclaw-easy/ViralMint), and the paid 1of10, vidIQ Outliers, TubeLab, Virlo, Sandcastles and Apify hook scrapers. Same core (outliers vs the creator's median, hooks, transcripts, swipe file, alerts), but free on YouTube, multi-platform through official APIs or Apify, per-business profiles, growth tracking between runs, and output straight into Obsidian. Not yet: on-screen text (OCR) for silent videos, trending sounds, local Whisper transcription for Instagram/TikTok audio.
 
 ## Layout
 

@@ -108,4 +108,20 @@ def enrich(item, errors=None):
     item.channel = info.get("channel") or item.channel
     item.channel_id = info.get("channel_id") or item.channel_id
     item.channel_url = info.get("channel_url") or item.channel_url
+    item.description = (info.get("description") or "")[:2000]
+    item.caption_url = caption_url(info)
     return True
+
+
+def caption_url(info):
+    """URL of the public json3 caption track in the video's own language (manual first, then auto).
+    AI-dubbed videos list many "-orig" tracks, so the video's language goes first."""
+    lang = (info.get("language") or "").split("-")[0].lower()
+    prefs = [f"{lang}-orig", lang] if lang else []
+    prefs += ["en-orig", "en", "ru-orig", "ru", "uk-orig", "uk", "es-orig", "es"]
+    for tracks in (info.get("subtitles") or {}, info.get("automatic_captions") or {}):
+        for k in [p for p in prefs if p in tracks] + sorted(k for k in tracks if k.endswith("-orig")):
+            for t in tracks.get(k) or []:
+                if t.get("ext") == "json3" and t.get("url"):
+                    return t["url"]
+    return ""

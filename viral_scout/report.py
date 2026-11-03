@@ -39,13 +39,14 @@ def cell(s, width=70):
 def row(i, it, new):
     reach_label = n(it.views) if it.views is not None else f"{n(it.likes)} ♥"
     creator = f"[{cell(it.channel, 30)}]({it.channel_url})" if it.channel_url else cell(it.channel, 30)
-    flag = " 🆕" if it.key in new else ""
+    flag = (" 🆕" if it.key in new else "") + (" ⏳" if it.early else "")
+    usual = x(it.outlier) + (f" {it.label}" if it.label else "")
     return (f"| {i} | [{cell(it.title) or it.id}]({it.url}){flag} | {creator} | {it.platform} | {reach_label} | "
-            f"{n(it.per_day)} | {n(it.rise_per_day)} | {x(it.outlier)} | {pct(it.engagement)} | {age(it)} | "
-            f"{cell(', '.join(it.found_by), 40)} |")
+            f"{n(it.per_day)} | {n(it.rise_per_day)} | {usual} | {pct(it.engagement)} | {age(it)} | "
+            f"`{it.id}` |")
 
 
-HEAD = ("| # | Post | Creator | Platform | Views | Per day | Rise/day | × usual | Engagement | Age | Found by |\n"
+HEAD = ("| # | Post | Creator | Platform | Views | Per day | Rise/day | × usual | Engagement | Age | ID |\n"
         "|---|---|---|---|---|---|---|---|---|---|---|")
 
 
@@ -55,17 +56,57 @@ def table(items, new):
     return HEAD + "\n" + "\n".join(row(i + 1, it, new) for i, it in enumerate(items)) + "\n"
 
 
+def sections(items, tracked, watched, top):
+    items = [i for i in items if not getattr(i, "dismissed", False)]
+    disc = [i for i in items if i.key not in tracked and i.key not in watched]
+    return {
+        "by_day": sorted([i for i in disc if i.per_day], key=lambda i: i.per_day, reverse=True)[:top],
+        "outliers": sorted([i for i in items if (i.outlier or 0) >= 3 and i.key not in tracked],
+                           key=lambda i: i.weighted, reverse=True)[:top],
+        "rising": sorted([i for i in items if i.rise_per_day], key=lambda i: i.rise_per_day, reverse=True)[:top],
+        "seeds": sorted([i for i in items if i.key in tracked], key=lambda i: i.reach or 0, reverse=True),
+    }
+
+
+def hooks(items, new, limit):
+    """Hook + transcript excerpt for the strongest posts, as Obsidian callouts."""
+    out = []
+    for it in [i for i in items if i.hook or i.transcript][:limit]:
+        out.append(f"### [{cell(it.title, 90) or it.id}]({it.url})")
+        out.append(f"{cell(it.channel, 40)} · {it.platform} · {n(it.reach)} {'views' if it.views is not None else '♥'}"
+                   f" · {n(it.per_day)}/day · {x(it.outlier)} usual {it.label}".rstrip()
+                   + (" · 🆕" if it.key in new else "") + f" · `{it.id}`")
+        out.append("")
+        if it.thumbnail:
+            out += [f"![thumbnail|180]({it.thumbnail})", ""]
+        if it.hook:
+            out.append(f"> **Hook:** {it.hook}")
+            out.append("")
+        if it.transcript and it.transcript != it.hook:
+            t = it.transcript if len(it.transcript) <= 700 else it.transcript[:700] + "…"
+            out += ["> [!quote]- Transcript", "> " + t, ""]
+    return out
+
+
+def suggestions(cfg, items, limit=20):
+    """Hashtags that keep appearing on hits but aren't in the profile: candidates to add."""
+    import re
+    from collections import Counter
+    have = {h.lower().lstrip("#") for h in cfg["discover"]["youtube"]["hashtags"] + cfg["discover"]["tiktok"]["hashtags"]}
+    c = Counter()
+    for it in items:
+        tags = {t.lower() for t in re.findall(r"#(\w+)", f"{it.title} {it.description}")}
+        for t in tags - have - {"shorts", "short", "viral", "fyp", "foryou", "trending", "youtubeshorts", "reels"}:
+            c[t] += 1
+    return [f"#{t} ({k})" for t, k in c.most_common(limit) if k >= 2]
+
+
 def write(cfg, res):
     items, new, top = res["items"], res["new"], cfg["report"]["top"]
     tracked, watched = res["tracked"], res["watched"]
     now = datetime.now()
-    disc = [i for i in items if i.key not in tracked and i.key not in watched]
-
-    by_day = sorted([i for i in disc if i.per_day], key=lambda i: i.per_day, reverse=True)[:top]
-    outliers = sorted([i for i in items if (i.outlier or 0) >= 3 and i.key not in tracked],
-                      key=lambda i: i.outlier, reverse=True)[:top]
-    rising = sorted([i for i in items if i.rise_per_day], key=lambda i: i.rise_per_day, reverse=True)[:top]
-    seeds = sorted([i for i in items if i.key in tracked], key=lambda i: i.reach or 0, reverse=True)
+    sec = sections(items, tracked, watched, top)
+    by_day, outliers, rising, seeds = sec["by_day"], sec["outliers"], sec["rising"], sec["seeds"]
 
     lines = [
         "---", "type: report", f"profile: {cfg['name']}", f"date: {now:%Y-%m-%d}", "tags: [viral-scout]", "---", "",
@@ -76,13 +117,29 @@ def write(cfg, res):
         "How to read it: **Per day** = views (or ♥ likes where views are hidden) divided by age. "
         "**Rise/day** = growth since our previous run, the best sign that something is taking off *now*. "
         "**× usual** = views compared with the creator's median post (or with their follower count). "
-        "3× or more is an outlier: the format worked, not just the account.", "",
+        "3× or more is an outlier: the format worked, not just the account (↑ 1.5×, ⚡ 3×, 🔥 10×). "
+        "Outliers are ranked by ln(× usual) × ln(creator baseline), so one lucky post on a tiny channel doesn't top "
+        "the list. ⏳ = under 6 hours old, numbers still settling.", "",
+        f"Save one to the swipe file: `python -m viral_scout save {cfg['name']} <ID>`. "
+        f"Hide it from future reports: `python -m viral_scout dismiss {cfg['name']} <ID>`.", "",
         "## Rising now (growth since the last run)", "",
         table(rising, new) if rising else "_Needs a second run to measure growth._\n",
         "## Fastest new posts on the topic (independent search)", "", table(by_day, new),
         "## Outliers: far above the creator's usual", "", table(outliers, new),
         "## Tracked links", "", table(seeds, new),
     ]
+    strongest = []
+    for it in rising[:5] + outliers[:8] + by_day[:8] + seeds:
+        if it not in strongest:
+            strongest.append(it)
+    hk = hooks(strongest, new, cfg["report"].get("hooks", 20))
+    if hk:
+        lines += ["## Hooks: what the strongest posts say first", "",
+                  "The first seconds decide whether people keep watching. YouTube text is the video's own captions; "
+                  "Instagram/TikTok text is the post caption.", ""] + hk
+    sug = suggestions(cfg, outliers + by_day + rising)
+    if sug:
+        lines += ["## Suggested hashtags (from this run's hits, not in the profile yet)", "", ", ".join(sug), ""]
     if res["repeat_creators"]:
         lines += ["## Creators who keep showing up (candidates for the watch list)", "",
                   ", ".join(res["repeat_creators"]), ""]
@@ -100,8 +157,10 @@ def write(cfg, res):
         return {"platform": it.platform, "id": it.id, "url": it.url, "title": it.title, "channel": it.channel,
                 "channel_url": it.channel_url, "followers": it.followers, "views": it.views, "likes": it.likes,
                 "comments": it.comments, "published": it.published.isoformat() if it.published else None,
-                "per_day": it.per_day, "rise_per_day": it.rise_per_day, "outlier": it.outlier,
-                "engagement": it.engagement, "found_by": it.found_by, "new": it.key in new,
+                "per_day": it.per_day, "rise_per_day": it.rise_per_day, "outlier": it.outlier, "label": it.label,
+                "weighted": it.weighted, "thumbnail": it.thumbnail, "description": it.description[:500],
+                "engagement": it.engagement, "found_by": it.found_by, "hook": it.hook,
+                "transcript": it.transcript, "new": it.key in new,
                 "tracked": it.key in tracked, "watched": it.key in watched}
 
     data = Path(cfg["db"]).parent / f"{cfg['name']}-latest.json"
