@@ -298,3 +298,25 @@ class ApifyFacebookAdsScraperShape(unittest.TestCase):
         score.score(ads)
         self.assertGreater(ads[0].ad_score, 50)
         self.assertTrue(any("60" in l or "🏆" in l for l in ads[0].labels))
+
+
+class CatalogAndGrouping(unittest.TestCase):
+    def test_catalog_template_text_replaced(self):
+        row = ApifyFacebookAdsScraperShape().row()
+        row["snapshot"].update({"body": {"text": "{{product.brand}}"}, "title": "{{product.name}}",
+                                "displayFormat": "DCO",
+                                "cards": [{"title": "Solar + battery", "body": "Power through outages"},
+                                          {"title": "{{product.name}}", "body": "Lower bills"}]})
+        ad = sources._meta_apify_ad(row, "x", "US")
+        self.assertNotIn("{{", ad.body + ad.title)
+        self.assertIn("Power through outages", ad.body)
+        self.assertTrue(ad.catalog)
+        score.enrich([ad]); score.score([ad])
+        self.assertIn("🛒 catalog ad", ad.labels)
+
+    def test_report_one_row_per_group(self):
+        from viral_scout.ads import report
+        ads = [sources._meta_apify_ad(ApifyFacebookAdsScraperShape().row(adArchiveID=str(i)), "x", "US") for i in range(5)]
+        score.enrich(ads); score.score(ads)
+        self.assertEqual(len({a.group for a in ads}), 1)
+        self.assertEqual(len(report._one_per_group(ads)), 1)

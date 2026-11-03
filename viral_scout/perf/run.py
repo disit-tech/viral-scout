@@ -38,6 +38,12 @@ def settings(cfg):
 
 def pull(cfg, store, errors, skipped, quiet=False):
     p, _, _ = settings(cfg)
+    # One token can see several ad accounts: a profile picks its own (perf.meta_ad_account_id /
+    # perf.tiktok_advertiser_id), else the .env defaults apply.
+    import os
+    for key, env in (("meta_ad_account_id", "META_AD_ACCOUNT_ID"), ("tiktok_advertiser_id", "TIKTOK_ADVERTISER_ID")):
+        if p.get(key):
+            os.environ[env] = str(p[key])
     wanted = p.get("sources")
     pulled = {}
     for name, mod, label, need in SOURCES:

@@ -130,6 +130,8 @@ def score(ads):
             labels.append("🆕 new test")
         if not a.is_active:
             labels.append("⏹ stopped")
+        if getattr(a, "catalog", False):
+            labels.append("🛒 catalog ad")
         a.labels = labels
     ads.sort(key=lambda a: (-a.ad_score, -(a.days_running or 0)))
     return ads

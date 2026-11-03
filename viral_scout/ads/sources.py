@@ -331,6 +331,14 @@ def library_url(country, keyword=None, page_id=None, exact=False):
             f"&q={quote_plus(str(keyword or ''))}&search_type={st}&media_type=all")
 
 
+TEMPLATE = re.compile(r"\{\{[^}]*\}\}")
+
+
+def detemplate(s):
+    """Meta catalog ads carry placeholders like {{product.brand}}: drop them."""
+    return re.sub(r"\s{2,}", " ", TEMPLATE.sub("", s or "")).strip(" -·|:")
+
+
 def _meta_apify_ad(row, found_by, country):
     snap = row.get("snapshot") if isinstance(row.get("snapshot"), dict) else {}
     cards = snap.get("cards") or row.get("cards") or []
@@ -356,7 +364,14 @@ def _meta_apify_ad(row, found_by, country):
     plats = pick(row, "publisherPlatform", "publisher_platform", "publisherPlatforms", "publisher_platforms", default=[])
     if isinstance(plats, str):
         plats = [plats]
-    return Ad(
+    catalog = bool(TEMPLATE.search(" ".join(str(x) for x in (body, pick(row, "snapshot.title", default=""),
+                                                                    card.get("title"), card.get("body")) if x)))
+    if catalog:
+        # Real text lives in the carousel cards (product names/descriptions) or the link description.
+        texts = [detemplate(_text(c.get("title")) + " " + _text(c.get("body"))) for c in cards if isinstance(c, dict)]
+        texts = [t for t in texts if len(t) > 3]
+        body = detemplate(body) or (" · ".join(dict.fromkeys(texts))[:600] if texts else "")             or detemplate(_text(pick(row, "snapshot.linkDescription", default="")))
+    ad = Ad(
         source="apify_meta", id=aid, advertiser=_text(pick(row, "pageName", "page_name", "snapshot.pageName",
                                                           "snapshot.page_name", "advertiser")),
         advertiser_id=str(pick(row, "pageID", "pageId", "page_id", "snapshot.pageId", default="")),
@@ -382,6 +397,11 @@ def _meta_apify_ad(row, found_by, country):
         variants_reported=parse_count(pick(row, "collationCount", "collation_count")),
         found_by=[found_by],
     )
+    if catalog:
+        ad.title = detemplate(ad.title) or (texts[0] if texts else "")
+        ad.link_caption = detemplate(ad.link_caption)
+        ad.catalog = True
+    return ad
 
 
 def apify_meta(cfg_ads, errors, log=print):

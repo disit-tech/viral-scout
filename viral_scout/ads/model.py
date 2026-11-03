@@ -42,6 +42,7 @@ class Ad:
     reach_pct: Optional[float] = None
     ad_score: float = 0.0
     labels: list = field(default_factory=list)
+    catalog: bool = False            # Meta dynamic/catalog ad (text filled per viewer from a product feed)
     new: bool = False
 
     @property

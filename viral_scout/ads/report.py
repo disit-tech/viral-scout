@@ -69,11 +69,23 @@ def _card(a):
     return out
 
 
+def _one_per_group(ads):
+    """Keep the best-scored ad of each variant group (ads arrive sorted by score)."""
+    seen, out = set(), []
+    for a in ads:
+        g = a.group or a.key
+        if g not in seen:
+            seen.add(g)
+            out.append(a)
+    return out
+
+
 def write(cfg, res):
     ads, adv = res["ads"], res["advertisers"]
     now = datetime.now()
     top = int((cfg.get("ads") or {}).get("top", 30))
-    long_runners = [a for a in ads if (a.days_running or 0) >= 30]
+    ranked = _one_per_group(ads)                      # variants of one creative → one row (best-scored)
+    long_runners = [a for a in ranked if (a.days_running or 0) >= 30]
     new_tests = sorted([a for a in ads if "🆕 new test" in a.labels], key=lambda a: a.age_days or 0)
     lines = [
         "---", "type: ads-report", f"profile: {cfg['name']}", f"date: {now:%Y-%m-%d}", "tags: [viral-scout, ads]", "---", "",
@@ -106,7 +118,8 @@ def write(cfg, res):
         lines.append("")
     else:
         lines += ["_No ads collected this run (see Skipped sources, and the lookup links below)._", ""]
-    lines += ["## Winning ads (by ad_score)", ""] + _ad_table(ads[:top])
+    lines += ["## Winning ads (by ad_score)", "",
+              "One row per creative; the Variants column counts its versions."] + [""] + _ad_table(ranked[:top])
     if res.get("offers"):
         lines += ["## Offers that keep running", "",
                   "How often each offer type appears, overall and in ads running 30+ days.", "",
@@ -130,7 +143,7 @@ def write(cfg, res):
                   for a in new_tests[:15]] + [""]
     if ads:
         lines += ["## Top ads in detail", ""]
-        for a in ads[: min(15, top)]:
+        for a in ranked[: min(15, top)]:
             lines += _card(a)
     if res.get("lookup"):
         lines += ["## Look them up yourself", "",
