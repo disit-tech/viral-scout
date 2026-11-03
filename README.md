@@ -2,7 +2,7 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
-Docs: [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+Docs: [references](docs/references.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
 
 It answers three questions:
 
@@ -22,6 +22,11 @@ And it turns numbers into something you can film:
 - **Hook / CTA / pace**: what's said in the first 4 s and the last 5 s, plus words per minute; **percentile** among the creator's posts.
 - **Local Whisper transcripts** for Instagram/TikTok audio (optional, free, CPU) and **cached frames** so the AI step can read on-screen text.
 - **Quota meter**: YouTube API units, Apify results, requests and Whisper time per run, with warnings at 80% of your caps.
+- **Comment mining**: the questions viewers ask under the hits are ideas your audience already asked for.
+- **More ways to judge a hit**: × the niche median, age-matched views/day (YouTube API), 🌱 emerging creators, and **your own posts against your own usual**.
+- **Trending hashtags** (Apify) and **Instagram hashtag top posts** (Graph API), when the keys are set.
+- **Local competitors**: nearby businesses in your niche (Google Places API) and their public social channels, as watch-list candidates.
+- **Search** across everything ever collected; **New research** from a description; a **Setup** page for keys (dashboard and CLI).
 - **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 

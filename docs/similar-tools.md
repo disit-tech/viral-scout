@@ -90,7 +90,45 @@ What we do that most of them don't:
 | **MCP server** with start-then-poll jobs | Virlo, Sandcastles, omivibe | `python -m viral_scout.mcp_server` (11 tools) |
 | **Web dashboard** with collections and status board | 1of10, Sandcastles | `web/` (Next.js), local with actions, or read-only on Vercel |
 
+## Refresh: newer competitors (November 2026)
+
+**New tools found:**
+- **Mysocial Outliers:** creator median plus a **topic median**, top comments, an MCP server.
+- **Trendhaus:** TikTok "Post DNA", a hook library, **comment mining**, trend stage.
+- **OutlierKit:** 3–5×, 5–10× and 10×+ bands, AI review of the first 15 s.
+- **Satura:** an emerging-channel radar and a WebSub channel tracker.
+- **Viewstats**, **ShortsMonkey MCP**.
+- **youtube-outlier-finder:** finds small channels with Shorts at ≥10× their subscribers.
+- **ig-radar-plugin:** a Claude Code plugin with an own-post postmortem.
+
+Full list with links: [references.md](references.md).
+
+## Added in round 3
+
+| Feature | From | In viral-scout |
+|---|---|---|
+| **Comment mining**: questions and top comments under the hits | Trendhaus, Mysocial | `comments` (YouTube API commentThreads, or yt-dlp public comments); report section "What viewers ask" |
+| **Topic-relative score** (× the niche median) | Mysocial | `vs_topic`, from data we already have |
+| **Own-post postmortem**: your posts against your own usual | ig-radar-plugin | profile `own: {youtube: [...], urls: [...]}`, a "Your posts" tab |
+| **Emerging creators** (small channel with a clear outlier) | Satura, youtube-outlier-finder | 🌱 `emerging` flag (≤50K followers and ≥3×) |
+| **Age-matched baseline** (views/day vs the creator's views/day) | vidIQ | `vs_pace`, with the YouTube API key (2–3 units per creator) |
+| **Trending hashtags** | TikTok Creative Center, Exolyt, Virlo | Apify trends actor (`APIFY_TRENDS_ACTOR`) and Instagram hashtag `top_media` (Graph API, 30 a week) |
+| **Local competitors** | (none; asked for by the user) | `competitors` command: Google Places API (New), plus social links from each business's homepage |
+| **Search** across everything collected | TubeLab (semantic), Sandcastles (library) | `search` (BM25 over titles, hooks, CTAs, transcripts), the Search page, the MCP `search` tool |
+| **Setup page** for keys, with live tests | the paid tools' settings pages | dashboard `/setup` (local only; stored in `.env`; masked) |
+| **New research** from a description | Virlo research agents | dashboard `/new`, `new` command, MCP `create_project` |
+
 ## Still not built (ranked)
+
+1. **Semantic (embedding) search.** BM25 covers keyword search. Embeddings would need a local model.
+2. **Scene-by-scene breakdown** (several frames per video). We read one thumbnail. Downloading whole videos is limited by platform terms, so this should stay with your own or licensed posts.
+3. **YouTube WebSub push** for watched channels. Free, but needs a public callback URL, for example a Vercel route.
+4. **Instagram own-post insights** through the Graph API Media Insights (own business account only).
+5. **X / Threads coverage.** Low value for short-form video.
+
+## Earlier backlog (now done)
+
+
 
 1. **Trending sounds and hashtags.** TikTok Creative Center has no export, so this needs an Apify trends actor (paid). For Instagram, Graph API hashtag search (30 a week).
 2. **Age-matched baseline** (vidIQ): compare views per day with the channel's median views per day at a similar age. It needs per-video dates in channel listings, which costs more requests.

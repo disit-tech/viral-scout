@@ -18,7 +18,7 @@ def available():
     return bool(os.environ.get("YOUTUBE_API_KEY"))
 
 
-COST = {"search": 100, "videos": 1, "channels": 1}
+COST = {"search": 100, "videos": 1, "channels": 1, "playlistItems": 1}
 
 
 def _get(path, params, errors, label):
@@ -102,3 +102,38 @@ def _videos(found, errors):
     for it in items:
         it.followers = subs.get(it.channel_id)
     return items
+
+
+def pace_baselines(channel_ids, errors=None, per_channel=30):
+    """Median views/day of each channel's latest uploads (vidIQ-style, age-normalised baseline).
+    Cost per channel: channels (1/50) + playlistItems (1) + videos (1) ≈ 2–3 units."""
+    import statistics
+    errors = errors if errors is not None else []
+    ids = [c for c in dict.fromkeys(channel_ids) if c]
+    uploads = {}
+    for i in range(0, len(ids), 50):
+        d = _get("channels", {"part": "contentDetails", "id": ",".join(ids[i:i + 50])}, errors, "youtube api channels")
+        for c in d.get("items") or []:
+            up = ((c.get("contentDetails") or {}).get("relatedPlaylists") or {}).get("uploads")
+            if up:
+                uploads[c["id"]] = up
+    out = {}
+    now = datetime.now(timezone.utc)
+    for cid, pl in uploads.items():
+        d = _get("playlistItems", {"part": "contentDetails", "playlistId": pl, "maxResults": min(per_channel, 50)},
+                 errors, f"youtube api uploads {cid}")
+        vids = [x["contentDetails"]["videoId"] for x in d.get("items") or [] if x.get("contentDetails")]
+        if len(vids) < 3:
+            continue
+        v = _get("videos", {"part": "statistics,snippet", "id": ",".join(vids)}, errors, "youtube api videos")
+        rates = []
+        for x in v.get("items") or []:
+            views = int((x.get("statistics") or {}).get("viewCount", 0) or 0)
+            pub = (x.get("snippet") or {}).get("publishedAt")
+            if not pub:
+                continue
+            age = max((now - datetime.fromisoformat(pub.replace("Z", "+00:00"))).total_seconds() / 86400, 0.25)
+            rates.append(views / age)
+        if len(rates) >= 3:
+            out[cid] = statistics.median(rates)
+    return out

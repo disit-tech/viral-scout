@@ -25,6 +25,12 @@ export type Item = {
   cta?: string;
   wpm?: number | null;
   creator_pct?: number | null;
+  vs_pace?: number | null;
+  vs_topic?: number | null;
+  emerging?: boolean;
+  own?: boolean;
+  questions?: string[];
+  top_comments?: { text: string; likes: number | null }[];
   transcript?: string;
   description?: string;
   new: boolean;
@@ -58,7 +64,7 @@ export type Profile = {
   business: string;
   date: string;
   items: Item[];
-  sections: { by_day: string[]; outliers: string[]; rising: string[]; seeds: string[] };
+  sections: { by_day: string[]; outliers: string[]; rising: string[]; seeds: string[]; own?: string[] };
   suggested_hashtags: string[];
   repeat_creators: string[];
   skipped: string[];
@@ -66,7 +72,10 @@ export type Profile = {
   ideas: { date: string; file: string; markdown: string }[];
   reports: string[];
   swipe: SwipeNote[];
-  runs: { ts: string; items?: number; errors?: number }[];
+  runs: { ts: string; items?: number; errors?: number; usage?: Record<string, number> }[];
+  usage?: Record<string, number>;
+  budget?: string[];
+  trends?: { hashtag: string; views: number | null; posts: number | null; rank: number; on_topic: boolean }[];
   sources: { keywords: number; hashtags: number; watch: number; seeds: number };
 };
 

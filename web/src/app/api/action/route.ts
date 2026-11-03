@@ -1,35 +1,14 @@
-import { spawn } from "node:child_process";
-import path from "node:path";
 import { NextResponse, type NextRequest } from "next/server";
-import { isLocal } from "@/lib/data";
+import { localOnly, runCli } from "@/lib/cli";
 
 export const dynamic = "force-dynamic";
 
-const REPO = path.resolve(/*turbopackIgnore: true*/ process.cwd(), "..");
 const STATUSES = new Set(["idea", "scripted", "filmed", "posted", "skip"]);
-
-function run(args: string[]): Promise<{ code: number; output: string }> {
-  return new Promise((resolve) => {
-    const p = spawn(/*turbopackIgnore: true*/ process.env.VIRAL_SCOUT_PYTHON || "python", ["-m", "viral_scout", ...args], {
-      cwd: REPO,
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-      windowsHide: true,
-    });
-    let out = "";
-    p.stdout.on("data", (d) => (out += d));
-    p.stderr.on("data", (d) => (out += d));
-    p.on("close", (code) => resolve({ code: code ?? 1, output: out.trim() }));
-    p.on("error", (e) => resolve({ code: 1, output: String(e) }));
-  });
-}
 
 /** Local only: save / dismiss / track / status through the Python CLI, then refresh the exported data. */
 export async function POST(req: NextRequest) {
-  if (!isLocal) return NextResponse.json({ ok: false, output: "Read-only deployment" }, { status: 403 });
-  const host = req.headers.get("host") ?? "";
-  if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) {
-    return NextResponse.json({ ok: false, output: "Actions only from localhost" }, { status: 403 });
-  }
+  const deny = localOnly(req);
+  if (deny) return deny;
   const b = await req.json().catch(() => ({}));
   const profile = String(b.profile ?? "");
   const ref = String(b.ref ?? "");
@@ -54,7 +33,7 @@ export async function POST(req: NextRequest) {
     default:
       return NextResponse.json({ ok: false, output: "unknown action" }, { status: 400 });
   }
-  const r = await run(args);
-  if (r.code === 0) await run(["export", profile]);
+  const r = await runCli(args);
+  if (r.code === 0) await runCli(["export", profile]);
   return NextResponse.json({ ok: r.code === 0, output: r.output }, { status: r.code === 0 ? 200 : 500 });
 }

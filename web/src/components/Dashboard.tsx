@@ -7,13 +7,14 @@ import { num, when } from "@/lib/format";
 import PostCard from "./PostCard";
 import SwipeBoard from "./SwipeBoard";
 
-type Tab = "outliers" | "by_day" | "rising" | "seeds" | "ideas" | "swipe" | "health";
+type Tab = "outliers" | "by_day" | "rising" | "seeds" | "own" | "ideas" | "swipe" | "health";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "outliers", label: "Outliers", hint: "Far above the creator's usual. The format worked, not just the account." },
   { id: "by_day", label: "Fastest", hint: "Independent search: newest posts on the topic, by views per day." },
   { id: "rising", label: "Rising now", hint: "Growth since the previous run: what is taking off right now." },
   { id: "seeds", label: "Tracked", hint: "Links you sent or saved, re-measured every run." },
+  { id: "own", label: "Your posts", hint: "Your own posts against your own usual (profile: own.youtube / own.urls)." },
   { id: "ideas", label: "Ideas", hint: "AI breakdowns and ideas adapted to this business." },
   { id: "swipe", label: "Swipe file", hint: "Saved references, from idea to posted." },
   { id: "health", label: "Sources", hint: "What ran, what was skipped, and suggestions for the profile." },
@@ -33,13 +34,13 @@ export default function Dashboard({ profile, ideas, local }: {
   const platforms = useMemo(() => Array.from(new Set(items.map((i) => i.platform))), [items]);
 
   const list = useMemo(() => {
-    if (!["outliers", "by_day", "rising", "seeds"].includes(tab)) return [];
+    if (!["outliers", "by_day", "rising", "seeds", "own"].includes(tab)) return [];
     const keys = profile.sections[tab as keyof Profile["sections"]] ?? [];
     const needle = q.trim().toLowerCase();
     return keys
       .map((k) => byKey.get(k))
       .filter((i): i is Item => Boolean(i))
-      .filter((i) => tab === "seeds" || !i.dismissed)
+      .filter((i) => tab === "seeds" || tab === "own" || !i.dismissed)
       .filter((i) => platform === "all" || i.platform === platform)
       .filter((i) => !hideSaved || !i.saved)
       .filter((i) => !needle || `${i.title} ${i.channel} ${i.hook ?? ""}`.toLowerCase().includes(needle));
@@ -50,6 +51,7 @@ export default function Dashboard({ profile, ideas, local }: {
     by_day: profile.sections.by_day.length,
     rising: profile.sections.rising.length,
     seeds: profile.sections.seeds.length,
+    own: profile.sections.own?.length ?? 0,
     ideas: ideas.length,
     swipe: profile.swipe.length,
   };
@@ -75,7 +77,7 @@ export default function Dashboard({ profile, ideas, local }: {
       </div>
 
       <nav className="mb-4 flex gap-1 overflow-x-auto border-b border-line">
-        {TABS.map((t) => (
+        {TABS.filter((t) => t.id !== "own" || (profile.sections.own?.length ?? 0) > 0).map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition ${tab === t.id ? "border-accent text-text" : "border-transparent text-muted hover:text-text"}`}>
             {t.label}
@@ -85,7 +87,7 @@ export default function Dashboard({ profile, ideas, local }: {
       </nav>
       <p className="mb-4 text-sm text-muted">{current.hint}</p>
 
-      {["outliers", "by_day", "rising", "seeds"].includes(tab) && (
+      {["outliers", "by_day", "rising", "seeds", "own"].includes(tab) && (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, creator, hook…"
@@ -151,6 +153,19 @@ export default function Dashboard({ profile, ideas, local }: {
               <ul className="max-h-64 space-y-1 overflow-auto font-mono text-[11px]">{profile.errors.slice(0, 40).map((e, i) => <li key={i} className="break-all">{e}</li>)}</ul>
             ) : <p>None.</p>}
           </Panel>
+          <Panel title="Usage (last run)">
+            {profile.usage && Object.keys(profile.usage).length ? (
+              <ul className="space-y-1 text-xs">{Object.entries(profile.usage).map(([k, v]) => <li key={k}>{k.replace(/_/g, " ")}: <b className="text-text">{num(v)}</b></li>)}</ul>
+            ) : <p>Not counted in this run.</p>}
+            {profile.budget?.map((b) => <p key={b} className="mt-2 text-viral">⚠️ {b}</p>)}
+          </Panel>
+          {profile.trends && profile.trends.length > 0 && (
+            <Panel title="Trending hashtags (TikTok)">
+              <div className="flex flex-wrap gap-1.5">{profile.trends.slice(0, 30).map((t) => (
+                <span key={t.hashtag} className={`rounded-full px-2 py-0.5 text-xs ${t.on_topic ? "bg-above text-ink" : "bg-panel-2"}`}>#{t.hashtag} {t.views ? num(t.views) : ""}</span>
+              ))}</div>
+            </Panel>
+          )}
           <Panel title="Recent runs">
             <ul className="space-y-1 text-xs">{profile.runs.slice(0, 10).map((r) => <li key={r.ts}>{when(r.ts)} · {r.items ?? "?"} posts · {r.errors ?? 0} errors</li>)}</ul>
           </Panel>

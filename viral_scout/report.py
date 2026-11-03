@@ -60,8 +60,9 @@ def sections(items, tracked, watched, top):
     items = [i for i in items if not getattr(i, "dismissed", False)]
     disc = [i for i in items if i.key not in tracked and i.key not in watched]
     return {
+        "own": sorted([i for i in items if i.own], key=lambda i: -(i.outlier or 0)),
         "by_day": sorted([i for i in disc if i.per_day], key=lambda i: i.per_day, reverse=True)[:top],
-        "outliers": sorted([i for i in items if (i.outlier or 0) >= 3 and i.key not in tracked],
+        "outliers": sorted([i for i in items if (i.outlier or 0) >= 3 and i.key not in tracked and not i.own],
                            key=lambda i: i.weighted, reverse=True)[:top],
         "rising": sorted([i for i in items if i.rise_per_day], key=lambda i: i.rise_per_day, reverse=True)[:top],
         "seeds": sorted([i for i in items if i.key in tracked], key=lambda i: i.reach or 0, reverse=True),
@@ -89,6 +90,12 @@ def hooks(items, new, limit):
             extras.append(f"{it.wpm} words/min")
         if it.creator_pct is not None:
             extras.append(f"beats {it.creator_pct:.0f}% of the creator's recent posts")
+        if it.vs_pace:
+            extras.append(f"{it.vs_pace:.1f}× the creator's usual views/day (age-matched)")
+        if it.vs_topic:
+            extras.append(f"{it.vs_topic:.1f}× the niche median views/day")
+        if it.emerging:
+            extras.append("emerging creator (<=50K followers)")
         if extras:
             out += ["_" + " · ".join(extras) + "_", ""]
         if it.transcript and it.transcript != it.hook:
@@ -137,6 +144,17 @@ def write(cfg, res):
         "## Outliers: far above the creator's usual", "", table(outliers, new),
         "## Tracked links", "", table(seeds, new),
     ]
+    if sec["own"]:
+        lines += ["## Your posts vs your usual", "", table(sec["own"], new)]
+    asks, seen_q = [], set()
+    for it in outliers[:10] + by_day[:10]:
+        for q in it.questions[:3]:
+            if q not in seen_q:
+                seen_q.add(q)
+                asks.append(f"- \u201c{cell(q, 200)}\u201d on [{cell(it.title, 50)}]({it.url})")
+    if asks:
+        lines += ["## What viewers ask (from the comments)", "",
+                  "Questions under the hits: ideas your audience already asked for.", ""] + asks[:20] + [""]
     strongest = []
     for it in rising[:5] + outliers[:8] + by_day[:8] + seeds:
         if it not in strongest:
@@ -146,6 +164,11 @@ def write(cfg, res):
         lines += ["## Hooks: what the strongest posts say first", "",
                   "The first seconds decide whether people keep watching. YouTube text is the video's own captions; "
                   "Instagram/TikTok text is the post caption.", ""] + hk
+    if res.get("trends"):
+        lines += ["## Trending hashtags (TikTok, via Apify)", "", "| # | Hashtag | Views | Posts | On topic |",
+                  "|---|---|---|---|---|"]
+        lines += [f"| {t['rank']} | #{t['hashtag']} | {n(t['views'])} | {n(t['posts'])} | {'✅' if t['on_topic'] else ''} |"
+                  for t in res["trends"][:30]] + [""]
     sug = suggestions(cfg, outliers + by_day + rising)
     if sug:
         lines += ["## Suggested hashtags (from this run's hits, not in the profile yet)", "", ", ".join(sug), ""]
@@ -176,7 +199,9 @@ def write(cfg, res):
                 "channel_median": it.channel_median, "description": it.description[:500],
                 "engagement": it.engagement, "found_by": it.found_by, "hook": it.hook,
                 "transcript": it.transcript, "cta": it.cta, "wpm": it.wpm,
-                "creator_pct": it.creator_pct, "frame": it.frame, "new": it.key in new,
+                "creator_pct": it.creator_pct, "frame": it.frame, "vs_pace": it.vs_pace,
+                "vs_topic": it.vs_topic, "emerging": it.emerging, "own": it.own,
+                "questions": it.questions, "top_comments": it.top_comments, "new": it.key in new,
                 "tracked": it.key in tracked, "watched": it.key in watched}
 
     data = Path(cfg["db"]).parent / f"{cfg['name']}-latest.json"
@@ -184,7 +209,8 @@ def write(cfg, res):
                                 "sections": {k: [i.key for i in v] for k, v in sec.items()},
                                 "suggested_hashtags": sug, "repeat_creators": res["repeat_creators"],
                                 "skipped": res["skipped"], "errors": res["errors"],
-                                "usage": res.get("usage", {}), "budget": res.get("budget", [])},
+                                "usage": res.get("usage", {}), "budget": res.get("budget", []),
+                                "trends": res.get("trends", [])},
                                ensure_ascii=False, indent=1),
                     encoding="utf-8")
     return str(md), str(data)

@@ -39,6 +39,9 @@ Optional sources never fail a run. If a key is missing, the source is listed und
 | `engagement` | (likes + comments) ÷ views | |
 | `early` ⏳ | age < 6 h | |
 | `creator_pct` | share of the creator's recent posts with fewer views (0–100) | Virlo/TubeLab-style percentile |
+| `vs_pace` | views/day ÷ the creator's median views/day over their last ~30 uploads | age-matched (vidIQ-style); needs the YouTube API key |
+| `vs_topic` | views/day ÷ the median views/day of this run's discovered posts | how it does against the niche (Mysocial-style) |
+| `emerging` 🌱 | followers ≤ 50K and × usual ≥ 3 | small creators to watch early |
 | `wpm` | words in the transcript ÷ speaking time × 60 | pace; fast talkers vs slow explainers |
 
 Report sections:
@@ -92,6 +95,12 @@ Report sections:
 | `usage.py` | per-run counters and budget warnings |
 | `export.py` | data for the dashboard |
 | `mcp_server.py` | MCP tools |
+| `search.py` | BM25 search over everything collected |
+| `keys.py` | key registry, live tests, `.env` writes |
+| `newproject.py` | profile generation from a description and keywords |
+| `comments.py` | comment mining |
+| `trends.py` | trending hashtags (Apify) and Instagram hashtag top posts (Graph API) |
+| `places.py` | local competitors (Google Places API) and their social links |
 | `ytdlp.py` | loads yt-dlp (the clone in `$VIRAL_SCOUT_YTDLP`, or the pip package) |
 | `sources/youtube.py` | hashtag feeds, channel lists, enrichment, caption link (yt-dlp) |
 | `sources/youtube_api.py` | YouTube Data API search |

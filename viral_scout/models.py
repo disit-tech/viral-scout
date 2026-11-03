@@ -29,6 +29,11 @@ class Item:
     cta: str = ""                                  # what is said in the last seconds (call to action)
     wpm: Optional[float] = None                    # speaking pace, words per minute
     creator_pct: Optional[float] = None            # share of the creator's recent posts this one beats (0–100)
+    pace_median: Optional[float] = None            # creator's median views/day (YouTube API, age-normalised)
+    topic_median: Optional[float] = None           # median views/day of this run's discovered posts (the niche)
+    own: bool = False                              # one of the business's own posts
+    questions: list = field(default_factory=list)  # viewer questions from the comments
+    top_comments: list = field(default_factory=list)
     thumb_url: str = ""                            # thumbnail for non-YouTube posts (from yt-dlp)
     frame: str = ""                                # local copy of the thumbnail/first frame (for on-screen text)
 
@@ -64,6 +69,25 @@ class Item:
         if not self.reach or not self.channel_median:
             return None
         return self.reach / self.channel_median
+
+    @property
+    def vs_pace(self):
+        """Views/day vs the creator's median views/day: an age-matched outlier (vidIQ-style)."""
+        if not self.per_day or not self.pace_median:
+            return None
+        return self.per_day / self.pace_median
+
+    @property
+    def vs_topic(self):
+        """Views/day vs the niche median in this run (Mysocial-style topic-relative score)."""
+        if not self.per_day or not self.topic_median:
+            return None
+        return self.per_day / self.topic_median
+
+    @property
+    def emerging(self):
+        """A small creator (<=50K followers) with a clear outlier: worth watching early."""
+        return bool(self.followers and self.followers <= 50_000 and (self.outlier or 0) >= 3)
 
     @property
     def engagement(self):
@@ -108,7 +132,8 @@ class Item:
     def merge(self, other: "Item"):
         for f in ("title", "channel", "channel_url", "channel_id", "followers", "views", "likes",
                   "comments", "duration", "published", "channel_median", "description", "caption_url",
-                  "transcript", "hook", "cta", "wpm", "creator_pct", "thumb_url", "frame"):
+                  "transcript", "hook", "cta", "wpm", "creator_pct", "thumb_url", "frame", "pace_median",
+                  "topic_median"):
             v = getattr(other, f)
             if v not in (None, "") and getattr(self, f) in (None, ""):
                 setattr(self, f, v)

@@ -16,7 +16,7 @@ Args: `<profile> [analyze] [urls...]`. No profile → `python -m viral_scout pro
 ## 2. Analyze (the part that makes it useful)
 Read the profile (`business:`, `taste_note:` if set) and the latest JSON. Take the strongest 8–10 posts: Rising now first, then Outliers (🔥/⚡), then Fastest. Skip off-topic ones the filters missed (and offer `dismiss`).
 
-For each, from title + hook + CTA + transcript (+ description), **and look at its `frame` image** (Read the local path in the JSON): many Shorts/reels carry the hook as on-screen text ("CRISPS vs FRIES vs CHIPS") or show the format visually (split screen, before/after, text cards). Note the on-screen text and visual format. Use `wpm` (pace) and `creator_pct` (how it ranks among the creator's posts) when they explain why it worked.
+For each, from title + hook + CTA + transcript (+ description), **and look at its `frame` image** (Read the local path in the JSON): many Shorts/reels carry the hook as on-screen text ("CRISPS vs FRIES vs CHIPS") or show the format visually (split screen, before/after, text cards). Note the on-screen text and visual format. Use `wpm` (pace), `creator_pct`, `vs_pace` (age-matched), `vs_topic` (× the niche) and `emerging` when they explain why it worked. Read `questions` / `top_comments`: viewer questions are ready-made ideas, objections show what to address.
 - **Format** (one of: talking head tip, skit/POV, A-vs-B contrast, list/phrase pack, myth-buster, reaction, story, tutorial, question-to-comments, other)
 - **Hook type** (question, bold claim, mistake call-out, contrast, relatable situation, curiosity gap, shock) and the hook words
 - **On-screen text / visual** (from the frame)
@@ -24,7 +24,7 @@ For each, from title + hook + CTA + transcript (+ description), **and look at it
 
 Then write **5 ideas adapted to the business**: each with title, which viral post it borrows from (link), hook line (in the language the business films in), 3-beat outline, on-screen text, and why it fits `business:`. Respect the taste note and hard rules (e.g. never reuse others' footage).
 
-Write it to the vault next to the report as `<date>-viral-ideas.md` (frontmatter `type: viral-ideas`, `profile`, `date`, link to the report), with sections: Patterns this week (formats/hooks that repeat), Breakdown (table: post · format · hook type · why it works), Ideas (the 5), Watch list candidates, Suggested hashtags worth adding.
+Write it to the vault next to the report as `<date>-viral-ideas.md` (frontmatter `type: viral-ideas`, `profile`, `date`, link to the report), with sections: Patterns this week (formats/hooks that repeat), Breakdown (table: post · format · hook type · why it works), What viewers ask (the best questions from the comments, each with the idea it suggests), Ideas (the 5), Your posts (if the profile has `own:`: which of yours beat your usual and why), Watch list candidates (🌱 emerging creators first), Suggested hashtags worth adding.
 
 ## 3. Save and clean up
 - Save the 2–3 best references: `python -m viral_scout save <profile> <ID> --note "<format>: <why it works>"`; then set `format:` in each saved note's frontmatter.
@@ -34,7 +34,13 @@ Write it to the vault next to the report as `<date>-viral-ideas.md` (frontmatter
 ## 4. Report back (short)
 3–5 lines: the strongest pattern, the best idea, where the notes are, which source a key would unlock (YouTube API key is free; Instagram Graph needs a business account; TikTok via Apify is paid).
 
+## Other commands worth offering
+- `python -m viral_scout search "<words>"`: find past hits on a theme across all businesses before writing ideas.
+- `python -m viral_scout competitors <profile>`: local competitors and their channels (needs GOOGLE_PLACES_API_KEY).
+- `python -m viral_scout keys`: which sources are unlocked; the dashboard's /setup page manages keys.
+
 ## New business
+Fastest: `python -m viral_scout new <name> --business "..." --keywords "a; b; c" [--research] --run` (or the dashboard's /new page): it derives hashtags, the topic filter and spam rules. Then tune as below.
 Copy `profiles/_template.yaml` to `profiles/<name>.yaml` (git-ignored). Fill `business:`, keywords (formats + the customer's situations, in every language the audience speaks, with `languages:`), hashtags, `must_match` (topic words, so hashtag spam is dropped), `exclude`, `output_dir`/`swipe_dir` in the vault. Run once, tune the filters from what slipped through.
 
 ## MCP alternative

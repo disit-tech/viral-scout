@@ -3,7 +3,7 @@ import re
 import time
 from collections import Counter
 
-from . import alerts, frames, report, swipe, transcripts, usage, whisper
+from . import alerts, comments, frames, report, swipe, transcripts, trends, usage, whisper
 from .db import Store
 from .sources import instagram, links, tiktok, youtube, youtube_api
 
@@ -72,6 +72,23 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
             it.creator_pct = youtube.percentile(it.views, vs)
         add(recent, is_watch=True)
         time.sleep(0.5)
+    own_keys = set()
+    for ch in (cfg.get("own") or {}).get("youtube") or []:
+        _log(f"own: YouTube {ch}", quiet)
+        recent = youtube.channel_recent(ch, 30, errors)
+        med = youtube.median_views(recent)
+        vs = [r.views for r in recent]
+        for it in recent:
+            it.channel_median, it.own = med, True
+            it.creator_pct = youtube.percentile(it.views, vs)
+        add(recent, is_watch=True)
+        own_keys |= {i.key for i in recent}
+    for u in (cfg.get("own") or {}).get("urls") or []:
+        it = links.fetch(u, "own", errors)
+        if it:
+            it.own = True
+            add([it], is_tracked=True)
+            own_keys.add(it.key)
     if cfg["watch"]["instagram"]:
         if instagram.available():
             for u in cfg["watch"]["instagram"]:
@@ -161,6 +178,34 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
         it.channel_median, vs = seen_ch[it.channel_url]
         it.creator_pct = youtube.percentile(it.views, vs)
 
+    # Niche median: views/day of this run's discovered posts (topic-relative score).
+    import statistics as _st
+    disc_rates = [i.per_day for k, i in pool.items() if k not in tracked and k not in watched and i.per_day]
+    if len(disc_rates) >= 5:
+        tm = _st.median(disc_rates)
+        for i in pool.values():
+            i.topic_median = tm
+
+    # Age-matched baseline (views/day vs the creator's usual views/day) when the YouTube API key is set.
+    if youtube_api.available():
+        cand = sorted([i for i in pool.values() if i.platform == "youtube" and i.channel_id],
+                      key=lambda i: i.per_day or 0, reverse=True)[:25]
+        if cand:
+            paces = youtube_api.pace_baselines([i.channel_id for i in cand], errors)
+            for i in pool.values():
+                if i.channel_id in paces:
+                    i.pace_median = paces[i.channel_id]
+            _log(f"pace baselines: {len(paces)} creators (YouTube API)", quiet)
+
+    # Trending hashtags / Instagram hashtag top posts (only with their keys).
+    trend_rows = None
+    if discover:
+        trend_rows = trends.tiktok_trends(cfg, errors)
+        ig_top = trends.instagram_top(cfg, store, errors)
+        if ig_top:
+            add(ig_top)
+            _log(f"instagram hashtag top posts: {len(ig_top)}", quiet)
+
     # 7. Velocity, then transcripts for the posts that make the report, then history.
     for it in pool.values():
         store.add_rise(it)
@@ -210,6 +255,19 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
             skipped.append("Local transcription: transcribe.whisper is on but faster-whisper isn't installed "
                            "(pip install faster-whisper).")
 
+    # Comment mining on the strongest posts (YouTube): viewer questions are ready-made video ideas.
+    ccfg = cfg.get("comments") or {}
+    if ccfg.get("top_posts", 6):
+        targets = [i for i in chosen if i.platform == "youtube" and not i.own][: ccfg.get("top_posts", 6)]
+        got = 0
+        for it in targets:
+            if youtube.BLOCKED["hit"]:
+                break
+            got += comments.fill(it, cfg, errors)
+            time.sleep(1.0)
+        if got:
+            _log(f"comments: {got} posts", quiet)
+
     # Local copies of thumbnails for on-screen text (read by the skill).
     for it in chosen[: cfg["report"].get("frames", 30)]:
         frames.fetch(cfg, it, errors)
@@ -227,6 +285,8 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
     result = {
         "items": list(pool.values()), "tracked": tracked, "watched": watched, "new": new_keys,
         "errors": errors, "skipped": skipped, "repeat_creators": [c for c, n in creators.most_common(15) if n >= 2],
+        "trends": trend_rows or [],
+        "own": own_keys,
     }
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)

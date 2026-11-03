@@ -80,14 +80,24 @@ export default function PostCard({ item, profile, local, onChange }: {
           <blockquote className="border-l-2 border-accent pl-2.5 text-sm italic text-text/90">“{item.hook}”</blockquote>
         )}
 
-        {(item.cta || item.wpm || item.creator_pct != null) && (
+        {(item.cta || item.wpm || item.creator_pct != null || item.vs_pace || item.vs_topic || item.emerging) && (
           <div className="space-y-1 text-xs text-muted">
             {item.cta && <p><span className="text-text/70">Ends with:</span> “{item.cta}”</p>}
             <p className="flex flex-wrap gap-x-3">
               {item.wpm ? <span>{item.wpm} words/min</span> : null}
               {item.creator_pct != null ? <span>beats {Math.round(item.creator_pct)}% of their posts</span> : null}
+              {item.vs_pace ? <span>{times(item.vs_pace)} their usual views/day</span> : null}
+              {item.vs_topic ? <span>{times(item.vs_topic)} the niche median</span> : null}
+              {item.emerging ? <span className="text-rise">🌱 emerging creator</span> : null}
             </p>
           </div>
+        )}
+
+        {item.questions && item.questions.length > 0 && (
+          <details className="text-xs">
+            <summary className="cursor-pointer text-rise">Viewers ask ({item.questions.length})</summary>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted">{item.questions.slice(0, 6).map((q, i) => <li key={i}>{q}</li>)}</ul>
+          </details>
         )}
 
         {(item.transcript || item.description) && (

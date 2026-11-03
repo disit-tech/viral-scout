@@ -33,6 +33,21 @@ Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy f
 | `report` | `top` rows per section, `hooks` shown, `transcripts` fetched | `{top: 25, hooks: 20, transcripts: 40}` |
 | `alerts` | Telegram thresholds | see below |
 
+### Optional blocks
+
+```yaml
+own:                      # your own posts, scored against your own usual ("Your posts" tab)
+  youtube: ["@yourhandle"]
+  urls: [https://www.instagram.com/reel/...]
+comments: {top_posts: 6, max: 40}     # comment mining on the strongest posts (YouTube); 0 turns it off
+trends:
+  instagram_hashtags: [christmaslights]   # Graph API top posts (30 unique hashtags / 7 days)
+  apify_input: {country: US, period: 7}   # passed as-is to APIFY_TRENDS_ACTOR
+local: {query: "gutter cleaning", near: "Norridge, IL", limit: 15}   # python -m viral_scout competitors <profile>
+transcribe: {whisper: true, model: base, max_per_run: 8, max_seconds: 180}
+budget: {youtube_api_units_per_day: 10000, apify_items_per_month: 500}
+```
+
 ### Alerts
 
 ```yaml

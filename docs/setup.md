@@ -48,6 +48,16 @@ Limits: it only reads **professional** accounts, and it returns likes, not views
 ### Apify (paid per result)
 This unlocks **TikTok** hashtags, keyword search and profiles. Get a token at apify.com → Settings → Integrations, and add `APIFY_TOKEN=...` to `.env`. The default actor is `clockworks~tiktok-scraper`; change it with `APIFY_TIKTOK_ACTOR`. Check the actor's price per result before you schedule it.
 
+### Google Places API (free monthly credit, then paid)
+Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gutter cleaning" --near "Norridge, IL"`. Enable "Places API (New)" in Google Cloud, create a key restricted to it, and add `GOOGLE_PLACES_API_KEY=...`. Each run makes one Text Search request plus one plain request to each competitor's own homepage, to find their YouTube, Instagram, TikTok and Facebook links.
+
+### Trending hashtags (optional)
+- **TikTok:** pick a trends actor in the Apify store, then set `APIFY_TRENDS_ACTOR=user~actor` (it uses `APIFY_TOKEN`) and pass its input in the profile under `trends.apify_input`.
+- **Instagram:** with the Graph API keys, list hashtags under `trends.instagram_hashtags`. Their top reels join the run. Meta allows 30 unique hashtags per 7 days, and the tool counts them.
+
+### The easy way: the Setup page
+On the local dashboard (`cd web && npm run dev`), open **/setup**. Every key is listed with what it unlocks, its cost, how to get it and its docs link, and you can save and test each one. The CLI equivalent is `python -m viral_scout keys`, `keys test` and `keys set NAME -` (the value is read from stdin).
+
 ### Telegram alerts (free)
 1. Create a bot with @BotFather to get the token.
 2. Send the bot any message.

@@ -48,6 +48,10 @@ To publish automatically after the daily run, add a line to your scheduled task 
 
 ## Pages
 
+- `/search`: searches titles, hooks, endings, transcripts and captions. Locally it covers the full history of every business through the Python CLI; the published site searches the latest runs in the browser.
+- `/new`: **New research**. Pick **Quick research** (a one-off `research-…` profile, reports go to the repo's `reports/`) or **New project** (reports go to an Obsidian project folder you pick). Describe the business or topic and add search phrases. Hashtags, the topic filter and the spam rules are derived for you, and the first run starts in the background while the page shows its progress. Local only.
+- `/setup`: every API key with what it unlocks, its cost, how to get it and a docs link. Paste, **Save** and **Test** it. Keys go into `.env` on your PC through stdin (never on the command line) and are always shown masked. Local only; the published site never manages keys.
+
 - `/`: one card per business, with posts, outliers, 🔥 mega, saved, and the top thumbnails.
 - `/p/<profile>` has these tabs:
   - **Outliers**, **Fastest**, **Rising now**, **Tracked**: card grids with search, a platform filter and "hide saved".

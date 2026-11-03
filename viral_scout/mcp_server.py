@@ -154,6 +154,40 @@ def usage(profile: str) -> dict:
     return {"usage": d.get("usage", {}), "budget_warnings": d.get("budget", [])}
 
 
+@mcp.tool()
+def search(query: str, profile: str = "", limit: int = 15) -> list[dict]:
+    """Search titles, hooks, CTAs, transcripts and captions of everything ever collected (all profiles, or one)."""
+    from .search import search as _search
+    return _search(query, [profile] if profile else None, max(1, min(limit, 50)))
+
+
+@mcp.tool()
+def create_project(name: str, business: str, keywords: list[str], hashtags: list[str] | None = None,
+                   languages: dict | None = None, vault_project: str = "", quick_research: bool = False,
+                   start: bool = True) -> dict:
+    """Create a profile for a new project (or a throwaway quick research) from a description and keywords,
+    and optionally start the first run. Poll get_job with the returned job id."""
+    from .newproject import create
+    pname, path = create(name, business, keywords, hashtags, languages, vault_project or None, quick_research)
+    out = {"profile": pname, "file": str(path)}
+    if start:
+        out.update(start_run(pname))
+    return out
+
+
+@mcp.tool()
+def local_competitors(profile: str, query: str = "", near: str = "") -> dict:
+    """Nearby businesses in the niche (Google Places API) and their public social channels → vault note."""
+    return _cli("competitors", profile, *([query] if query else []), *(["--near", near] if near else []))
+
+
+@mcp.tool()
+def api_keys() -> list[dict]:
+    """Which API keys are set (masked) and what each unlocks."""
+    from .keys import status
+    return [{k: s[k] for k in ("name", "group", "set", "masked", "cost", "unlocks")} for s in status()]
+
+
 def main():
     mcp.run()
 

@@ -48,6 +48,7 @@ def _sections(items, top):
                                               key=key("weighted"))[:top]],
         "rising": [i["key"] for i in sorted([i for i in live if i.get("rise_per_day")], key=key("rise_per_day"))[:top]],
         "seeds": [i["key"] for i in sorted([i for i in live if i["tracked"]], key=key("views"))],
+        "own": [i["key"] for i in live if i.get("own")],
     }
 
 
@@ -107,6 +108,9 @@ def profile(cfg):
         "suggested_hashtags": latest.get("suggested_hashtags", []),
         "repeat_creators": latest.get("repeat_creators", []),
         "skipped": latest.get("skipped", []),
+        "usage": latest.get("usage", {}),
+        "budget": latest.get("budget", []),
+        "trends": latest.get("trends", []),
         "errors": latest.get("errors", []),
         "ideas": ideas,
         "reports": reports,
