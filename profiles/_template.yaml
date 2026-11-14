@@ -79,3 +79,12 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 # Own performance (python -m viral_scout perf <profile>): unit economics and settings. See docs/performance.md
 # economics: {avg_order_value: 120, gross_margin: 0.6, ltv: 480, lead_to_customer_rate: 0.2, target_cpa: 40, payback_months: 3}
 # perf: {goal: sales, days: 28}     # goal: sales | leads | awareness
+
+# Search demand (python -m viral_scout demand <profile>): Google Trends seasons, rising searches, wording.
+# About $0.005 per term via Apify, refreshed weekly. See docs/search-demand.md.
+# demand:
+#   terms: []                # services as customers search them, without the city
+#   compare: []              # up to 5 phrasings of the same thing
+#   geo: US                  # US, US-IL, or a metro such as US-IL-602 (Chicago)
+#   every_days: 7
+#   lead_weeks: 3

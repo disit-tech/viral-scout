@@ -64,6 +64,7 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
   - `APIFY_GOOGLE_ADS_ACTOR=automation-lab~google-ads-scraper`: Google Ads Transparency Center by competitor domain and name ($1.30 per 1,000 ads)
   - `APIFY_TIKTOK_ADS_ACTOR=pulsedata~tiktok-creative-center-top-ads-scraper`: TikTok Creative Center Top Ads for an industry ($2 per 1,000 ads). Set `ads.tiktok_top_input.industries` in each profile, because it has no keyword search.
   Usage counts toward `budget.apify_items_per_month`. See [costs and spend controls](ads-scout.md#costs-and-spend-controls).
+- **Search demand (Google Trends):** uses `APIFY_TOKEN` and Apify's own `apify~google-trends-scraper` (override with `APIFY_GOOGLE_TRENDS_ACTOR`), about $0.005 per term, only for profiles with a `demand:` block. See [search-demand.md](search-demand.md).
 - **Spend controls:** `APIFY_MAX_USD_PER_RUN` (default 0.50, 0 = no cap) is sent with every Apify run as its maximum charge. `VIRAL_SCOUT_MCP_PAID=1` lets MCP clients start paid runs (off by default). Both are on the dashboard's Setup page.
 ### Your own performance (optional, free)
 Reads **your own** accounts' private metrics for the [Your performance](performance.md) report. Each pair is optional:

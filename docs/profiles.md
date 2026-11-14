@@ -135,3 +135,17 @@ Start strict and loosen it later. Each post alerts only once.
 ## Example
 
 `profiles/example-language-school.yaml` is a working profile for an online English school. Copy it as a starting point.
+
+## Search demand (`demand:`)
+
+```yaml
+demand:
+  terms: [gutter cleaning, christmas light installation]    # one seasonal curve each, as customers type them
+  compare: [permanent lights, christmas light installation]  # up to 5 phrasings on one scale
+  geo: US-IL-602        # US, a state (US-IL) or a metro DMA (US-IL-602 = Chicago)
+  time: today 5-y
+  every_days: 7         # refetch at most this often
+  lead_weeks: 3         # start posting this many weeks before a season starts
+```
+
+See [search-demand.md](search-demand.md).

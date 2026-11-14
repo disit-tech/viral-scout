@@ -65,6 +65,11 @@ KEYS = [
                 "with first/last shown dates. Runs in batches of 6 competitors.",
      "get": "Use automation-lab~google-ads-scraper (the mapping is written and tested for it).",
      "docs": "https://apify.com/automation-lab/google-ads-scraper"},
+    {"name": "APIFY_GOOGLE_TRENDS_ACTOR", "secret": False, "group": "Search demand (Google Trends)",
+     "cost": "$0.005 per term (Starter) + run", "unlocks": "Seasonality, rising searches and wording per business "
+     "(profile demand: block). Default apify~google-trends-scraper when empty. Uses APIFY_TOKEN.",
+     "get": "Leave empty for Apify's own actor, or paste another Google Trends actor id.",
+     "docs": "https://apify.com/apify/google-trends-scraper"},
     {"name": "APIFY_MAX_USD_PER_RUN", "group": "Spend controls", "cost": "default 0.50", "secret": False,
      "unlocks": "Spend cap for each Apify actor run (Apify maxTotalChargeUsd): a run stops at it instead of using up "
                 "the month. 0 = no cap. It caps one run, not the total: each advertiser and keyword is its own run.",
@@ -227,7 +232,8 @@ def test(name):
             d = r.json()
             ok = bool(d.get("access_token"))
             return ok, "ok (client token issued)" if ok else (d.get("error_description") or d.get("error") or r.text[:160])
-        if name in ("APIFY_ADS_ACTOR", "APIFY_TIKTOK_ADS_ACTOR", "APIFY_GOOGLE_ADS_ACTOR", "APIFY_TRENDS_ACTOR"):
+        if name in ("APIFY_ADS_ACTOR", "APIFY_TIKTOK_ADS_ACTOR", "APIFY_GOOGLE_ADS_ACTOR", "APIFY_TRENDS_ACTOR",
+                    "APIFY_GOOGLE_TRENDS_ACTOR"):
             # Looks the actor up (free); doesn't run it.
             r = requests.get(f"https://api.apify.com/v2/acts/{v}", params={"token": os.environ.get("APIFY_TOKEN", "")},
                              timeout=20)

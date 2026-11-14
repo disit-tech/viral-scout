@@ -21,9 +21,12 @@ export default async function AdsPage({ params }: { params: Promise<{ name: stri
     <div>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link href={profile ? `/p/${name}` : "/"} className="text-xs text-muted hover:text-text">
-            ← {profile ? `${name}: viral posts` : "All businesses"}
-          </Link>
+          <div className="flex gap-3 text-xs text-muted">
+            <Link href={profile ? `/p/${name}` : "/"} className="hover:text-text">
+              ← {profile ? `${name}: viral posts` : "All businesses"}
+            </Link>
+            <Link href={`/p/${name}/demand`} className="hover:text-text">Search demand →</Link>
+          </div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight">{name} · Ads</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">
             The ads that keep running in this niche: competitors and the category. Long-running ads and ads with

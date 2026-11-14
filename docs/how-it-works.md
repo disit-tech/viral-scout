@@ -97,6 +97,7 @@ Report sections:
 | `usage.py` | per-run counters and budget warnings |
 | `export.py` | data for the dashboard |
 | `mcp_server.py` | MCP tools |
+| `demand.py` | search demand: Google Trends via Apify (async run), seasons, start-by dates, buyer searches, wording, report ([search-demand.md](search-demand.md)) |
 | `activity.py` | live logs and status of every run/ads/perf command (`data/activity/`), Apify run list and spend for the Activity page |
 | `search.py` | BM25 search over everything collected |
 | `keys.py` | key registry, live tests, `.env` writes |

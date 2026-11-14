@@ -153,7 +153,7 @@ def _tail(path, n=200):
         return [], 0
 
 
-_STEP = re.compile(r"^(ads|discover|watch|own|re-check|enrich|perf)[: ]", re.I)
+_STEP = re.compile(r"^(ads|discover|watch|own|re-check|enrich|perf|demand)[: ]", re.I)
 _COUNT = re.compile(r":\s*(\d+)\s+(ads|posts|items|videos)\b")
 
 

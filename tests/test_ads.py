@@ -3,11 +3,12 @@
   python -m unittest discover -s tests -v
 """
 import json
+import math
 import os
 import sys
 import tempfile
 import unittest
-from datetime import timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -543,3 +544,67 @@ class AdExtras(unittest.TestCase):
         path.write_text(text + "\nmy edits", encoding="utf-8")
         self.assertEqual(Path(extra.save_swipe(self.cfg, self.key)), path)   # an edited note is never overwritten
         self.assertIn("my edits", path.read_text(encoding="utf-8"))
+
+
+class SearchDemand(unittest.TestCase):
+    """Google Trends analysis on synthetic weekly series (no network)."""
+
+    @staticmethod
+    def row(fn, years=5, start=date(2021, 11, 14)):
+        tl, d = [], start
+        for i in range(52 * years):
+            dt = d + timedelta(weeks=i)
+            tl.append({"time": str(int(datetime(dt.year, dt.month, dt.day, tzinfo=timezone.utc).timestamp())),
+                       "value": [max(0, int(round(fn(dt))))], "hasData": [True]})
+        return {"interestOverTime_timelineData": tl}
+
+    def test_single_season_peak_rise_and_in_season(self):
+        from viral_scout import demand
+        # Peak around week 46 (mid-November), quiet in spring.
+        r = self.row(lambda d: 20 + 70 * max(0, math.cos((d.isocalendar()[1] - 46) / 52 * 2 * math.pi)) ** 4)
+        a = demand.analyze_term("christmas lights", r, today=date(2026, 11, 14))
+        self.assertEqual(a["shape"], "strong season")
+        self.assertEqual(len(a["seasons"]), 1)
+        s = a["seasons"][0]
+        self.assertTrue(44 <= s["peak_week"] <= 48)
+        self.assertTrue(s["rise_week"] < s["peak_week"])
+        self.assertTrue(a["in_season"])                       # Nov 14 is inside the season
+        self.assertGreater(s["start_by"], "2027-01-01")      # next year's prep date
+
+    def test_two_seasons_and_preparation_date(self):
+        from viral_scout import demand
+        # Gutter cleaning shape: spring/summer peak (week 24) and an autumn peak (week 44).
+        f = lambda d: 15 + 60 * math.exp(-((d.isocalendar()[1] - 24) / 4) ** 2) + 50 * math.exp(-((d.isocalendar()[1] - 44) / 3) ** 2)  # noqa: E731
+        a = demand.analyze_term("gutter cleaning", self.row(f), today=date(2027, 1, 10), lead_weeks=3)
+        peaks = sorted(s["peak_week"] for s in a["seasons"])
+        self.assertEqual(len(peaks), 2)
+        self.assertTrue(22 <= peaks[0] <= 26 and 42 <= peaks[1] <= 46)
+        spring = [s for s in a["seasons"] if s["peak_week"] < 30][0]
+        rise = date.fromisoformat(spring["rise_date"])
+        self.assertEqual(date.fromisoformat(spring["start_by"]), rise - timedelta(weeks=3))
+        self.assertFalse(a["in_season"])
+
+    def test_flat_and_low_volume(self):
+        from viral_scout import demand
+        flat = demand.analyze_term("handyman", self.row(lambda d: 50), today=date(2026, 6, 1))
+        self.assertEqual(flat["shape"], "steady all year")
+        self.assertEqual(flat["seasons"], [])
+        thin = demand.analyze_term("niche", self.row(lambda d: 60 if d.isocalendar()[1] in (45, 46) else 0), today=date(2026, 6, 1))
+        self.assertTrue(thin["low_volume"])
+        self.assertIsNone(thin["vs_last_year_pct"])
+        self.assertLessEqual(len(thin["seasons"]), 1)
+
+    def test_buyer_queries_and_compare(self):
+        from viral_scout import demand
+        rel = demand.related({"relatedQueries_rising": [{"query": "power washing simulator", "formattedValue": "Breakout"},
+                                                        {"query": "power washing services near me", "formattedValue": "+190%"},
+                                                        {"query": "how much is gutter cleaning", "formattedValue": "+130%"}]})
+        self.assertEqual([q["query"] for q in rel["rising"] if q["buyer"]], ["power washing services near me", "how much is gutter cleaning"])
+        row = {"interestOverTime_timelineData": [{"time": str(1700000000 + i * 604800), "value": [30, 10], "hasData": [True, True]} for i in range(60)]}
+        c = demand.compare(["permanent lights", "christmas light installation"], row)
+        self.assertEqual((c[0]["term"], c[0]["share_pct"], c[1]["share_pct"]), ("permanent lights", 75, 25))
+
+    def test_trends_url(self):
+        from viral_scout import demand
+        self.assertEqual(demand.trends_url(["gutter cleaning"], "US-IL-602"),
+                         "https://trends.google.com/trends/explore?date=today%205-y&geo=US-IL-602&q=gutter%20cleaning")

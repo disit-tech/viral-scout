@@ -42,6 +42,9 @@ Run `python -m viral_scout check <profile> <file>` (or use an existing check id)
 ## 4. Report back (short)
 3–5 lines: the strongest pattern, the best idea, where the notes are, which source a key would unlock (YouTube API key is free; Instagram Graph needs a business account; TikTok via Apify is paid).
 
+## 4b. Timing (search demand)
+If `data/<profile>-demand.json` exists (the weekly run refreshes it), read its `calendar`: say which services are **in season now** and which need content started soon (`start_by` within the next 6 weeks), and put the most-searched wording from `compare` into hooks. Use rising **buyer** searches (`related.rising` with `buyer: true`) as video and ad ideas; ignore the other rising queries unless they're clearly on topic. Don't run `python -m viral_scout demand` yourself unless the user asks (Apify, about $0.005 per term).
+
 ## 5. Ads (the paid side)
 Run when the user asks about competitors' ads or ad ideas, with `<profile> ads`, or offer it after step 4 when the profile has an `ads:` block.
 

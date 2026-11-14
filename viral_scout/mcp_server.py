@@ -329,6 +329,25 @@ def perf_diagnose(profile: str, video_id: str = "") -> dict:
 
 
 @mcp.tool()
+def demand_results(profile: str, term: str = "") -> dict:
+    """Search demand (Google Trends) from the last weekly refresh: the calendar (when to start posting before
+    demand rises), per term the season, peak, now vs last year and vs normal, 2-year trend, rising and top
+    related searches, and which phrasing people use. Free: reads the stored data, fetches nothing."""
+    from .demand import paths
+    p = paths(config.load(profile))[0]
+    if not p.exists():
+        return {"status": "none", "hint": f"no search demand yet; the profile needs a demand: block, then "
+                                          f"python -m viral_scout demand {profile} (paid, about $0.005 per term)"}
+    d = json.loads(p.read_text(encoding="utf-8"))
+    rows = [r for r in d.get("terms") or [] if not term or term.lower() in r.get("term", "").lower()]
+    for r in rows:
+        r.pop("series", None)
+        r.pop("season_index", None)
+    return {"geo": d.get("geo"), "fetched": d.get("fetched"), "calendar": d.get("calendar"), "terms": rows,
+            "compare": d.get("compare"), "errors": d.get("errors")}
+
+
+@mcp.tool()
 def api_keys() -> list[dict]:
     """Which API keys are set (masked) and what each unlocks."""
     from .keys import status

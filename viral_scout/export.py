@@ -193,6 +193,18 @@ def export_ads(cfg, out=WEB_DATA):
     return f
 
 
+def export_demand(cfg, out=WEB_DATA):
+    """Search demand (Google Trends) for the dashboard: data/<profile>-demand.json as it is."""
+    from .demand import paths
+    p = paths(cfg)[0]
+    if not p.exists():
+        return None
+    (out / "demand").mkdir(parents=True, exist_ok=True)
+    f = out / "demand" / f"{cfg['name']}.json"
+    f.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+    return f
+
+
 def export_all(names=None, out=WEB_DATA):
     out.mkdir(parents=True, exist_ok=True)
     if not names:
@@ -208,6 +220,7 @@ def export_all(names=None, out=WEB_DATA):
     for name in sorted(names):
         cfg = config.load(name)
         export_ads(cfg, out)
+        has_demand = bool(export_demand(cfg, out))
         data = profile(cfg)
         if not data:
             continue
@@ -220,7 +233,7 @@ def export_all(names=None, out=WEB_DATA):
             "posts": len(live), "outliers": sum(1 for i in live if (i.get("outlier") or 0) >= 3),
             "mega": sum(1 for i in live if (i.get("outlier") or 0) >= 10),
             "new": sum(1 for i in live if i.get("new")), "saved": len(data["swipe"]), "ideas": len(data["ideas"]),
-            "ads": (data.get("ads_summary") or {}).get("ads"),
+            "ads": (data.get("ads_summary") or {}).get("ads"), "demand": has_demand,
             "top": [{"title": i["title"], "thumbnail": i.get("thumbnail"), "outlier": i.get("outlier"),
                      "channel": i["channel"], "url": i["url"]} for i in top],
         })

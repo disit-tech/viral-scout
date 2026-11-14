@@ -30,6 +30,14 @@ def main(argv=None):
     if argv and argv[0] == "activity":             # live jobs + Apify runs (the dashboard's Activity page)
         from .activity import cli as activity_cli
         return activity_cli(argv[1:])
+    if argv and argv[0] == "demand":               # search demand (Google Trends via Apify)
+        if len(argv) < 2:
+            print("usage: python -m viral_scout demand <profile> [--force] [--quiet]")
+            return 2
+        from . import activity, demand
+        cfg = config.load(argv[1])
+        with activity.track(cfg["name"], "demand", argv):
+            return demand.cli(cfg, force="--force" in argv, quiet="--quiet" in argv)
     if argv and argv[0] == "ad":                   # one ad: transcribe | analyze | save
         if len(argv) < 4 or argv[3] not in ("transcribe", "analyze", "save"):
             print("usage: python -m viral_scout ad <profile> <ad key> transcribe|analyze|save [--force]")
