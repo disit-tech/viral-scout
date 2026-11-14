@@ -306,7 +306,7 @@ def tiktok_api(cfg_ads, errors, log=print):
 def _apify(actor, payload, label, errors):
     try:
         r = requests.post(f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items",
-                          params={"token": os.environ["APIFY_TOKEN"]}, json=payload, timeout=300)
+                          params=usage.apify_params(), json=payload, timeout=300)
         if r.status_code >= 400:
             errors.append(f"{label}: Apify HTTP {r.status_code} {r.text[:200]}")
             return []
@@ -434,79 +434,132 @@ def apify_meta(cfg_ads, errors, log=print):
     return list(out.values())
 
 
-def apify_tiktok_top(cfg_ads, errors, log=print):
+def tiktok_top_payload(cfg_ads):
+    """Input for APIFY_TIKTOK_ADS_ACTOR. Field names follow pulsedata~tiktok-creative-center-top-ads-scraper
+    (countries / period as a string / industries / maxAdsPerCountry); the older generic names stay for other actors.
+    That actor has no keyword search (it needs a login), so set ads.tiktok_top_input.industries per profile."""
     country = (cfg_ads.get("countries") or ["US"])[0].upper()
     kws = list(cfg_ads.get("keywords") or [])
-    payload = {"keywords": kws, "keyword": kws[0] if kws else "", "country": country, "region": country,
-               "period": 30, "maxItems": int(cfg_ads.get("per_query", 50))}
+    n = int(cfg_ads.get("per_query", 50))
+    payload = {"countries": [country], "period": "30", "maxAdsPerCountry": n, "includeDetails": True,
+               "keywords": kws, "keyword": kws[0] if kws else "", "country": country, "region": country, "maxItems": n}
     payload.update(cfg_ads.get("tiktok_top_input") or {})
-    rows = _apify(os.environ["APIFY_TIKTOK_ADS_ACTOR"], payload, "apify tiktok top ads", errors)
-    out = []
-    for row in rows:
-        aid = str(pick(row, "id", "ad_id", "adId", "material_id", "materialId", default=""))
-        if not aid:
-            continue
-        title = _text(pick(row, "ad_title", "adTitle", "title", "caption", "text", "description"))
-        url = pick(row, "url", "detailUrl", "detail_url", "link", default="")
-        out.append(Ad(
-            source="apify_tiktok_top", id=aid, advertiser=_text(pick(row, "brand_name", "brandName", "advertiser",
-                                                                     "advertiser_name", "advertiserName")),
-            url=url or f"https://ads.tiktok.com/business/creativecenter/topads/{aid}/pc/en",
-            image=str(pick(row, "video_info.cover", "videoInfo.cover", "cover", "coverUrl", "cover_url", "thumbnail", default="")),
-            body=title, title="", format="video", platforms=["tiktok"], countries=[country],
-            likes=parse_count(pick(row, "like", "likes", "likeCount", "like_count", "diggCount")),
-            reach=parse_count(pick(row, "views", "play_count", "playCount", "impression", "impressions")),
-            reach_label="views" if pick(row, "views", "play_count", "playCount") else (
-                "impressions" if pick(row, "impression", "impressions") else ""),
-            start=parse_when(pick(row, "first_shown", "firstShown", "start_date", "startDate", "create_time")),
-            cta_text=_text(pick(row, "cta", "cta_text", "ctaText", "call_to_action")),
-            found_by=["apify tiktok top ads"],
-        ))
+    return payload
+
+
+def _tiktok_top_ad(row, country):
+    aid = str(pick(row, "id", "ad_id", "adId", "material_id", "materialId", default=""))
+    if not aid:
+        return None
+    title = _text(pick(row, "ad_title", "adTitle", "title", "caption", "text", "description"))
+    url = pick(row, "url", "detailUrl", "detail_url", "link", default="")
+    return Ad(
+        source="apify_tiktok_top", id=aid, advertiser=_text(pick(row, "brand_name", "brandName", "advertiser",
+                                                                 "advertiser_name", "advertiserName")),
+        url=url or f"https://ads.tiktok.com/business/creativecenter/topads/{aid}/pc/en",
+        image=str(pick(row, "coverImageUrl", "video_info.cover", "videoInfo.cover", "cover", "coverUrl", "cover_url",
+                       "thumbnail", default="")),
+        video=str(pick(row, "videoUrl", "video_url", "video_info.video_url", default="")),
+        link_url=str(pick(row, "landingPage", "landing_page", "landingPageUrl", default="")),
+        body=title, title="", format="video", platforms=["tiktok"], countries=[str(row.get("country") or country)],
+        likes=parse_count(pick(row, "like", "likes", "likeCount", "like_count", "diggCount")),
+        reach=parse_count(pick(row, "views", "play_count", "playCount", "impression", "impressions")),
+        reach_label="views" if pick(row, "views", "play_count", "playCount") else (
+            "impressions" if pick(row, "impression", "impressions") else ""),
+        start=parse_when(pick(row, "first_shown", "firstShown", "start_date", "startDate", "create_time")),
+        cta_text=_text(pick(row, "cta", "cta_text", "ctaText", "call_to_action")),
+        found_by=["apify tiktok top ads"],
+    )
+
+
+def apify_tiktok_top(cfg_ads, errors, log=print):
+    country = (cfg_ads.get("countries") or ["US"])[0].upper()
+    rows = _apify(os.environ["APIFY_TIKTOK_ADS_ACTOR"], tiktok_top_payload(cfg_ads), "apify tiktok top ads", errors)
+    out = [a for a in (_tiktok_top_ad(r, country) for r in rows) if a]
     log(f"  apify tiktok top ads: {len(out)} ads")
     return out
 
 
-def apify_google(cfg_ads, errors, log=print):
+def google_payload(cfg_ads):
+    """Input for APIFY_GOOGLE_ADS_ACTOR. Field names follow automation-lab~google-ads-scraper: domains are searched
+    as domains and names as searchTerms (one advertiser per name, the largest match), maxAds per advertiser/domain.
+    None when the profile has nothing to search."""
     country = (cfg_ads.get("countries") or ["US"])[0].upper()
-    domains = list(cfg_ads.get("domains") or []) + [a["domain"] for a in _advertiser_entries(cfg_ads) if a["domain"]]
+    domains = list(dict.fromkeys(list(cfg_ads.get("domains") or [])
+                                 + [a["domain"] for a in _advertiser_entries(cfg_ads) if a["domain"]]))
     names = [a["name"] for a in _advertiser_entries(cfg_ads) if not a["page_id"]]
     if not (domains or names):
-        return []
-    payload = {"domains": domains, "searchTerms": domains + names, "region": country,
-               "maxItems": int(cfg_ads.get("per_query", 50))}
+        return None
+    n = int(cfg_ads.get("per_query", 50))
+    payload = {"domains": domains, "searchTerms": names, "region": country, "maxAds": n,
+               "maxAdvertisersPerTerm": 1, "maxItems": n}
     payload.update(cfg_ads.get("google_input") or {})
-    rows = _apify(os.environ["APIFY_GOOGLE_ADS_ACTOR"], payload, "apify google transparency", errors)
-    out = []
+    return payload
+
+
+def _google_ad(row, country):
+    cid = str(pick(row, "creativeId", "creative_id", "adId", "ad_id", "id", default=""))
+    if not cid:
+        return None
+    adv_id = str(pick(row, "advertiserId", "advertiser_id", default=""))
+    stop = parse_when(pick(row, "lastShown", "last_shown", "lastShownDate", "last_shown_date", "endDate"))
+    active = pick(row, "isActive", "is_active")
+    if active is None and stop:
+        active = stop >= now() - timedelta(days=3)       # "last shown" yesterday = still running
+    if active and stop and stop >= now() - timedelta(days=3):
+        stop = None
+    url = pick(row, "url", "adUrl", "creativeUrl", "link", "previewUrl", default="")
+    if not url or "adstransparency" not in str(url):
+        url = (f"https://adstransparency.google.com/advertiser/{adv_id}/creative/{cid}?region={country}"
+               if adv_id else str(url))
+    reach = pick(row, "impressions", "impressionsMin", "timesShown", "times_shown")
+    return Ad(
+        source="apify_google", id=cid, advertiser=_text(pick(row, "advertiserName", "advertiser_name", "advertiser")),
+        advertiser_id=adv_id, url=url,
+        image=str(pick(row, "imageUrl", "image", "previewImage", "preview_image", "thumbnail", default="")),
+        title=_text(pick(row, "headline", "title")), body=_text(pick(row, "adText", "description", "text", "body")),
+        link_url=str(pick(row, "destinationUrl", "landingPage", "landing_page", "landingDomain", "targetDomain",
+                          default="")),
+        cta_text=_text(pick(row, "callToAction", "cta", "ctaText")),
+        format=extract.norm_format(pick(row, "format", "adFormat", "ad_format", "type")),
+        platforms=[str(p).lower() for p in (pick(row, "platforms", "surfaces", default=[]) or [])] or ["google"],
+        countries=[country], start=parse_when(pick(row, "firstShown", "first_shown", "firstShownDate",
+                                                   "first_shown_date", "startDate")),
+        stop=stop, active=active if isinstance(active, bool) else None,
+        reach=parse_count(reach),
+        reach_label="impressions (lower bound of Google's range)" if reach else "",
+        found_by=["apify google transparency"],
+    )
+
+
+GOOGLE_BATCH = 6   # targets per actor run: ~10-20 s each keeps a run inside Apify's 300 s sync limit and under the cap
+
+
+def google_batches(payload, size=GOOGLE_BATCH):
+    """Split one payload into runs of at most `size` domains + names. A sync run that passes 300 s fails the request
+    while the run keeps going (and billing), so many competitors in one run would be paid for and lost."""
+    targets = [("domains", d) for d in payload.get("domains") or []] +               [("searchTerms", n) for n in payload.get("searchTerms") or []]
+    for i in range(0, len(targets), size):
+        part = dict(payload, domains=[], searchTerms=[])
+        for key, v in targets[i:i + size]:
+            part[key].append(v)
+        yield part
+
+
+def apify_google(cfg_ads, errors, log=print):
+    country = (cfg_ads.get("countries") or ["US"])[0].upper()
+    payload = google_payload(cfg_ads)
+    if not payload:
+        return []
+    rows = []
+    for n, part in enumerate(google_batches(payload), 1):
+        rows += _apify(os.environ["APIFY_GOOGLE_ADS_ACTOR"], part, f"apify google transparency (batch {n})", errors)
+    out, seen = [], set()
     for row in rows:
-        cid = str(pick(row, "creativeId", "creative_id", "adId", "ad_id", "id", default=""))
-        if not cid:
-            continue
-        adv_id = str(pick(row, "advertiserId", "advertiser_id", default=""))
-        stop = parse_when(pick(row, "lastShown", "last_shown", "lastShownDate", "last_shown_date", "endDate"))
-        active = pick(row, "isActive", "is_active")
-        if active is None and stop:
-            active = stop >= now() - timedelta(days=3)       # "last shown" yesterday = still running
-        if active and stop and stop >= now() - timedelta(days=3):
-            stop = None
-        url = pick(row, "url", "adUrl", "creativeUrl", "link", "previewUrl", default="")
-        if not url or "adstransparency" not in str(url):
-            url = (f"https://adstransparency.google.com/advertiser/{adv_id}/creative/{cid}?region={country}"
-                   if adv_id else str(url))
-        out.append(Ad(
-            source="apify_google", id=cid, advertiser=_text(pick(row, "advertiserName", "advertiser_name", "advertiser")),
-            advertiser_id=adv_id, url=url,
-            image=str(pick(row, "imageUrl", "image", "previewImage", "preview_image", "thumbnail", default="")),
-            title=_text(pick(row, "headline", "title")), body=_text(pick(row, "description", "text", "body")),
-            link_url=str(pick(row, "landingPage", "landing_page", "destinationUrl", "targetDomain", default="")),
-            format=extract.norm_format(pick(row, "format", "adFormat", "ad_format", "type")),
-            platforms=[str(p).lower() for p in (pick(row, "platforms", "surfaces", default=[]) or [])] or ["google"],
-            countries=[country], start=parse_when(pick(row, "firstShown", "first_shown", "firstShownDate",
-                                                       "first_shown_date", "startDate")),
-            stop=stop, active=active if isinstance(active, bool) else None,
-            reach=parse_count(pick(row, "impressions", "timesShown", "times_shown")),
-            reach_label="times shown (range)" if pick(row, "impressions", "timesShown", "times_shown") else "",
-            found_by=["apify google transparency"],
-        ))
+        ad = _google_ad(row, country)
+        if ad and ad.id not in seen:                 # the same creative can come back from a domain and a name
+            seen.add(ad.id)
+            out.append(ad)
     log(f"  apify google transparency: {len(out)} ads")
     return out
 

@@ -320,3 +320,119 @@ class CatalogAndGrouping(unittest.TestCase):
         score.enrich(ads); score.score(ads)
         self.assertEqual(len({a.group for a in ads}), 1)
         self.assertEqual(len(report._one_per_group(ads)), 1)
+
+
+class ApifyGoogleAdsScraperShape(unittest.TestCase):
+    """Rows shaped like the documented output of automation-lab~google-ads-scraper (README output example)."""
+
+    def row(self, **over):
+        r = {"advertiserId": "AR16735076323512287233", "advertiserName": "Sunny Solar Co", "isVerified": True,
+             "creativeId": "CR05122336859459944449", "adFormat": "Text",
+             "firstShown": (now() - timedelta(days=90)).strftime("%Y-%m-%d"),
+             "lastShown": now().strftime("%Y-%m-%d"), "daysShown": 90, "landingDomain": "sunnysolar.example",
+             "adUrl": "https://adstransparency.google.com/advertiser/AR16735076323512287233/creative/CR05122336859459944449",
+             "imageUrl": None, "adText": "Backup power for Illinois homes. $0 down.", "headline": "Free Battery Quote",
+             "body": None, "callToAction": "Get quote", "destinationUrl": None, "region": "all"}
+        r.update(over)
+        return r
+
+    def test_documented_row_maps(self):
+        ad = sources._google_ad(self.row(), "US")
+        self.assertEqual((ad.id, ad.advertiser, ad.advertiser_id), ("CR05122336859459944449", "Sunny Solar Co",
+                                                                     "AR16735076323512287233"))
+        self.assertTrue(ad.url.startswith("https://adstransparency.google.com/advertiser/"))
+        self.assertIn("$0 down", ad.body)
+        self.assertEqual((ad.title, ad.cta_text, ad.format), ("Free Battery Quote", "Get quote", "text"))
+        self.assertEqual(ad.landing_domain, "sunnysolar.example")
+        self.assertTrue(ad.is_active)                    # last shown today = still running
+        self.assertIsNone(ad.stop)
+        self.assertGreaterEqual(ad.days_running, 89)
+
+    def test_stopped_ad(self):
+        ad = sources._google_ad(self.row(lastShown=(now() - timedelta(days=20)).strftime("%Y-%m-%d")), "US")
+        self.assertFalse(ad.is_active)
+        self.assertAlmostEqual(ad.days_running, 70, delta=1)
+
+    def test_payload(self):
+        p = sources.google_payload({"countries": ["us"], "per_query": 20, "domains": ["sunrun.com"],
+                                    "advertisers": ["Sunrun", {"name": "X", "page_id": "42", "domain": "sunrun.com"}]})
+        self.assertEqual(p["domains"], ["sunrun.com"])  # de-duplicated
+        self.assertEqual(p["searchTerms"], ["Sunrun"])  # names only; a page id is a Meta id, not a Google name
+        self.assertEqual((p["region"], p["maxAds"], p["maxAdvertisersPerTerm"]), ("US", 20, 1))
+        self.assertIsNone(sources.google_payload({"keywords": ["solar"]}))
+        self.assertEqual(sources.google_payload({"domains": ["a.com"], "google_input": {"maxAds": 5}})["maxAds"], 5)
+
+
+class ApifyTiktokTopAdsShape(unittest.TestCase):
+    """Rows shaped like the documented output of pulsedata~tiktok-creative-center-top-ads-scraper (README)."""
+
+    def test_documented_row_maps(self):
+        row = {"adId": "7680819143491026960", "rank": 2, "country": "US", "period": 30, "sortedBy": "for_you",
+               "adTitle": "Power outage? Your fridge keeps running.", "brandName": "Sunny Solar Co",
+               "industry": "Home Improvement", "objective": "Lead Generation", "ctr": 0.92, "likes": 12441,
+               "videoUrl": "https://v16m-default.tiktokcdn.com/x.mp4", "coverImageUrl": "https://img.example/c.jpg",
+               "landingPage": "https://sunnysolar.example/quote", "adCountries": ["US"]}
+        ad = sources._tiktok_top_ad(row, "US")
+        self.assertEqual((ad.id, ad.advertiser, ad.format), ("7680819143491026960", "Sunny Solar Co", "video"))
+        self.assertEqual(ad.likes, 12441)
+        self.assertEqual((ad.image, ad.video), ("https://img.example/c.jpg", "https://v16m-default.tiktokcdn.com/x.mp4"))
+        self.assertEqual(ad.landing_domain, "sunnysolar.example")
+        self.assertIn("creativecenter/topads/7680819143491026960", ad.url)
+        self.assertIsNone(ad.start)                      # the Creative Center gives no start date
+        self.assertIsNone(sources._tiktok_top_ad({"adTitle": "no id"}, "US"))
+
+    def test_payload(self):
+        p = sources.tiktok_top_payload({"countries": ["us"], "per_query": 20,
+                                        "tiktok_top_input": {"industries": ["Home Improvement"], "period": "180"}})
+        self.assertEqual((p["countries"], p["period"], p["maxAdsPerCountry"]), (["US"], "180", 20))
+        self.assertEqual(p["industries"], ["Home Improvement"])
+
+
+class ApifySpendCap(unittest.TestCase):
+    def setUp(self):
+        self._old = os.environ.get("APIFY_MAX_USD_PER_RUN")
+
+    def tearDown(self):
+        os.environ.pop("APIFY_MAX_USD_PER_RUN", None)
+        if self._old is not None:
+            os.environ["APIFY_MAX_USD_PER_RUN"] = self._old
+
+    def test_default_and_override(self):
+        from viral_scout import usage
+        os.environ.pop("APIFY_MAX_USD_PER_RUN", None)
+        self.assertEqual(usage.apify_params()["maxTotalChargeUsd"], 0.5)
+        os.environ["APIFY_MAX_USD_PER_RUN"] = "1.25"
+        self.assertEqual(usage.apify_params()["maxTotalChargeUsd"], 1.25)
+        os.environ["APIFY_MAX_USD_PER_RUN"] = "0"
+        self.assertNotIn("maxTotalChargeUsd", usage.apify_params())
+
+
+class GoogleBatches(unittest.TestCase):
+    def test_split(self):
+        p = {"domains": [f"d{i}.com" for i in range(10)], "searchTerms": [f"N{i}" for i in range(13)], "region": "US",
+             "maxAds": 30}
+        parts = list(sources.google_batches(p, 6))
+        self.assertEqual(len(parts), 4)
+        self.assertEqual(sum(len(x["domains"]) + len(x["searchTerms"]) for x in parts), 23)
+        self.assertTrue(all(len(x["domains"]) + len(x["searchTerms"]) <= 6 for x in parts))
+        self.assertEqual(parts[1]["domains"], ["d6.com", "d7.com", "d8.com", "d9.com"])
+        self.assertEqual(parts[1]["searchTerms"], ["N0", "N1"])
+        self.assertEqual(parts[0]["maxAds"], 30)
+        self.assertEqual(p["searchTerms"][0], "N0")     # the original payload is not changed
+
+
+class McpPaidGate(unittest.TestCase):
+    def test_paid_tools_refuse_by_default(self):
+        try:
+            from viral_scout import mcp_server as m
+        except ImportError:
+            self.skipTest("mcp not installed")
+        old = os.environ.pop("VIRAL_SCOUT_MCP_PAID", None)
+        try:
+            self.assertEqual(m.ads_run("_template")["status"], "disabled")
+            self.assertEqual(m.start_run("_template")["status"], "disabled")
+            self.assertEqual(m.local_competitors("_template")["status"], "disabled")
+            self.assertFalse(m.JOBS)                    # nothing was started
+        finally:
+            if old is not None:
+                os.environ["VIRAL_SCOUT_MCP_PAID"] = old

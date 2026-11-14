@@ -30,9 +30,10 @@ And it turns numbers into something you can film:
 - **Search** across everything ever collected; **New research** from a description; a **Setup** page for keys (dashboard and CLI).
 - **Video analysis page**: click any tile for the full breakdown: the 5 tests, a **20-criteria / 100-point creative scorecard** (AI), every number explained, growth, hook/CTA, viewer questions, transcript. See [docs/video-quality-framework.md](docs/video-quality-framework.md).
 - **Pre-publish check** for your own drafts (`check` command or the dashboard's Check a video page): format, loudness, peaks, silences, cuts and pacing, pattern interrupts, speech start, CTA, frames for the AI scorecard.
-- **Ads scout** (`python -m viral_scout ads <profile>`): the paid side. Competitor and category ads that keep running (Meta Ad Library API for EU ads, TikTok Commercial Content API for EEA ads, Apify actors for US Meta ads, TikTok Top Ads and Google Transparency). Scored on days running, variants and reach, with hook, offer, CTA, landing domain and format extracted. Report, JSON, an Ads page per business, and ad ideas from the skill. See [docs/ads-scout.md](docs/ads-scout.md).
+- **Ads scout** (`python -m viral_scout ads <profile>`): the paid side. Competitor and category ads that keep running on **Facebook/Instagram, Google (Search, YouTube, Display) and TikTok**: the Meta Ad Library API for EU ads, the TikTok Commercial Content API for EEA ads, and three Apify actors for the US: `apify~facebook-ads-scraper`, `automation-lab~google-ads-scraper` (by competitor domain and name) and `pulsedata~tiktok-creative-center-top-ads-scraper` (top ads for an industry). Scored on days running, variants and reach, with hook, offer, CTA, landing domain and format extracted. Report, JSON, an Ads page per business, and ad ideas from the skill. See [docs/ads-scout.md](docs/ads-scout.md).
+- **Spend controls**: every Apify run carries a spend cap (`APIFY_MAX_USD_PER_RUN`, default $0.50), scheduled runs are weekly by default, and paid MCP tools are off unless `VIRAL_SCOUT_MCP_PAID=1`. See [costs](docs/ads-scout.md#costs-and-spend-controls).
 - **Your performance** ([docs](docs/performance.md)): the private numbers only your own accounts have (hook rate, watch time, retention curve, completion, shares/saves, CTR, CVR, CPA, CAC, ROAS) from the Instagram Graph API, YouTube Analytics (OAuth), the Meta Marketing API, the TikTok API for Business, or your own CSV exports. KPIs A–E with formulas and denominators, diagnostics against your own medians, the 5 tests, retention drop-offs, creative fatigue, unit economics.
-- **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can run scouts, read results and manage the swipe file.
+- **MCP server** (`python -m viral_scout.mcp_server`): Claude or any agent can read results, run free tools and manage the swipe file. Paid tools (`start_run`, `ads_run`, `local_competitors`, `create_project` with `start`) refuse unless the server runs with `VIRAL_SCOUT_MCP_PAID=1`, because it's registered at user scope and any agent in any repo could otherwise spend the Apify budget.
 - **Web dashboard** (`web/`, Next.js): cards with thumbnails, hooks and growth sparklines, ideas, a swipe board. Local with actions, or published read-only to Vercel's free plan behind a password. See [docs/dashboard.md](docs/dashboard.md).
 
 ### How "viral" is scored
@@ -58,7 +59,7 @@ And it turns numbers into something you can film:
 | TikTok discovery + watch list | hashtags, keyword search, profiles | `APIFY_TOKEN` (Apify, paid per result) |
 | Meta Ad Library API (ads scout) | ads delivered in the EU + political ads: copy, dates, platforms, EU reach. **No US commercial ads** | `META_AD_LIBRARY_TOKEN` (free, identity-verified) |
 | TikTok Commercial Content API (ads scout) | TikTok ads shown in the EEA: dates, reach, media (no copy) | `TIKTOK_RESEARCH_CLIENT_KEY` + `_SECRET` (free, by application) |
-| Meta Ad Library / TikTok Top Ads / Google Transparency via Apify (ads scout) | US and other ads where no official API exists | `APIFY_TOKEN` + `APIFY_ADS_ACTOR` / `APIFY_TIKTOK_ADS_ACTOR` / `APIFY_GOOGLE_ADS_ACTOR` (paid) |
+| Meta Ad Library / Google Transparency / TikTok Top Ads via Apify (ads scout) | US and other ads where no official API exists | `APIFY_TOKEN` + `APIFY_ADS_ACTOR=apify~facebook-ads-scraper` / `APIFY_GOOGLE_ADS_ACTOR=automation-lab~google-ads-scraper` / `APIFY_TIKTOK_ADS_ACTOR=pulsedata~tiktok-creative-center-top-ads-scraper` (paid per ad) |
 | Telegram alerts | push new outliers/risers | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`, or `alerts.env_file` to reuse an existing bot |
 
 What it deliberately doesn't do: call Instagram's or TikTok's private web APIs, spoof app headers, or log in with someone's account behind their back. Instagram profiles and TikTok lists only come through the official API or a paid provider that handles it.
@@ -88,7 +89,9 @@ python -m viral_scout perf auth youtube                                # one-tim
 
 Requirements: Python 3.10+, `pip install -r requirements.txt`. Set `VIRAL_SCOUT_YTDLP` to a yt-dlp clone to use newer extractors than the pip package (recommended).
 
-Daily run on Windows: `scripts/run-daily.ps1 -Profile <name> [-Analyze]` (logs in `data/logs/`). `-Analyze` then runs the skill headless to write the ideas note. Register it in Task Scheduler with "wake the computer to run" on.
+Scheduled run on Windows: `scripts/run-daily.ps1 -Profile <name> [-Analyze]` (logs in `data/logs/`). `-Analyze` then runs the skill headless to write the ideas note. `scripts/schedule.ps1 -Profiles a,b,c -Analyze -Publish` registers **weekly** Monday tasks (`-Day Daily` for daily): one Monday snapshot of trending posts and competitor ads, then a week of content made from it. See [setup](docs/setup.md#scheduling).
+
+**Getting the results elsewhere:** other repos and agents read them through the `viral-scout` MCP server (user scope, so every Claude Code session on this PC has it), the Markdown reports in the Obsidian vault, or the JSON in `data/` and `web/data/`. People without access to this PC use the dashboard published on Vercel. See [setup](docs/setup.md#mcp-server-optional).
 
 In Claude Code: `/viral-scout <profile>` runs, analyzes and writes the ideas note; `/viral-scout <profile> analyze` only analyzes the latest run.
 

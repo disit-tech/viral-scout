@@ -10,7 +10,9 @@ export default function Setup() {
       <h1 className="text-2xl font-bold tracking-tight">Setup</h1>
       <p className="mt-1 text-sm text-muted">
         API keys unlock more sources. Everything is optional; a missing key just skips that source. Keys are saved to
-        <code className="mx-1 text-text">.env</code> in the repo on this PC (git-ignored) and are never shown in full.
+        <code className="mx-1 text-text">.env</code> in the repo on this PC (git-ignored). Secrets are never shown in full;
+        actor ids and settings are. <span className="text-text">Test</span> never starts a paid run: on an actor it only looks
+        it up, and on <code className="text-text">APIFY_TOKEN</code> it shows the plan and this cycle&apos;s spend.
       </p>
       {isLocal ? (
         <SetupKeys />

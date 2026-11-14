@@ -38,8 +38,7 @@ scripts/publish.ps1                    # export + production deploy
 scripts/publish.ps1 -Preview           # preview URL instead
 ```
 
-To publish automatically after the daily run, add a line to your scheduled task after `run-daily.ps1`:
-`pwsh -File scripts/publish.ps1`.
+To publish automatically after the scheduled run, pass `-Publish` to `scripts/schedule.ps1`: it adds a `viral-scout publish` task after the last profile, on the same weekly day. Or add `pwsh -File scripts/publish.ps1` to your own task after `run-daily.ps1`.
 
 **Free plan notes:**
 - Vercel Hobby is meant for personal, non-commercial use. If the dashboard becomes a client deliverable, move it to Pro.
@@ -50,7 +49,7 @@ To publish automatically after the daily run, add a line to your scheduled task 
 
 - `/search`: searches titles, hooks, endings, transcripts and captions. Locally it covers the full history of every business through the Python CLI; the published site searches the latest runs in the browser.
 - `/new`: **New research**. Pick **Quick research** (a one-off `research-…` profile, reports go to the repo's `reports/`) or **New project** (reports go to an Obsidian project folder you pick). Describe the business or topic and add search phrases. Hashtags, the topic filter and the spam rules are derived for you, and the first run starts in the background while the page shows its progress. Local only.
-- `/setup`: every API key with what it unlocks, its cost, how to get it and a docs link. Paste, **Save** and **Test** it. Keys go into `.env` on your PC through stdin (never on the command line) and are always shown masked. Local only; the published site never manages keys.
+- `/setup`: every API key with what it unlocks, its cost, how to get it and a docs link. Paste, **Save** and **Test** it. Keys go into `.env` on your PC through stdin (never on the command line). Secrets are always shown masked. Actor ids and settings are shown in full. Local only; the published site never manages keys. The **Ads: Apify actors** group names the actor each route is built for, and **Spend controls** holds `APIFY_MAX_USD_PER_RUN` (the cap per Apify run) and `VIRAL_SCOUT_MCP_PAID` (whether MCP clients may start paid runs). **Test** on an actor only looks it up, so nothing runs or bills. **Test** on `APIFY_TOKEN` shows the plan and this cycle's spend against its limit (for example `$3.35 of $19 used this cycle (resets 2026-12-13)`), and fails once the limit is reached, because then every Apify run is blocked.
 
 - `/p/<profile>/performance`: **Your performance**. Your own videos and ads: KPI cards grouped A–E (hover for formula and denominator), an organic / paid toggle, the 5 tests per video, a retention curve with drop-off markers, the diagnosis, priorities, unit economics and CSV import steps. Read-only; data from `web/data/perf/<profile>.json`. See [performance.md](performance.md).
 - `/`: one card per business, with posts, outliers, 🔥 mega, saved, and the top thumbnails.
@@ -59,7 +58,7 @@ To publish automatically after the daily run, add a line to your scheduled task 
   - **Ideas**: the `<date>-viral-ideas.md` notes written by the `/viral-scout` skill, rendered as HTML.
   - **Swipe file**: a board with idea → scripted → filmed → posted → skip columns. Changing a card's status locally edits the note's `status:` in the vault.
   - **Sources**: skipped sources, suggested hashtags, creators who keep showing up, errors and recent runs.
-- `/p/<profile>/ads` (the **Ads** button on the business page): the ads scout ([ads-scout.md](ads-scout.md)). It shows an advertiser table (click a row to filter), then ad cards with the creative, advertiser, days running, variants, reach, platforms, hook, offer, CTA, landing domain and labels. You can filter by advertiser, format and offer, sort by score, days, variants or newest, and show only ads that are still running. Below the cards: offers that keep running, coverage, skipped sources (with the key that unlocks each) and lookup links. It's read-only, from `web/data/ads/<profile>.json`, which `python -m viral_scout ads|export` writes. Meta snapshot URLs, which carry the access token, are never exported.
+- `/p/<profile>/ads` (the **Ads** button on the business page): the ads scout ([ads-scout.md](ads-scout.md)). It shows an advertiser table (click a row to filter), then ad cards with the creative, advertiser, days running, variants, reach, platforms, hook, offer, CTA, landing domain and labels. The source tag on each card shows where it came from: Meta · Apify, Google · Apify, TikTok Top Ads, or the official APIs. Google text ads and some TikTok ads have no image, so their card links to the library page instead. You can filter by advertiser, format and offer, sort by score, days, variants or newest, and show only ads that are still running. Below the cards: offers that keep running, coverage, skipped sources (with the key that unlocks each) and lookup links. It's read-only, from `web/data/ads/<profile>.json`, which `python -m viral_scout ads|export` writes. Meta snapshot URLs, which carry the access token, are never exported.
 
 ## Security
 

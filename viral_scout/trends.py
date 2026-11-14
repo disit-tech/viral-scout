@@ -25,7 +25,7 @@ def tiktok_trends(cfg, errors):
     payload = (cfg.get("trends") or {}).get("apify_input") or {}
     try:
         r = requests.post(f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items",
-                          params={"token": token}, json=payload, timeout=300)
+                          params=usage.apify_params(), json=payload, timeout=300)
         if not r.ok:
             errors.append(f"trends (Apify {actor}): HTTP {r.status_code} {r.text[:150]}")
             return []

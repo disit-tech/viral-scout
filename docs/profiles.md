@@ -69,8 +69,8 @@ ads:
   top: 30                           # rows in "Winning ads"
   meta_video_pass: true             # one extra Meta API call per search to tag video ads
   apify_input: {}                   # merged into the APIFY_ADS_ACTOR input
-  tiktok_top_input: {}              # input for APIFY_TIKTOK_ADS_ACTOR
-  google_input: {}                  # input for APIFY_GOOGLE_ADS_ACTOR
+  tiktok_top_input: {industries: [Home Improvement], period: "180"}   # TikTok Top Ads has no keyword search: pick a Creative Center industry
+  google_input: {}                  # merged into the Google input (domains, searchTerms = names, maxAds = per_query)
   # output_dir: ...                 # default: the profile's output_dir
 ```
 

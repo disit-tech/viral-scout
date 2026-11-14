@@ -1,11 +1,16 @@
-# Registers the daily viral-scout tasks in Windows Task Scheduler (current user, wake to run).
+# Registers the viral-scout tasks in Windows Task Scheduler (current user, wake to run). Weekly by default:
+# one Monday snapshot (organic + ads + ideas note), then content made from it during the week.
 #   scripts/schedule.ps1 -Profiles englishSchool,northForge,nfSolarPanels -Start 07:00 -GapMinutes 30 -Analyze -Publish
+#   -Day Monday (default) | Tuesday | ... | Daily. Keep it on the ads day of run-daily.ps1 (-AdsDay, Monday) so
+#   each weekly run includes the ads snapshot. Daily runs bill Apify every day (TikTok + trends).
 # Profiles run one after another, GapMinutes apart (YouTube rate-limits bursts). -Publish adds a final task that
 # exports and deploys the dashboard. Remove with: scripts/schedule.ps1 -Remove
 param(
   [string[]]$Profiles = @(),
   [string]$Start = "07:00",
   [int]$GapMinutes = 30,
+  [ValidateSet("Daily", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")]
+  [string]$Day = "Monday",
   [switch]$Analyze,
   [switch]$Publish,
   [switch]$Remove
@@ -23,18 +28,22 @@ $Profiles = @($Profiles | ForEach-Object { $_ -split "," } | ForEach-Object { $_
 
 $settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 $at = [datetime]::ParseExact($Start, "HH:mm", $null)
+function Trigger($when) {
+  if ($Day -eq "Daily") { New-ScheduledTaskTrigger -Daily -At $when } else { New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Day -At $when }
+}
+$label = if ($Day -eq "Daily") { "daily" } else { "every $Day" }
 foreach ($p in $Profiles) {
   $args = "-NoProfile -ExecutionPolicy Bypass -File `"$repo\scripts\run-daily.ps1`" -Profile $p" + $(if ($Analyze) { " -Analyze" } else { "" })
   $action = New-ScheduledTaskAction -Execute $pwsh -Argument $args -WorkingDirectory $repo
-  Register-ScheduledTask -TaskName "viral-scout $p" -Action $action -Trigger (New-ScheduledTaskTrigger -Daily -At $at) `
+  Register-ScheduledTask -TaskName "viral-scout $p" -Action $action -Trigger (Trigger $at) `
     -Settings $settings -Force | Out-Null
-  "viral-scout $p  daily $($at.ToString('HH:mm'))"
+  "viral-scout $p  $label $($at.ToString('HH:mm'))"
   $at = $at.AddMinutes($GapMinutes)
 }
 if ($Publish) {
   $action = New-ScheduledTaskAction -Execute $pwsh -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$repo\scripts\publish.ps1`"" -WorkingDirectory $repo
-  Register-ScheduledTask -TaskName "viral-scout publish" -Action $action -Trigger (New-ScheduledTaskTrigger -Daily -At $at) `
+  Register-ScheduledTask -TaskName "viral-scout publish" -Action $action -Trigger (Trigger $at) `
     -Settings $settings -Force | Out-Null
-  "viral-scout publish  daily $($at.ToString('HH:mm'))"
+  "viral-scout publish  $label $($at.ToString('HH:mm'))"
 }
 "Wake timers must be allowed in the power plan (Power Options → Sleep → Allow wake timers)."

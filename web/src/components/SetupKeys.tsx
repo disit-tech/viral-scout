@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Key = { name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string };
+type Key = { name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string; secret?: boolean };
 
 export default function SetupKeys() {
   const [keys, setKeys] = useState<Key[] | null>(null);
@@ -54,7 +54,7 @@ function KeyRow({ k, onSaved }: { k: Key; onSaved: () => void }) {
         <div className="flex items-center gap-2">
           <code className="text-sm text-text">{k.name}</code>
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${k.set ? "bg-above text-ink" : "bg-panel-2 text-muted"}`}>
-            {k.set ? `set ${k.masked}` : "not set"}
+            {k.set ? (k.secret === false ? k.masked : `set ${k.masked}`) : k.secret === false ? "default" : "not set"}
           </span>
           {k.cost && <span className="text-[11px] text-muted">{k.cost}</span>}
         </div>
@@ -63,8 +63,8 @@ function KeyRow({ k, onSaved }: { k: Key; onSaved: () => void }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex gap-1.5">
-          <input type="password" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)}
-            placeholder={k.set ? "Replace value…" : "Paste value…"}
+          <input type={k.secret === false ? "text" : "password"} autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)}
+            placeholder={k.secret === false ? (k.set ? "New value…" : "Value…") : k.set ? "Replace value…" : "Paste value…"}
             className="min-w-0 flex-1 rounded-lg border border-line bg-panel-2 px-2.5 py-1.5 text-sm outline-none focus:border-accent" />
           <button disabled={busy || !value} onClick={() => call("set", value)}
             className="rounded-lg border border-accent/60 px-3 text-sm text-accent hover:bg-accent/10 disabled:opacity-40">Save</button>

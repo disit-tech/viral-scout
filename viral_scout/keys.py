@@ -32,7 +32,7 @@ KEYS = [
      "unlocks": "TikTok discovery, TikTok watch list, trending hashtags.",
      "get": "apify.com → Settings → Integrations → Personal API token.",
      "docs": "https://docs.apify.com/api/v2"},
-    {"name": "APIFY_TRENDS_ACTOR", "group": "Apify", "cost": "",
+    {"name": "APIFY_TRENDS_ACTOR", "secret": False, "group": "Apify", "cost": "",
      "unlocks": "Actor id for trending hashtags (e.g. a TikTok Creative Center trends actor from the Apify store).",
      "get": "Pick an actor in the Apify store; copy its id (user~actor).",
      "docs": "https://apify.com/store?search=tiktok%20trends"},
@@ -51,18 +51,31 @@ KEYS = [
      "unlocks": "Pairs with TIKTOK_RESEARCH_CLIENT_KEY (client-credentials token, valid 2 hours).",
      "get": "Same place as the client key.",
      "docs": "https://developers.tiktok.com/doc/client-access-token-management"},
-    {"name": "APIFY_ADS_ACTOR", "group": "Ads: Apify actors", "cost": "paid per ad (uses APIFY_TOKEN)",
+    {"name": "APIFY_ADS_ACTOR", "secret": False, "group": "Ads: Apify actors", "cost": "$3.40–5.80 per 1,000 ads by Apify plan",
      "unlocks": "Ads scout: the Meta Ad Library for any country, including the US (e.g. apify~facebook-ads-scraper).",
      "get": "Pick a Meta Ad Library actor in the Apify store; copy its id (user~actor). Check its price per result.",
      "docs": "https://apify.com/apify/facebook-ads-scraper"},
-    {"name": "APIFY_TIKTOK_ADS_ACTOR", "group": "Ads: Apify actors", "cost": "paid (uses APIFY_TOKEN)",
-     "unlocks": "Ads scout: TikTok Creative Center Top Ads (no public API). Input in the profile: ads.tiktok_top_input.",
-     "get": "Pick a TikTok Creative Center top-ads actor in the Apify store; copy its id.",
-     "docs": "https://apify.com/store?search=tiktok%20top%20ads"},
-    {"name": "APIFY_GOOGLE_ADS_ACTOR", "group": "Ads: Apify actors", "cost": "paid (uses APIFY_TOKEN)",
-     "unlocks": "Ads scout: Google Ads Transparency Center by domain/advertiser (no public API). Input: ads.google_input.",
-     "get": "Pick a Google Ads Transparency actor in the Apify store; copy its id.",
-     "docs": "https://apify.com/store?search=google%20ads%20transparency"},
+    {"name": "APIFY_TIKTOK_ADS_ACTOR", "secret": False, "group": "Ads: Apify actors", "cost": "$2 per 1,000 ads + $0.005 per run",
+     "unlocks": "Ads scout: TikTok Creative Center Top Ads for an industry (no keyword search, no start dates). "
+                "Set ads.tiktok_top_input.industries in the profile, e.g. [Home Improvement].",
+     "get": "Use pulsedata~tiktok-creative-center-top-ads-scraper (the mapping is written and tested for it).",
+     "docs": "https://apify.com/pulsedata/tiktok-creative-center-top-ads-scraper"},
+    {"name": "APIFY_GOOGLE_ADS_ACTOR", "secret": False, "group": "Ads: Apify actors", "cost": "$1.30 per 1,000 ads + $0.005 per run",
+     "unlocks": "Ads scout: Google Ads Transparency Center (Search, YouTube, Display) by competitor domain and name, "
+                "with first/last shown dates. Runs in batches of 6 competitors.",
+     "get": "Use automation-lab~google-ads-scraper (the mapping is written and tested for it).",
+     "docs": "https://apify.com/automation-lab/google-ads-scraper"},
+    {"name": "APIFY_MAX_USD_PER_RUN", "group": "Spend controls", "cost": "default 0.50", "secret": False,
+     "unlocks": "Spend cap for each Apify actor run (Apify maxTotalChargeUsd): a run stops at it instead of using up "
+                "the month. 0 = no cap. It caps one run, not the total: each advertiser and keyword is its own run.",
+     "get": "A number in USD, e.g. 0.5.",
+     "docs": "https://docs.apify.com/api/v2/act-run-sync-get-dataset-items-post"},
+    {"name": "VIRAL_SCOUT_MCP_PAID", "group": "Spend controls", "cost": "default off", "secret": False,
+     "unlocks": "1 lets MCP clients (any Claude session, any repo) start paid runs: start_run, ads_run, "
+                "local_competitors. Off: they get the latest results and the CLI command instead. Restart the MCP "
+                "server after changing it.",
+     "get": "1 to allow, empty or 0 to block.",
+     "docs": "https://modelcontextprotocol.io/specification"},
     {"name": "GOOGLE_PLACES_API_KEY", "group": "Google Places API (New)", "cost": "free monthly credit, then paid",
      "unlocks": "Local competitors: nearby businesses in your niche and their public social channels.",
      "get": "Google Cloud console → enable Places API (New) → Credentials → API key (restrict it).",
@@ -126,7 +139,9 @@ def mask(v):
 
 def status():
     config.load_env()
-    return [{**k, "set": bool(os.environ.get(k["name"])), "masked": mask(os.environ.get(k["name"], ""))} for k in KEYS]
+    return [{**k, "set": bool(os.environ.get(k["name"])),
+             "masked": os.environ.get(k["name"], "") if k.get("secret") is False else mask(os.environ.get(k["name"], ""))}
+            for k in KEYS]
 
 
 def set_key(name, value):
@@ -169,7 +184,23 @@ def test(name):
             return r.ok, f"ok: {d.get('username') or d.get('name')}" if r.ok else d.get("error", {}).get("message", "")
         if name == "APIFY_TOKEN":
             r = requests.get("https://api.apify.com/v2/users/me", params={"token": v}, timeout=20)
-            return r.ok, f"ok: {r.json()['data'].get('username')}" if r.ok else r.text[:120]
+            if not r.ok:
+                return False, r.text[:120]
+            me = r.json()["data"]
+            msg = f"ok: {me.get('username')} ({(me.get('plan') or {}).get('id', '?')} plan)"
+            # Spend this cycle (free reads): the plan's limit blocks every run once it's used up.
+            lim = requests.get("https://api.apify.com/v2/users/me/limits", params={"token": v}, timeout=20)
+            if lim.ok:
+                d = lim.json()["data"]
+                used = (d.get("current") or {}).get("monthlyUsageUsd") or 0
+                cap = (d.get("limits") or {}).get("maxMonthlyUsageUsd") or 0
+                end = ((d.get("monthlyUsageCycle") or {}).get("endAt") or "")[:10]
+                msg += f" · ${used:.2f} of ${cap:.0f} used this cycle (resets {end})"
+                if cap and used >= cap:
+                    return False, msg + " · LIMIT REACHED: every Apify run is blocked"
+                if cap and used >= 0.8 * cap:
+                    msg += " · over 80%"
+            return True, msg
         if name == "TELEGRAM_BOT_TOKEN":
             r = requests.get(f"https://api.telegram.org/bot{v}/getMe", timeout=20)
             return r.ok, f"ok: @{r.json()['result'].get('username')}" if r.ok else r.text[:120]
@@ -228,6 +259,15 @@ def test(name):
             d = r.json()
             ok = d.get("code") == 0
             return ok, "ok" if ok else d.get("message", r.text[:120])
+        if name == "APIFY_MAX_USD_PER_RUN":
+            try:
+                cap = float(v)
+            except ValueError:
+                return False, "not a number"
+            return cap >= 0, f"ok: ${cap:.2f} per run" if cap > 0 else "ok: no cap"
+        if name == "VIRAL_SCOUT_MCP_PAID":
+            on = v.strip().lower() in ("1", "true", "yes", "on")
+            return True, "ok: MCP clients may start paid runs" if on else "ok: paid MCP tools are off"
         if name == "VIRAL_SCOUT_YTDLP":
             return os.path.isdir(os.path.join(v, "yt_dlp")), "ok" if os.path.isdir(os.path.join(v, "yt_dlp")) else "no yt_dlp folder there"
         return True, "set (no live test for this one)"

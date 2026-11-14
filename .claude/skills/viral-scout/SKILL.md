@@ -7,6 +7,8 @@ description: Find what's going viral on a topic right now (YouTube Shorts, Insta
 
 Tool repo: `D:\repo\viral-scout` (README there). Run from that folder with `PYTHONIOENCODING=utf-8`.
 
+**Paid runs cost real money (Apify bills per result).** `run` (TikTok via Apify) and `ads` (Facebook, Google and TikTok actors, about $3 per profile) spend the user's Apify budget. Before starting one, check the date of `data/<profile>-latest.json` / `data/<profile>-ads-latest.json`: if a run from this week exists (the weekly Monday task makes one), analyze it instead of running again, unless the user asks for a fresh run. Never run several profiles or repeat runs without asking. Scheduled runs (`analyze`) never collect.
+
 Args: `<profile> [analyze | ads] [urls...]`. `ads` = only the Ads step below. No profile → `python -m viral_scout profiles` and pick the one matching the active project (`$OBSIDIAN_PROJECT`), else ask. `analyze` = skip the run, analyze the latest report (used by the scheduled run).
 
 ## 1. Collect
@@ -74,7 +76,7 @@ Fastest: `python -m viral_scout new <name> --business "..." --keywords "a; b; c"
 Copy `profiles/_template.yaml` to `profiles/<name>.yaml` (git-ignored). Fill `business:`, keywords (formats + the customer's situations, in every language the audience speaks, with `languages:`), hashtags, `must_match` (topic words, so hashtag spam is dropped), `exclude`, `output_dir`/`swipe_dir` in the vault. Run once, tune the filters from what slipped through.
 
 ## MCP alternative
-If the `viral-scout` MCP server is connected (`claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py`), the same steps are tools: list_profiles, start_run → get_job (poll ~30 s), get_results, get_post, get_ideas, save_post, dismiss_posts, track_links, set_swipe_status, usage; ads: ads_run → get_job → ads_results.
+If the `viral-scout` MCP server is connected (`claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py`), the same steps are tools: list_profiles, get_results, get_post, get_ideas, search, save_post, dismiss_posts, track_links, set_swipe_status, usage; ads: ads_results. The paid tools (start_run, ads_run, local_competitors) are **off by default** and answer `status: disabled` with the latest results and the CLI command. Then use the latest results, or ask the user before running the CLI command yourself.
 
 ## Rules
 - Never call Instagram's or TikTok's private web APIs or spoof headers; only yt-dlp on public posts, the official APIs, or Apify.
