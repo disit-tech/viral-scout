@@ -73,6 +73,7 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 #   tiktok_top_input: {industries: [Home Improvement], period: "180"}   # TikTok Top Ads: no keyword search, so an industry
 #   google_input: {}         # merged into the Google input (domains, searchTerms = names, maxAds = per_query)
 #   topic: []                # noise filter: keyword/category-only ads must mention one of these words
+#   transcribe: {max_per_run: 6}   # transcribe the top video ads after each run (local Whisper, free; false = off)
 #   exclude_advertisers: []  # regexes on the advertiser name, always dropped; single-quote them ('\bgames?\b')
 #   output_dir: ""           # default: output_dir above
 # Own performance (python -m viral_scout perf <profile>): unit economics and settings. See docs/performance.md

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Item, Profile } from "@/lib/types";
 import { num, when } from "@/lib/format";
-import PostCard from "./PostCard";
+import PostsBoard from "./PostsBoard";
 import SwipeBoard from "./SwipeBoard";
 import PerformanceLink from "./perf/PerformanceLink";
 
@@ -26,26 +26,18 @@ export default function Dashboard({ profile, ideas, local }: {
 }) {
   const [tab, setTab] = useState<Tab>(profile.sections.outliers.length ? "outliers" : "by_day");
   const [items, setItems] = useState<Item[]>(profile.items);
-  const [platform, setPlatform] = useState("all");
-  const [q, setQ] = useState("");
-  const [hideSaved, setHideSaved] = useState(false);
   const [ideaIdx, setIdeaIdx] = useState(0);
 
   const byKey = useMemo(() => new Map(items.map((i) => [i.key, i])), [items]);
-  const platforms = useMemo(() => Array.from(new Set(items.map((i) => i.platform))), [items]);
 
   const list = useMemo(() => {
     if (!["outliers", "by_day", "rising", "seeds", "own"].includes(tab)) return [];
     const keys = profile.sections[tab as keyof Profile["sections"]] ?? [];
-    const needle = q.trim().toLowerCase();
     return keys
       .map((k) => byKey.get(k))
       .filter((i): i is Item => Boolean(i))
-      .filter((i) => tab === "seeds" || tab === "own" || !i.dismissed)
-      .filter((i) => platform === "all" || i.platform === platform)
-      .filter((i) => !hideSaved || !i.saved)
-      .filter((i) => !needle || `${i.title} ${i.channel} ${i.hook ?? ""}`.toLowerCase().includes(needle));
-  }, [tab, profile.sections, byKey, platform, hideSaved, q]);
+      .filter((i) => tab === "seeds" || tab === "own" || !i.dismissed);
+  }, [tab, profile.sections, byKey]);
 
   const counts: Partial<Record<Tab, number>> = {
     outliers: profile.sections.outliers.length,
@@ -94,28 +86,7 @@ export default function Dashboard({ profile, ideas, local }: {
       <p className="mb-4 text-sm text-muted">{current.hint}</p>
 
       {["outliers", "by_day", "rising", "seeds", "own"].includes(tab) && (
-        <>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, creator, hook…"
-              className="w-64 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm outline-none focus:border-accent" />
-            <select value={platform} onChange={(e) => setPlatform(e.target.value)}
-              className="rounded-lg border border-line bg-panel px-2 py-1.5 text-sm">
-              <option value="all">All platforms</option>
-              {platforms.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <label className="flex items-center gap-1.5 text-sm text-muted">
-              <input type="checkbox" checked={hideSaved} onChange={(e) => setHideSaved(e.target.checked)} /> Hide saved
-            </label>
-            {!local && <span className="text-xs text-muted">Read-only: buttons copy the command to run on your PC.</span>}
-          </div>
-          {list.length === 0 ? (
-            <Empty tab={tab} />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {list.map((i) => <PostCard key={i.key} item={i} profile={profile.name} local={local} onChange={patch} />)}
-            </div>
-          )}
-        </>
+        <PostsBoard key={tab} items={list} profile={profile.name} local={local} run={profile.date} onChange={patch} empty={<Empty tab={tab} />} />
       )}
 
       {tab === "ideas" && (

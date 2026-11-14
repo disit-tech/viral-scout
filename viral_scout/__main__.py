@@ -30,6 +30,15 @@ def main(argv=None):
     if argv and argv[0] == "activity":             # live jobs + Apify runs (the dashboard's Activity page)
         from .activity import cli as activity_cli
         return activity_cli(argv[1:])
+    if argv and argv[0] == "ad":                   # one ad: transcribe | analyze | save
+        if len(argv) < 4 or argv[3] not in ("transcribe", "analyze", "save"):
+            print("usage: python -m viral_scout ad <profile> <ad key> transcribe|analyze|save [--force]")
+            return 2
+        from . import activity
+        from .ads import extra
+        cfg = config.load(argv[1])
+        with activity.track(cfg["name"], f"ad {argv[3]}", argv):
+            return extra.cli(cfg, argv[2], argv[3], force="--force" in argv)
     if argv and argv[0] == "perf":                 # own performance has its own sub-commands
         from .perf.cli import main as perf_main
         if len(argv) > 1 and not argv[1].startswith("-") and argv[1] not in ("import", "auth"):

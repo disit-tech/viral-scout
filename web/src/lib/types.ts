@@ -64,6 +64,7 @@ export type Item = {
   watched: boolean;
   saved: boolean;
   dismissed: boolean;
+  first_seen?: string | null;   // first time viral-scout saw it; history holds every scan
   history: [string, number | null][];
 };
 
@@ -160,6 +161,22 @@ export type AdItem = {
   new?: boolean;
   first_seen?: string;   // first/last time viral-scout saw it (run history)
   last_seen?: string;
+  transcript?: AdTranscript;  // video ads: local Whisper (ad <p> <key> transcribe)
+  ai?: AdAI;                  // AI breakdown + our version (ad <p> <key> analyze)
+  swipe_note?: string;        // path of the swipe note in the vault
+};
+
+export type AdTranscript = { text: string; segments: [number, string][]; duration: number; lang: string; date: string; words: number };
+export type AdOurVersion = {
+  angle: string; hook: string; primary_text: string; headline: string; cta: string; format: string; visual: string;
+  why: string; must_be_true: string[];
+};
+export type AdAI = {
+  summary: string; angle: string; audience: string;
+  structure: { part: string; text: string; note: string }[];
+  scorecard: Record<string, { score: number; why: string }>;
+  risks: string[]; our_version: AdOurVersion; test_ideas: string[];
+  total: number | null; date: string; cost_usd: number | null; model: string | null; had_image: boolean; had_transcript: boolean;
 };
 
 export type AdvertiserRow = {

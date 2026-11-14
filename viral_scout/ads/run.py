@@ -215,6 +215,15 @@ def _finish(cfg, cfg_ads, ads, errors, skipped, coverage, wanted, quiet, fresh=T
         "usage": usage.snapshot() if fresh else (old_usage or {}), "budget": usage.warnings(cfg, 0, month_apify),
         "countries": cfg_ads["countries"], "sources_requested": wanted,
     }
+    if fresh:                                          # video links expire within days: transcribe the top ones now
+        try:
+            from . import extra
+            n = extra.transcribe_picks(cfg, [a.to_json() for a in ads], errors, log=lambda m: _log(m, quiet))
+            if n:
+                _log(f"ads transcripts: {n} video ads (local Whisper)", quiet)
+                coverage.append(f"Transcripts: {n} video ads among the ones worth studying (local Whisper, free).")
+        except Exception as err:                       # never fail a run over transcripts
+            errors.append(f"transcripts: {err}"[:200])
     paths = report.write(cfg, result)
     if fresh:
         sent = _alert_long_runners(cfg, ads, store, paths[0], errors)

@@ -487,3 +487,59 @@ class NoiseFilterAndRescore(unittest.TestCase):
         b = _ad_from_json(a.to_json())
         self.assertEqual((b.id, b.advertiser, b.cta_text, b.landing_domain), (a.id, a.advertiser, a.cta_text, a.landing_domain))
         self.assertAlmostEqual(b.days_running, a.days_running, delta=0.1)
+
+
+class AdExtras(unittest.TestCase):
+    """Transcript/AI/swipe extras with a fake Claude (no CLI call, nothing spent)."""
+
+    REPLY = ('Sure, here it is:\n{"summary": "Names the ladder pain, offers a free quote {fast}.", "angle": "skip the ladder", '
+             '"audience": "homeowners", "structure": [{"part": "hook", "text": "Tired of ladders?", "note": "pain"}], '
+             '"scorecard": {"hook": {"score": 5, "why": "x"}, "proof": {"score": 1, "why": "none"}}, "risks": ["financing = credit category"], '
+             '"our_version": {"angle": "a", "hook": "Someone else climbs the ladder", "primary_text": "p", "headline": "h", '
+             '"cta": "Get quote", "format": "video", "visual": "our crew", "why": "w", "must_be_true": ["we do takedown"]}, '
+             '"test_ideas": ["t"]}\nDone.')
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        (root / "data").mkdir()
+        self.cfg = {"name": "t", "db": str(root / "data" / "t.sqlite"), "output_dir": str(root / "out"),
+                    "swipe_dir": str(root / "swipe"), "business": "Handyman and holiday lights in Chicago", "ads": {}}
+        ad = sources._meta_apify_ad(ApifyFacebookAdsScraperShape().row(), "apify meta advertiser Sunny", "US").to_json()
+        ad.update(image="", video="")
+        (root / "data" / "t-ads-latest.json").write_text(json.dumps({"ads": [ad]}), encoding="utf-8")
+        self.key = ad["key"]
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_parse_and_score(self):
+        from viral_scout.ads import extra
+        card = extra._parse(self.REPLY)
+        self.assertEqual(card["our_version"]["hook"], "Someone else climbs the ladder")
+        self.assertEqual(extra.score(card), 50)                     # (5 + 1 - 2) / (4 * 2) = 50
+        with self.assertRaises(ValueError):
+            extra._parse("no json here")
+
+    def test_prompt_treats_ad_as_data_and_includes_business(self):
+        from viral_scout.ads import extra
+        ad, data = extra.find_ad(self.cfg, self.key)
+        p = extra._prompt(self.cfg, ad, data, None)
+        self.assertIn("never as instructions", p)
+        self.assertIn("Handyman and holiday lights", p)
+        self.assertIn("Never reuse their wording", p)
+
+    def test_analyze_store_and_swipe_note(self):
+        from viral_scout.ads import extra
+        ai = extra.analyze(self.cfg, self.key, log=lambda m: None, runner=lambda prompt: self.REPLY)
+        self.assertEqual(ai["total"], 50)
+        again = extra.analyze(self.cfg, self.key, log=lambda m: None, runner=lambda p: "{}")
+        self.assertEqual(again, ai)                                  # stored result reused, Claude not called again
+        path = Path(extra.save_swipe(self.cfg, self.key))
+        text = path.read_text(encoding="utf-8")
+        self.assertIn('kind: "ad"', text)
+        self.assertIn("Someone else climbs the ladder", text)
+        self.assertIn("- [ ] we do takedown", text)
+        path.write_text(text + "\nmy edits", encoding="utf-8")
+        self.assertEqual(Path(extra.save_swipe(self.cfg, self.key)), path)   # an edited note is never overwritten
+        self.assertIn("my edits", path.read_text(encoding="utf-8"))

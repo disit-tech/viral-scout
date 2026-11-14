@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Item } from "@/lib/types";
-import { age, num, tier, times } from "@/lib/format";
+import { age, ago, num, tier, times, when } from "@/lib/format";
+import { PLATFORM, firstSeen, lastScanned } from "@/lib/posts";
 import Sparkline from "./Sparkline";
 import { cli, runAction, type ActionBody } from "./actions";
 
@@ -15,10 +16,8 @@ const TIER = {
 
 const TONE = { mega: "text-mega", viral: "text-viral", above: "text-above" } as const;
 
-const PLATFORM: Record<string, string> = { youtube: "YouTube", instagram: "Instagram", tiktok: "TikTok" };
-
-export default function PostCard({ item, profile, local, onChange }: {
-  item: Item; profile: string; local: boolean; onChange: (key: string, patch: Partial<Item>) => void;
+export default function PostCard({ item, profile, local, run, onChange }: {
+  item: Item; profile: string; local: boolean; run?: string | null; onChange: (key: string, patch: Partial<Item>) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,6 +26,8 @@ export default function PostCard({ item, profile, local, onChange }: {
   const reachLabel = item.views !== null ? "views" : "likes";
   const reach = item.views ?? item.likes;
   const detail = `/p/${profile}/v/${encodeURIComponent(item.id)}`;
+  const scanned = lastScanned(item, run);
+  const seen = firstSeen(item);
 
   async function act(body: ActionBody, patch: Partial<Item>) {
     if (!local) {
@@ -76,9 +77,13 @@ export default function PostCard({ item, profile, local, onChange }: {
           <Metric label="rise/day" value={item.rise_per_day ? `+${num(item.rise_per_day)}` : "—"} tone={item.rise_per_day ? "text-rise" : undefined} />
         </dl>
 
-        {item.history.length > 1 && (
-          <div className="flex items-center gap-2 text-xs text-muted"><Sparkline points={item.history} /> {item.history.length} measurements</div>
-        )}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted"
+          title={`Last scanned ${when(scanned)}${seen ? ` · first seen ${when(seen)}` : ""} · ${item.history.length} scan${item.history.length === 1 ? "" : "s"}`}>
+          {item.history.length > 1 && <Sparkline points={item.history} />}
+          <span>🕒 Scanned <b suppressHydrationWarning className="font-medium text-text/80">{ago(scanned)}</b></span>
+          {seen && seen !== scanned && <span>· first seen {when(seen)}</span>}
+          {item.history.length > 1 && <span>· {item.history.length} scans</span>}
+        </div>
 
         {item.hook && (
           <blockquote className="border-l-2 border-accent pl-2.5 text-sm italic text-text/90">“{item.hook}”</blockquote>

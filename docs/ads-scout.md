@@ -58,6 +58,22 @@ Keyword and category searches return more than competitors: a Meta search for "h
 
 The report's Coverage section says how many ads the filter dropped. Every real run also saves the unfiltered ads in `data/<profile>-ads-raw.json`, so after changing these settings, `python -m viral_scout ads <profile> --rescore` filters and scores the last run again **without fetching anything** (free). It rewrites the report and the dashboard, and keeps the "new since the last run" flags and the usage meter as the real run left them.
 
+## One ad in depth: transcript, AI breakdown, swipe note
+
+```
+python -m viral_scout ad <profile> <ad key> transcribe        # video ads: local Whisper, free
+python -m viral_scout ad <profile> <ad key> analyze [--force]  # Claude Code CLI headless, about a minute
+python -m viral_scout ad <profile> <ad key> save               # swipe note in the vault
+```
+
+The same three actions are buttons on the dashboard's ad page (local only), and each one shows on the Activity page.
+
+- **Transcribe** downloads the video from the ad library's link and transcribes it on this PC with faster-whisper (`ads.transcribe: {model: base, max_seconds: 240}`). Free. Those links are signed and expire after a few days, so **each real ads run transcribes the video ads among the "worth studying" picks by itself** (`ads.transcribe.max_per_run`, default 6; `ads.transcribe: false` turns it off).
+- **Analyze** runs `claude -p` (your Claude subscription; the reply reports an API-equivalent cost, about $0.25–0.40, that counts against your limits and isn't billed). Claude gets the ad's copy, its image (downloaded to `data/ad-media/`, opened with the Read tool, the only tool allowed), the transcript, the variants' hooks, the advertiser's numbers in this run, the profile's `business:` and `taste_note:`. It returns a summary, angle, audience, the structure (hook, problem, offer, proof, CTA, visual), an 8-criteria scorecard (hook, problem, offer, proof, clarity, CTA, visual, fit for us; 1–5 each, scaled to /100), risks (Meta special ad categories, unprovable claims, fake urgency, endorsement rules), **our version** (angle, hook, primary text written for the 125-character cut, headline, CTA, format, visual with our own footage, why, and a *must be true* checklist of claims to prove before it runs) and test ideas. The prompt says to borrow the angle and never the wording, brand names or creative, and treats the ad's text as data, not instructions. A stored breakdown is reused; `--force` redoes it.
+- **Save** writes `ad-<advertiser>-<hook>-<id>.md` into the profile's `swipe_dir` with `type: swipe`, `kind: ad`, `status: idea`, so it sits in `swipe.base` next to saved videos. It includes the breakdown, our version with the checklist, their copy and the transcript, plus a local copy of the image in `swipe/media/` (the library's image links expire). It never overwrites a note you edited.
+
+Results live in `data/<profile>-ads-extra.json` and are merged into the dashboard export, so the published site shows them read-only.
+
 ## Scoring "winning" ads
 
 Nobody outside the advertiser can see spend, conversions or ROAS. Everything below is a **proxy**. A long run usually means the ad pays for itself, but it can also be a brand campaign that runs regardless of results.

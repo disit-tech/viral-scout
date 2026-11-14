@@ -171,6 +171,11 @@ def ads_data(cfg):
                 a["first_seen"], a["last_seen"] = seen[a["key"]]
     except sqlite3.Error:
         pass
+    from .ads import extra                 # transcripts, AI breakdowns, swipe notes (data/<p>-ads-extra.json)
+    more = extra.load(cfg)
+    for a in d.get("ads") or []:
+        for k, v in (more.get(a["key"]) or {}).items():
+            a[k] = v
     d.pop("report", None)
     d["business"] = (cfg.get("business") or "").strip()
     reports = sorted(Path((cfg.get("ads") or {}).get("output_dir") or cfg["output_dir"]).glob("*-ads-scout.md"), reverse=True)

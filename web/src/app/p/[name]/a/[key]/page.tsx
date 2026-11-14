@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { adsNames, loadAds } from "@/lib/data";
+import { adsNames, isLocal, loadAds } from "@/lib/data";
 import { num, when } from "@/lib/format";
-import type { AdItem } from "@/lib/types";
+import type { AdAI, AdItem } from "@/lib/types";
 import {
   OFFER, SOURCE, STUDY_RULE, adHref, advName, competitorSearch, copyBreakdown, median, queryLabel, similarAds, studyPicks,
 } from "@/lib/ads";
 import AdTimeline from "@/components/AdTimeline";
+import AdActions from "@/components/AdActions";
 
 export async function generateStaticParams() {
   const out: { name: string; key: string }[] = [];
@@ -95,6 +96,22 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
         </div>
       </div>
 
+      <Section title="AI breakdown and our version">
+        {isLocal && (
+          <div className="mb-3">
+            <AdActions profile={name} adKey={ad.key} hasVideo={!!ad.video} hasTranscript={!!ad.transcript}
+              hasAI={!!ad.ai} swipeNote={ad.swipe_note} />
+          </div>
+        )}
+        {ad.ai ? <AIBreakdown ai={ad.ai} /> : (
+          <p className="text-muted">
+            Not analyzed yet. {isLocal
+              ? "Run AI breakdown: Claude reads this ad (copy, image, transcript, variants, the advertiser's playbook) and your business description, scores it on 8 criteria and writes an original version for you, with the claims you'd have to prove. About a minute on your Claude subscription."
+              : "Run it on the local dashboard."}
+          </p>
+        )}
+      </Section>
+
       <Section title="Copy breakdown">
         {copy.text ? (
           <>
@@ -119,6 +136,27 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
           <p className="text-muted">This source gave no ad copy (common for Google image/video ads and TikTok). Open the library link to read it.</p>
         )}
       </Section>
+
+      {(ad.video || ad.transcript) && (
+        <Section title="Transcript">
+          {ad.transcript ? (
+            <>
+              <p className="mb-2 text-xs text-muted">
+                {ad.transcript.words} words in {Math.round(ad.transcript.duration)} s ({Math.round(ad.transcript.words / Math.max(1, ad.transcript.duration / 60))} words/min)
+                · language {ad.transcript.lang} · local Whisper, {ad.transcript.date.slice(0, 10)}
+              </p>
+              <ol className="space-y-1">
+                {ad.transcript.segments.map(([t, text], i) => (
+                  <li key={i} className="flex gap-3"><span className="w-10 shrink-0 text-right font-mono text-xs text-muted">{Math.floor(t / 60)}:{String(Math.floor(t % 60)).padStart(2, "0")}</span><span>{text}</span></li>
+                ))}
+              </ol>
+              {ad.transcript.segments.length > 0 && <p className="mt-2 text-xs text-muted">The first line is the spoken hook: {ad.transcript.segments[0][1]}</p>}
+            </>
+          ) : (
+            <p className="text-muted">Not transcribed yet. {isLocal ? "Transcribe video above (free, on this PC). The link expires a few days after the run." : "Transcribe it on the local dashboard."} The weekly run transcribes the top video ads by itself.</p>
+          )}
+        </Section>
+      )}
 
       {variants.length > 0 && (
         <Section title={`Variants: ${variants.length + 1} versions of this ad`}>
@@ -210,6 +248,102 @@ function reasons(ad: AdItem, c: { advMedian: number | null; advCount: number; ra
   if (ad.new) out.push("New since the last run: something they started testing this week.");
   out.push(competitorSearch(ad) ? "Found by searching for a named competitor." : "Found by a keyword or category search, not a named competitor.");
   return out;
+}
+
+const CRIT: Record<string, string> = {
+  hook: "Hook", problem: "Problem", offer: "Offer", proof: "Proof", clarity: "Clarity", cta: "Call to action",
+  visual: "Visual", fit: "Fit for us",
+};
+const PART: Record<string, string> = { hook: "Hook", problem: "Problem", offer: "Offer", proof: "Proof", cta: "CTA", visual: "Visual", other: "Other" };
+
+function AIBreakdown({ ai }: { ai: AdAI }) {
+  const ours = ai.our_version;
+  const cut = 125;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        {ai.total !== null && <span className="text-3xl font-bold text-accent">{ai.total}<span className="text-base font-normal text-muted">/100</span></span>}
+        <span className="text-xs text-muted">
+          Claude, {ai.date.slice(0, 10)} · {ai.had_image ? "looked at the image" : "no image"} · {ai.had_transcript ? "read the transcript" : "no transcript"}
+          {ai.cost_usd !== null && ` · ≈$${ai.cost_usd.toFixed(2)} API-equivalent (counts against your subscription limits, not billed)`}
+        </span>
+      </div>
+      <p className="text-base leading-relaxed">{ai.summary}</p>
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <div><dt className="text-[11px] uppercase tracking-wide text-muted">Angle</dt><dd>{ai.angle}</dd></div>
+        <div><dt className="text-[11px] uppercase tracking-wide text-muted">Audience</dt><dd>{ai.audience}</dd></div>
+      </dl>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div>
+          <h3 className="mb-2 font-semibold">Scorecard</h3>
+          <ul className="space-y-2">
+            {Object.entries(ai.scorecard).map(([k, v]) => (
+              <li key={k}>
+                <div className="flex items-center gap-2">
+                  <span className="w-28 shrink-0 text-xs text-muted">{CRIT[k] ?? k}</span>
+                  <span className="flex flex-1 gap-0.5" aria-label={`${v.score} of 5`}>
+                    {[1, 2, 3, 4, 5].map((i) => <span key={i} className={`h-2 flex-1 rounded-sm ${i <= v.score ? (v.score >= 4 ? "bg-above" : v.score >= 3 ? "bg-accent" : "bg-mega") : "bg-panel-2"}`} />)}
+                  </span>
+                  <span className="w-8 text-right text-xs font-semibold">{v.score}/5</span>
+                </div>
+                <p className="ml-[7.5rem] text-xs text-muted">{v.why}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="mb-2 font-semibold">How the ad is built</h3>
+          <ol className="space-y-2">
+            {ai.structure.map((p, i) => (
+              <li key={i} className="rounded-lg bg-panel-2 p-2.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-accent">{PART[p.part] ?? p.part}</span>
+                <p className="text-sm">{p.text}</p>
+                {p.note && <p className="text-xs text-muted">{p.note}</p>}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      {ai.risks.length > 0 && (
+        <div className="rounded-xl border border-mega/30 bg-mega/5 p-3">
+          <h3 className="mb-1.5 font-semibold">⚠ Risks (in this ad, or in copying it)</h3>
+          <ul className="list-disc space-y-1 pl-5 text-sm">{ai.risks.map((r) => <li key={r}>{r}</li>)}</ul>
+        </div>
+      )}
+
+      {ours && (
+        <div className="rounded-2xl border border-accent/40 bg-accent/5 p-4">
+          <h3 className="font-semibold">Our version <span className="text-xs font-normal text-muted">(the angle, adapted; nothing of theirs is copied)</span></h3>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2"><dt className="text-[11px] uppercase tracking-wide text-muted">Angle</dt><dd>{ours.angle}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-[11px] uppercase tracking-wide text-muted">Hook</dt><dd className="text-lg font-medium">{ours.hook}</dd></div>
+            <div className="sm:col-span-2">
+              <dt className="text-[11px] uppercase tracking-wide text-muted">Primary text <span className="normal-case">(bold = what shows before &quot;See more&quot;)</span></dt>
+              <dd className="whitespace-pre-line rounded-lg bg-panel p-3"><b>{ours.primary_text.slice(0, cut)}</b><span className="text-muted">{ours.primary_text.slice(cut)}</span></dd>
+            </div>
+            <div><dt className="text-[11px] uppercase tracking-wide text-muted">Headline</dt><dd>{ours.headline} <span className="text-xs text-muted">({ours.headline.length} chars)</span></dd></div>
+            <div><dt className="text-[11px] uppercase tracking-wide text-muted">CTA · format</dt><dd>{ours.cta} · {ours.format}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-[11px] uppercase tracking-wide text-muted">Visual (our own footage)</dt><dd>{ours.visual}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-[11px] uppercase tracking-wide text-muted">Why it should work for us</dt><dd>{ours.why}</dd></div>
+          </dl>
+          {ours.must_be_true?.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted">Must be true before it runs</p>
+              <ul className="mt-1 space-y-1 text-sm">{ours.must_be_true.map((m) => <li key={m} className="flex gap-2"><span className="text-muted">☐</span><span>{m}</span></li>)}</ul>
+            </div>
+          )}
+          {ai.test_ideas?.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted">Worth testing</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{ai.test_ideas.map((t) => <li key={t}>{t}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Creative({ ad }: { ad: AdItem }) {

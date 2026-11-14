@@ -52,6 +52,7 @@ Run when the user asks about competitors' ads or ad ideas, with `<profile> ads`,
    - **Offer and CTA:** from `offers`/`offer_text`/`cta`: free trial or quote, price, financing, guarantee, urgency
    - **Format:** video / image / carousel and platforms; open `image` or the library `url` to see the creative
    - **Why it probably keeps running:** days, variants, still running
+   For the 1–3 ads you build ideas on, `python -m viral_scout ad <profile> <key> analyze` stores a structured breakdown and an adapted "our version" on the ad's dashboard page (Claude subscription, about a minute each; reuse a stored one, don't `--force` without a reason), and `... ad <profile> <key> save` puts it in the swipe file. Transcripts of video ads (`... transcribe`, free) are usually there already after a run.
 3. **Write `<date>-ads-ideas.md`** next to the ads report (frontmatter `type: ads-ideas`, `profile`, `date`, a link to the report) with these sections:
    - **Angle breakdown:** a table of angle · how many ads · longest run · advertisers · example hook (paraphrased)
    - **Offers that keep running:** what they mean for this business's pricing

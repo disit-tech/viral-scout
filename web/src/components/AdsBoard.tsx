@@ -2,9 +2,10 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { AdItem, AdsData } from "@/lib/types";
-import { num } from "@/lib/format";
+import { ago, num, when } from "@/lib/format";
 import { OFFER, SOURCE, SOURCE_SHORT, STUDY_RULE, adHref, competitorSearch, queryLabel, studyPicks } from "@/lib/ads";
 import Link from "next/link";
+import { More, Seg, Select, Stat } from "./FilterControls";
 
 // ---------- filter state (kept in the URL, so a link reopens the same view) ----------
 
@@ -463,6 +464,7 @@ function AdsTable({ ads, sort, dir, onSort, profile, picks }: { ads: AdItem[]; s
                   <td colSpan={13} className="px-4 py-3 text-xs text-muted">
                     <div className="flex flex-wrap gap-x-6 gap-y-1">
                       <span>Found by: {a.found_by.map(queryLabel).join("; ")}</span>
+                      {a.last_seen && <span>Scanned {when(a.last_seen)} · first seen {when(a.first_seen ?? null)}</span>}
                       {a.labels.length > 0 && <span>Labels: {a.labels.join(" ")}</span>}
                       {a.offer_text && a.offer_text.length > 0 && <span>Offer text: {a.offer_text.slice(0, 4).join("; ")}</span>}
                       <Link href={adHref(profile, a)} className="text-rise underline">Full analysis →</Link>
@@ -606,6 +608,12 @@ function AdCard({ ad, profile, worth = false }: { ad: AdItem; profile: string; w
           {ad.start && <> · since {ad.start.slice(0, 10)}</>}
         </p>
         <p className="truncate text-[11px] text-muted" title={ad.found_by.map(queryLabel).join("; ")}>Found by: {ad.found_by.map(queryLabel).join("; ")}</p>
+        {(ad.last_seen || ad.first_seen) && (
+          <p className="text-[11px] text-muted" title={`Last scanned ${when(ad.last_seen ?? null)} · first seen ${when(ad.first_seen ?? null)}`}>
+            🕒 Scanned <b suppressHydrationWarning className="font-medium text-text/80">{ago(ad.last_seen ?? ad.first_seen)}</b>
+            {ad.first_seen && ad.first_seen !== ad.last_seen && <> · first seen {when(ad.first_seen)}</>}
+          </p>
+        )}
         {ad.body && ad.body !== ad.hook && (
           <button onClick={() => setOpen(!open)} className="mt-auto text-left text-xs text-rise hover:underline">
             {open ? "Hide ad copy" : "Show ad copy"}
@@ -618,51 +626,11 @@ function AdCard({ ad, profile, worth = false }: { ad: AdItem; profile: string; w
   );
 }
 
-function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: [T, string][] }) {
-  return (
-    <div className="flex overflow-hidden rounded-lg border border-line text-xs">
-      {options.map(([v, label]) => (
-        <button key={v} onClick={() => onChange(v)}
-          className={`px-2.5 py-1.5 ${value === v ? "bg-accent/15 text-accent" : "text-muted hover:bg-panel hover:text-text"}`}>{label}</button>
-      ))}
-    </div>
-  );
-}
-
-function Select({ value, onChange, all, options, labels }: {
-  value: string; onChange: (v: string) => void; all: string; options: string[]; labels?: Record<string, string>;
-}) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="max-w-56 rounded-lg border border-line bg-panel px-2 py-1.5 text-sm">
-      <option value="all">{all}</option>
-      {options.map((o) => <option key={o} value={o}>{labels?.[o] ?? o}</option>)}
-    </select>
-  );
-}
-
-function More({ shown, total, onMore }: { shown: number; total: number; onMore: () => void }) {
-  if (shown >= total) return null;
-  return (
-    <button onClick={onMore} className="w-full rounded-xl border border-line py-2.5 text-sm text-rise hover:bg-panel">
-      Show more ({num(shown)} of {num(total)})
-    </button>
-  );
-}
-
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="rounded-lg bg-panel-2 px-1 py-1.5">
       <dt className="truncate text-[10px] uppercase tracking-wide text-muted">{label}</dt>
       <dd className={`text-sm font-semibold ${tone ?? "text-text"}`}>{value}</dd>
-    </div>
-  );
-}
-
-function Stat({ label, value, tone = "text-text" }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-panel px-3 py-2">
-      <div className={`text-xl font-semibold ${tone}`}>{value}</div>
-      <div className="text-[11px] uppercase tracking-wide text-muted">{label}</div>
     </div>
   );
 }
