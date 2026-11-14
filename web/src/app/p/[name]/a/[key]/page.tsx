@@ -4,7 +4,7 @@ import { adsNames, loadAds } from "@/lib/data";
 import { num, when } from "@/lib/format";
 import type { AdItem } from "@/lib/types";
 import {
-  OFFER, SOURCE, adHref, advName, competitorSearch, copyBreakdown, median, queryLabel, similarAds, worthStudying,
+  OFFER, SOURCE, STUDY_RULE, adHref, advName, competitorSearch, copyBreakdown, median, queryLabel, similarAds, studyPicks,
 } from "@/lib/ads";
 import AdTimeline from "@/components/AdTimeline";
 
@@ -50,7 +50,9 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
   const longest = [...mine].sort((a, b) => (b.days_running ?? -1) - (a.days_running ?? -1))[0];
   const newest = [...mine].filter((a) => a.start).sort((a, b) => (b.start as string).localeCompare(a.start as string))[0];
 
-  const why = reasons(ad, { advMedian, advCount: mine.length, rank, total: all.length });
+  const picks = studyPicks(all);
+  const picked = picks.has(ad.key);
+  const why = reasons(ad, { advMedian, advCount: mine.length, rank, total: all.length, picked, picks: picks.size });
 
   return (
     <div className="space-y-5">
@@ -60,7 +62,7 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
           <h1 className="text-2xl font-bold tracking-tight">{advName(ad)}</h1>
           <span className="rounded-full border border-accent bg-accent px-2 py-0.5 text-xs font-semibold text-ink" title="ad score (proxy)">{Math.round(ad.ad_score)}</span>
           <span className={`rounded-full border px-2 py-0.5 text-xs ${ad.active ? "border-above bg-above text-ink" : "border-line text-muted"}`}>{ad.active ? "running" : "stopped"}</span>
-          {worthStudying(ad) && <span className="rounded-full border border-viral/60 px-2 py-0.5 text-xs text-viral">★ worth studying</span>}
+          {picked && <span className="rounded-full border border-viral/60 px-2 py-0.5 text-xs text-viral" title={STUDY_RULE}>★ worth studying</span>}
           {ad.new && <span className="rounded-full border border-rise bg-rise px-2 py-0.5 text-xs font-semibold text-ink">new since last run</span>}
           <span className="text-sm text-muted">{SOURCE[ad.source] ?? ad.source} · {ad.format}{ad.platforms.length ? ` · ${ad.platforms.join(", ")}` : ""}</span>
         </div>
@@ -186,8 +188,9 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
   );
 }
 
-function reasons(ad: AdItem, c: { advMedian: number | null; advCount: number; rank: number; total: number }) {
+function reasons(ad: AdItem, c: { advMedian: number | null; advCount: number; rank: number; total: number; picked: boolean; picks: number }) {
   const out: string[] = [];
+  if (c.picked) out.push(`One of the ${c.picks} ads picked to study first in this run (${STUDY_RULE.charAt(0).toLowerCase()}${STUDY_RULE.slice(1, -1)}).`);
   const d = ad.days_running;
   if (d !== null) {
     const run = `${Math.round(d)} days${ad.active ? " and still running" : `, stopped ${date(ad.stop)}`}`;

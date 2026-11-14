@@ -22,10 +22,24 @@ export const queryLabel = (x: string) =>
 
 export const adHref = (profile: string, a: AdItem) => `/p/${profile}/a/${encodeURIComponent(a.key)}`;
 
-/** The ads worth a closer look: long runs that are still live, very long runs, or several variants (a paid test). */
-export function worthStudying(a: AdItem) {
-  const d = a.days_running ?? 0;
-  return d >= 60 || (a.active && d >= 30) || a.variants >= 3;
+export const STUDY_RULE = "The best-scoring ads that ran 21+ days or have 3+ variants: at most 3 per advertiser and one per variant group, about 10% of the ads.";
+
+/** "Open these first": a short list spread across competitors, not every ad that clears a fixed bar
+ *  (evergreen competitor ads clear any day threshold, so a fixed rule marks most of them). */
+export function studyPicks(ads: AdItem[], share = 0.1, perAdvertiser = 3): Set<string> {
+  const limit = Math.max(10, Math.round(ads.length * share));
+  const eligible = ads.filter((a) => (a.days_running ?? 0) >= 21 || a.variants >= 3)
+    .sort((a, b) => b.ad_score - a.ad_score || (b.days_running ?? 0) - (a.days_running ?? 0));
+  const per = new Map<string, number>(), groups = new Set<string>(), out = new Set<string>();
+  for (const a of eligible) {
+    if (out.size >= limit) break;
+    const k = advName(a), n = per.get(k) ?? 0;
+    if (n >= perAdvertiser || (a.group && groups.has(`${k}|${a.group}`))) continue;
+    per.set(k, n + 1);
+    if (a.group) groups.add(`${k}|${a.group}`);
+    out.add(a.key);
+  }
+  return out;
 }
 
 export function median(xs: number[]) {

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { AdItem, AdsData } from "@/lib/types";
 import { num } from "@/lib/format";
-import { OFFER, SOURCE, SOURCE_SHORT, adHref, competitorSearch, queryLabel, worthStudying } from "@/lib/ads";
+import { OFFER, SOURCE, SOURCE_SHORT, STUDY_RULE, adHref, competitorSearch, queryLabel, studyPicks } from "@/lib/ads";
 import Link from "next/link";
 
 // ---------- filter state (kept in the URL, so a link reopens the same view) ----------
@@ -131,6 +131,7 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
   const formats = useMemo(() => Array.from(new Set(data.ads.map((a) => a.format || "unknown"))).sort(), [data.ads]);
   const offers = useMemo(() => Array.from(new Set(data.ads.flatMap((a) => a.offers))).sort(), [data.ads]);
   const advertiserNames = useMemo(() => Array.from(new Set(data.ads.map((a) => a.advertiser || "Unknown advertiser"))).sort(), [data.ads]);
+  const picks = useMemo(() => studyPicks(data.ads), [data.ads]);
   const bursts = useMemo(() => new Set(data.advertisers.filter((r) => r.launch_burst).map((r) => r.advertiser)), [data.advertisers]);
 
   // Every filter except the advertiser one: the advertiser table shows the alternatives under the other filters.
@@ -145,7 +146,7 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
       (f.offer === "all" || a.offers.includes(f.offer)) &&
       (f.found === "all" || (f.found === "competitor" ? competitorSearch(a) : !competitorSearch(a))) &&
       (!f.newOnly || a.new) &&
-      (!f.worth || worthStudying(a)) &&
+      (!f.worth || picks.has(a.key)) &&
       !hidden.has(a.advertiser || "Unknown advertiser") &&
       (!needle || `${a.advertiser} ${a.hook} ${a.title ?? ""} ${a.body ?? ""} ${a.landing_domain ?? ""} ${a.cta} ${a.found_by.join(" ")}`
         .toLowerCase().includes(needle)));
@@ -197,8 +198,8 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
           <label className="flex items-center gap-1.5 text-sm text-muted">
             <input type="checkbox" checked={f.newOnly} onChange={(e) => set("newOnly", e.target.checked)} /> New since last run
           </label>
-          <label className="flex items-center gap-1.5 text-sm text-muted" title="Still running after 30+ days, 60+ days in total, or 3+ variants">
-            <input type="checkbox" checked={f.worth} onChange={(e) => set("worth", e.target.checked)} /> <span className="text-viral">★</span> Worth studying
+          <label className="flex items-center gap-1.5 text-sm text-muted" title={STUDY_RULE}>
+            <input type="checkbox" checked={f.worth} onChange={(e) => set("worth", e.target.checked)} /> <span className="text-viral">★</span> Worth studying ({picks.size})
           </label>
           {active > 0 && (
             <button onClick={() => setF({ ...DEFAULT, view: f.view, group: f.group, sort: f.sort, dir: f.dir })}
@@ -251,18 +252,18 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
       ) : f.view === "cards" ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {list.slice(0, limit).map((a) => <AdCard key={a.key} ad={a} profile={profile} />)}
+            {list.slice(0, limit).map((a) => <AdCard key={a.key} ad={a} profile={profile} worth={picks.has(a.key)} />)}
           </div>
           <More shown={Math.min(limit, list.length)} total={list.length} onMore={() => setLimit(limit + 60)} />
         </>
       ) : f.view === "table" ? (
         <>
-          <AdsTable ads={list.slice(0, limit * 2)} sort={f.sort} dir={f.dir} profile={profile}
+          <AdsTable ads={list.slice(0, limit * 2)} sort={f.sort} dir={f.dir} profile={profile} picks={picks}
             onSort={(s) => setF((x) => ({ ...x, sort: s, dir: x.sort === s && x.dir === "desc" ? "asc" : "desc" }))} />
           <More shown={Math.min(limit * 2, list.length)} total={list.length} onMore={() => setLimit(limit + 60)} />
         </>
       ) : (
-        <Groups ads={list} by={f.group} sort={f.sort} dir={f.dir} profile={profile}
+        <Groups ads={list} by={f.group} sort={f.sort} dir={f.dir} profile={profile} picks={picks}
           onFilter={f.group === "advertiser" ? (k) => set("advertiser", k) : undefined} />
       )}
 
@@ -414,7 +415,7 @@ function AdvertiserTable({ ads, selected, bursts, onSelect, onHide }: {
 
 // ---------- table view ----------
 
-function AdsTable({ ads, sort, dir, onSort, profile }: { ads: AdItem[]; sort: Sort; dir: "asc" | "desc"; onSort: (s: Sort) => void; profile: string }) {
+function AdsTable({ ads, sort, dir, onSort, profile, picks }: { ads: AdItem[]; sort: Sort; dir: "asc" | "desc"; onSort: (s: Sort) => void; profile: string; picks: Set<string> }) {
   const [open, setOpen] = useState<string | null>(null);
   const head = (s: Sort | null, label: string, cls = "") => (
     <th className={`px-2 py-2 ${s ? "cursor-pointer select-none hover:text-text" : ""} ${cls}`} onClick={s ? () => onSort(s) : undefined}>
@@ -444,7 +445,7 @@ function AdsTable({ ads, sort, dir, onSort, profile }: { ads: AdItem[]; sort: So
                 <td className="px-2 py-1.5 font-semibold text-accent">{Math.round(a.ad_score)}</td>
                 <td className="max-w-[12rem] truncate px-2 py-1.5 font-medium" title={a.advertiser}>
                   <Link href={adHref(profile, a)} onClick={(e) => e.stopPropagation()} className="hover:text-accent hover:underline">{a.advertiser || "—"}</Link>
-                  {worthStudying(a) && <span className="ml-1 text-viral" title="worth studying">★</span>}{a.new && <span className="ml-1 text-[10px] text-rise">new</span>}
+                  {picks.has(a.key) && <span className="ml-1 text-viral" title={STUDY_RULE}>★</span>}{a.new && <span className="ml-1 text-[10px] text-rise">new</span>}
                 </td>
                 <td className="px-2 py-1.5 text-xs text-muted">{SOURCE[a.source] ?? a.source}<div className="text-[10px]">{a.platforms.join(", ")}</div></td>
                 <td className={`px-2 py-1.5 text-xs ${a.active ? "text-above" : "text-muted"}`}>{a.active ? "running" : "stopped"}</td>
@@ -483,8 +484,8 @@ function AdsTable({ ads, sort, dir, onSort, profile }: { ads: AdItem[]; sort: So
 
 type GroupSort = "count" | "longest" | "score" | "name";
 
-function Groups({ ads, by, sort, dir, onFilter, profile }: {
-  ads: AdItem[]; by: GroupBy; sort: Sort; dir: "asc" | "desc"; onFilter?: (k: string) => void; profile: string;
+function Groups({ ads, by, sort, dir, onFilter, profile, picks }: {
+  ads: AdItem[]; by: GroupBy; sort: Sort; dir: "asc" | "desc"; onFilter?: (k: string) => void; profile: string; picks: Set<string>;
 }) {
   const [gsort, setGsort] = useState<GroupSort>(by === "running" ? "name" : "count");
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -538,7 +539,7 @@ function Groups({ ads, by, sort, dir, onFilter, profile }: {
           {open.has(g.key) && (
             <div className="border-t border-line p-3">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {g.ads.slice(0, 8).map((a) => <AdCard key={a.key} ad={a} profile={profile} />)}
+                {g.ads.slice(0, 8).map((a) => <AdCard key={a.key} ad={a} profile={profile} worth={picks.has(a.key)} />)}
               </div>
               {g.ads.length > 8 && (
                 <p className="mt-2 text-xs text-muted">
@@ -556,7 +557,7 @@ function Groups({ ads, by, sort, dir, onFilter, profile }: {
 
 // ---------- small parts ----------
 
-function AdCard({ ad, profile }: { ad: AdItem; profile: string }) {
+function AdCard({ ad, profile, worth = false }: { ad: AdItem; profile: string; worth?: boolean }) {
   const [open, setOpen] = useState(false);
   const long = (ad.days_running ?? 0) >= 30;
   return (
@@ -574,7 +575,7 @@ function AdCard({ ad, profile }: { ad: AdItem; profile: string }) {
         <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
           <span className="rounded-full border border-accent bg-accent px-2 py-0.5 text-xs font-semibold text-ink">{Math.round(ad.ad_score)}</span>
           {ad.new && <span className="rounded-full border border-rise bg-rise px-2 py-0.5 text-xs font-semibold text-ink">new</span>}
-          {worthStudying(ad) && <span className="rounded-full border border-viral bg-ink/90 px-2 py-0.5 text-xs text-viral" title="Still running after 30+ days, 60+ days in total, or 3+ variants">★</span>}
+          {worth && <span className="rounded-full border border-viral bg-ink/90 px-2 py-0.5 text-xs text-viral" title={STUDY_RULE}>★ study</span>}
           <span className={`rounded-full border px-2 py-0.5 text-xs ${ad.active ? "border-above bg-above text-ink" : "border-line bg-ink/90 text-muted"}`}>
             {ad.active ? "running" : "stopped"}
           </span>
