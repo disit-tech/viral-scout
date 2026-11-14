@@ -16,7 +16,7 @@ def _log(msg, quiet):
         activity.note(msg)   # --quiet keeps it off the terminal, not out of the live log
 
 
-def scout(cfg, quiet=False, recheck=True, discover=True):
+def scout(cfg, quiet=False, recheck=True, discover=True, free=False):
     errors, skipped = [], []
     usage.reset()
     pool = {}                       # key -> Item
@@ -58,7 +58,9 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
             add(youtube.discover(kws, d_yt["hashtags"], d_yt["window"], d_yt["shorts"],
                                  d_yt["per_query"], errors))
         if d_tt["keywords"] or d_tt["hashtags"]:
-            if tiktok.available():
+            if free:
+                skipped.append("TikTok discovery: skipped in this free run (Apify is paid; the weekly run includes it)")
+            elif tiktok.available():
                 _log("discover: TikTok via Apify", quiet)
                 add(tiktok.discover(d_tt["hashtags"], d_tt["keywords"], d_tt["per_query"], errors))
             else:
@@ -101,7 +103,9 @@ def scout(cfg, quiet=False, recheck=True, discover=True):
             skipped.append(f"Instagram watch list ({len(cfg['watch']['instagram'])} accounts): no IG_GRAPH_TOKEN "
                            "(see README). Their reels you send as seeds are still tracked.")
     if cfg["watch"]["tiktok"]:
-        if tiktok.available():
+        if free:
+            skipped.append(f"TikTok watch list ({len(cfg['watch']['tiktok'])} accounts): skipped in this free run")
+        elif tiktok.available():
             _log("watch: TikTok via Apify", quiet)
             add(tiktok.watch(cfg["watch"]["tiktok"], 30, errors), is_watch=True)
         else:

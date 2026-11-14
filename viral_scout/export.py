@@ -128,7 +128,9 @@ def profile(cfg):
     return {
         "ads_summary": ads_summary,
         "name": cfg["name"],
+        "display_name": (cfg.get("display_name") or "").strip() or None,
         "business": (cfg.get("business") or "").strip(),
+        "setup": _setup(cfg),
         "date": latest.get("date"),
         "items": items,
         "sections": sections,
@@ -150,6 +152,22 @@ def profile(cfg):
             "watch": sum(len(v) for v in cfg["watch"].values()),
             "seeds": len(cfg["seeds"]),
         },
+    }
+
+
+def _setup(cfg):
+    """What each section is configured with (counts only), for the business overview."""
+    ads, dem, loc = cfg.get("ads") or {}, cfg.get("demand") or {}, cfg.get("local") or {}
+    own = cfg.get("own") or {}
+    return {
+        "ads": {"advertisers": len(ads.get("advertisers") or []), "keywords": len(ads.get("keywords") or []),
+                "domains": len(ads.get("domains") or []), "countries": ads.get("countries") or []} if ads else None,
+        "demand": {"terms": len(dem.get("terms") or []), "geo": dem.get("geo")} if dem else None,
+        "local": bool(loc.get("query")),
+        "perf": bool((cfg.get("perf") or {}).get("meta_ad_account_id")),
+        "own": len(own.get("youtube") or []) + len(own.get("urls") or []),
+        "tiktok": len(cfg["discover"]["tiktok"]["keywords"]) + len(cfg["discover"]["tiktok"]["hashtags"])
+        + len(cfg["watch"]["tiktok"]),
     }
 
 
@@ -229,7 +247,7 @@ def export_all(names=None, out=WEB_DATA):
         live = [i for i in data["items"] if not i["dismissed"]]
         top = sorted([i for i in live if (i.get("outlier") or 0) >= 3], key=lambda i: -(i.get("weighted") or 0))[:4]
         index.append({
-            "name": name, "date": data["date"], "business": data["business"][:220],
+            "name": name, "display_name": data.get("display_name"), "date": data["date"], "business": data["business"][:220],
             "posts": len(live), "outliers": sum(1 for i in live if (i.get("outlier") or 0) >= 3),
             "mega": sum(1 for i in live if (i.get("outlier") or 0) >= 10),
             "new": sum(1 for i in live if i.get("new")), "saved": len(data["swipe"]), "ideas": len(data["ideas"]),

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { demandNames, geoLabel, loadDemand, type DemandTerm } from "@/lib/demand";
 import { when } from "@/lib/format";
@@ -34,12 +33,8 @@ export default async function DemandPage({ params }: { params: Promise<{ name: s
   return (
     <div className="space-y-5">
       <div>
-        <div className="flex gap-3 text-xs text-muted">
-          <Link href={`/p/${name}`} className="hover:text-text">← {name}</Link>
-          <Link href={`/p/${name}/ads`} className="hover:text-text">Ads</Link>
-        </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">{name} · Search demand</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted">
+        {/* The business layout (p/[name]/layout.tsx) adds the back link, the name and the tabs. */}
+        <p className="max-w-3xl text-sm text-muted">
           When people in the <b className="text-text">{geoLabel(d.geo)}</b> search for each service, what&apos;s rising now and
           which words they use. Google Trends, {d.time.replace("today ", "last ")}, refreshed {when(d.fetched)}. Values are
           Google&apos;s 0–100 index (each term against its own peak), <b className="text-text">not search volumes</b>.

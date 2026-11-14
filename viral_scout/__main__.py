@@ -15,6 +15,7 @@
   python -m viral_scout perf import <profile> <file.csv> --source meta|tiktok|youtube|generic
   python -m viral_scout perf auth youtube                         OAuth for the YouTube Analytics API
   python -m viral_scout profiles
+  python -m viral_scout profile <name> get | set                 editable fields as JSON / apply JSON from stdin
 """
 import argparse
 import sys
@@ -38,6 +39,9 @@ def main(argv=None):
         cfg = config.load(argv[1])
         with activity.track(cfg["name"], "demand", argv):
             return demand.cli(cfg, force="--force" in argv, quiet="--quiet" in argv)
+    if argv and argv[0] == "profile":              # edit a profile without losing its comments (dashboard Settings)
+        from .profile_edit import cli as profile_cli
+        return profile_cli(argv[1:])
     if argv and argv[0] == "ad":                   # one ad: transcribe | analyze | save
         if len(argv) < 4 or argv[3] not in ("transcribe", "analyze", "save"):
             print("usage: python -m viral_scout ad <profile> <ad key> transcribe|analyze|save [--force]")
@@ -63,6 +67,7 @@ def main(argv=None):
     r.add_argument("profile")
     r.add_argument("--no-recheck", action="store_true", help="skip re-measuring earlier finds")
     r.add_argument("--no-discover", action="store_true", help="only watch list, seeds and re-checks")
+    r.add_argument("--free", action="store_true", help="skip paid sources (TikTok via Apify): the dashboard's Run now")
     r.add_argument("--quiet", action="store_true")
     r.add_argument("--status-file", help="write running/done/failed JSON here (dashboard jobs)")
     ad = sub.add_parser("ads", help="scout the best-performing ads in the niche and write the ads report")
@@ -268,7 +273,8 @@ def main(argv=None):
                   f"errors: {len(res['errors'])}, skipped sources: {len(res['skipped'])}")
             return 0
         try:
-            res, (md, js) = run.scout(cfg, quiet=args.quiet, recheck=not args.no_recheck, discover=not args.no_discover)
+            res, (md, js) = run.scout(cfg, quiet=args.quiet, recheck=not args.no_recheck, discover=not args.no_discover,
+                                     free=args.free)
         except Exception as err:
             _status(status="failed", error=str(err)[:500])
             raise

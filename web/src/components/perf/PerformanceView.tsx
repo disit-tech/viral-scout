@@ -128,9 +128,7 @@ function Header({ perf, kinds, kind, setKind }: { perf: Perf; kinds: Kind[]; kin
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <Link href={`/p/${perf.name}`} className="text-xs text-muted hover:text-text">← {perf.name}</Link>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Your performance</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted">
+        <p className="max-w-3xl text-sm text-muted">
           Your own videos and ads, from official APIs and your own exports, against <strong className="text-text">your own medians</strong>, not industry averages.
           {" "}Updated {new Date(perf.date).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · last {perf.days} days · goal {perf.goal}.
         </p>

@@ -1,16 +1,20 @@
 import { isLocal } from "@/lib/data";
 import NewProject from "@/components/NewProject";
 
-export const metadata = { title: "New research" };
+export const metadata = { title: "New business" };
 export const dynamic = "force-dynamic";
 
 export default function NewPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold tracking-tight">New research</h1>
+      <h1 className="text-2xl font-bold tracking-tight">New business</h1>
       <p className="mt-1 text-sm text-muted">
-        Describe a business or a topic and a few search phrases. Viral Scout writes a profile (hashtags, topic filter and
-        spam rules derived from your phrases) and starts the first run: 3–8 minutes.
+        <b className="text-text">New business</b>: an ongoing profile that reports into an Obsidian project and gets the
+        weekly runs. <b className="text-text">Quick research</b>: a one-off look at a topic (a <code>research-…</code> profile,
+        reports in the repo). Either way, describe it and add a few search phrases: Viral Scout writes the profile
+        (hashtags, topic filter and spam rules derived from your phrases) and starts the first run, 3–8 minutes. Add
+        competitors, ads and search demand afterwards in the business&apos;s Settings. The first run includes TikTok
+        through Apify (paid) when an Apify token is set.
       </p>
       {isLocal ? <NewProject /> : (
         <div className="mt-6 rounded-xl border border-dashed border-line p-8 text-center text-muted">

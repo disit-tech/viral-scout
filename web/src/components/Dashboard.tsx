@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Item, Profile } from "@/lib/types";
 import { num, when } from "@/lib/format";
 import PostsBoard from "./PostsBoard";
 import SwipeBoard from "./SwipeBoard";
-import PerformanceLink from "./perf/PerformanceLink";
 
 type Tab = "outliers" | "by_day" | "rising" | "seeds" | "own" | "ideas" | "swipe" | "health";
 
@@ -27,6 +26,10 @@ export default function Dashboard({ profile, ideas, local }: {
   const [tab, setTab] = useState<Tab>(profile.sections.outliers.length ? "outliers" : "by_day");
   const [items, setItems] = useState<Item[]>(profile.items);
   const [ideaIdx, setIdeaIdx] = useState(0);
+  useEffect(() => {                     // ?tab=ideas etc. (links from the overview)
+    const t = new URLSearchParams(window.location.search).get("tab") as Tab | null;
+    if (t && TABS.some((x) => x.id === t)) setTab(t);
+  }, []);
 
   const byKey = useMemo(() => new Map(items.map((i) => [i.key, i])), [items]);
 
@@ -57,21 +60,9 @@ export default function Dashboard({ profile, ideas, local }: {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link href="/" className="text-xs text-muted hover:text-text">← All businesses</Link>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">{profile.name}</h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted">{profile.business}</p>
-        </div>
-        <div className="text-right text-xs text-muted">
-          <div>Last run {when(profile.date)}</div>
-          <div>{num(items.filter((i) => !i.dismissed).length)} posts · {profile.sources.hashtags} hashtags · {profile.sources.keywords} keywords · {profile.sources.watch} watched</div>
-          <Link href={`/p/${profile.name}/ads`}
-            className="mt-2 inline-block rounded-lg border border-line bg-panel px-2.5 py-1 text-sm text-text hover:border-accent">
-            Ads{profile.ads_summary ? ` · ${num(profile.ads_summary.ads)}` : ""} →
-          </Link>
-          <PerformanceLink name={profile.name} className="ml-2 mt-2" />
-        </div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+        <span>Last run {when(profile.date)} · {num(items.filter((i) => !i.dismissed).length)} posts · {profile.sources.hashtags} hashtags · {profile.sources.keywords} keywords · {profile.sources.watch} watched</span>
+        <Link href={`/p/${profile.name}/settings#videos`} className="hover:text-text">Edit sources →</Link>
       </div>
 
       <nav className="mb-4 flex gap-1 overflow-x-auto border-b border-line">

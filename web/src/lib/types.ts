@@ -106,9 +106,23 @@ export type Profile = {
   trends?: { hashtag: string; views: number | null; posts: number | null; rank: number; on_topic: boolean }[];
   sources: { keywords: number; hashtags: number; watch: number; seeds: number };
   ads_summary?: { date: string | null; ads: number; advertisers: number } | null;
+  display_name?: string | null;
+  setup?: Setup;
 };
 
+/** What each section of a business is configured with (counts from the profile), for the overview. */
+export type Setup = {
+  ads: { advertisers: number; keywords: number; domains: number; countries: string[] } | null;
+  demand: { terms: number; geo: string | null } | null;
+  local: boolean; perf: boolean; own: number; tiktok: number;
+};
+
+/** Editable profile fields from `python -m viral_scout profile <name> get` (raw YAML values). */
+export type ProfileFields = { name: string; base: string; fields: Record<string, unknown>; kinds: Record<string, string> };
+
 export type IndexEntry = {
+  display_name?: string | null;
+  demand?: boolean;
   name: string;
   date: string;
   business: string;
