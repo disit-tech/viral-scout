@@ -48,6 +48,16 @@ It uses the same YAML profile as the organic scout, with an `ads:` block ([profi
 
 All of these appear on the dashboard **Setup** page (and `python -m viral_scout keys`), each with a cheap live test. The Meta test reads one ad ID, the TikTok test only fetches a client token, and the Apify actor test looks the actor up without running it.
 
+## Noise filter and rescoring
+
+Keyword and category searches return more than competitors: a Meta search for "handyman near me" also returns drama apps, games and story pages, and TikTok's Home Improvement top ads are mostly product shops. Two profile settings clean that up:
+
+- `ads.topic`: words, at least one of which must appear in the advertiser, copy, title or landing page of an ad that **only** keyword or category searches found (Meta keywords, TikTok Top Ads). Ads from **competitor searches** (a named advertiser on Meta, a domain or name on Google) are never filtered.
+- `ads.exclude_advertisers`: regexes on the advertiser name, always dropped (for example `DramaBox`, `'\bgames?\b'`; single quotes in YAML keep the backslash).
+- For TikTok, `tiktok_top_input.objectives: [Lead Generation]` keeps the lead-gen ads that service businesses run.
+
+The report's Coverage section says how many ads the filter dropped. Every real run also saves the unfiltered ads in `data/<profile>-ads-raw.json`, so after changing these settings, `python -m viral_scout ads <profile> --rescore` filters and scores the last run again **without fetching anything** (free). It rewrites the report and the dashboard, and keeps the "new since the last run" flags and the usage meter as the real run left them.
+
 ## Scoring "winning" ads
 
 Nobody outside the advertiser can see spend, conversions or ROAS. Everything below is a **proxy**. A long run usually means the ad pays for itself, but it can also be a brand campaign that runs regardless of results.

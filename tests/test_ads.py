@@ -436,3 +436,54 @@ class McpPaidGate(unittest.TestCase):
         finally:
             if old is not None:
                 os.environ["VIRAL_SCOUT_MCP_PAID"] = old
+
+
+class ActivityLog(unittest.TestCase):
+    def test_track_writes_log_status_and_quiet_notes(self):
+        from viral_scout import activity
+        with tempfile.TemporaryDirectory() as tmp:
+            old = activity.LIVE
+            activity.LIVE = Path(tmp)
+            try:
+                with activity.track("demo", "run", ["run", "demo"]):
+                    print("discover: YouTube via yt-dlp, 3 queries (week)")
+                    activity.note("  apify meta keyword solar: 12 ads")      # what --quiet hides from the terminal
+                jobs = activity.jobs()
+                self.assertEqual(len(jobs), 1)
+                j = jobs[0]
+                self.assertEqual((j["profile"], j["kind"], j["status"]), ("demo", "run", "done"))
+                text = "\n".join(j["log_lines"])
+                self.assertIn("discover: YouTube", text)
+                self.assertIn("apify meta keyword solar: 12 ads", text)
+                self.assertEqual((j["progress"]["queries_done"], j["progress"]["found"]), (1, 12))
+                with self.assertRaises(RuntimeError):
+                    with activity.track("demo", "ads"):
+                        raise RuntimeError("boom")
+                failed = [x for x in activity.jobs() if x["kind"] == "ads"][0]
+                self.assertEqual(failed["status"], "failed")
+                self.assertIn("boom", failed["error"])
+            finally:
+                activity.LIVE = old
+
+
+class NoiseFilterAndRescore(unittest.TestCase):
+    def test_on_topic_keeps_competitors_drops_keyword_noise(self):
+        from viral_scout.ads.run import on_topic
+        cfg = {"topic": ["gutter", "lighting"], "exclude_advertisers": ["DramaBox", r"\bgames?\b"]}
+        ads = [Ad(source="apify_meta", id="1", advertiser="Feldco", body="Windows sale", found_by=["apify meta advertiser Feldco"]),
+               Ad(source="apify_google", id="2", advertiser="Renewal By Andersen", found_by=["apify google transparency"]),
+               Ad(source="apify_meta", id="3", advertiser="Brothers Gutters", body="Gutter cleaning", found_by=["apify meta keyword gutter cleaning"]),
+               Ad(source="apify_meta", id="4", advertiser="DramaBox - short drama", body="gutter", found_by=["apify meta keyword gutter"]),
+               Ad(source="apify_meta", id="5", advertiser="Story Time", body="She never knew", found_by=["apify meta keyword handyman"]),
+               Ad(source="apify_tiktok_top", id="6", advertiser="Moon Lamp Shop", body="80% off", found_by=["apify tiktok top ads"]),
+               Ad(source="apify_meta", id="7", advertiser="Puzzle Games", body="lighting puzzle", found_by=["apify meta keyword lighting"])]
+        keep, dropped = on_topic(ads, cfg)
+        self.assertEqual([a.id for a in keep], ["1", "2", "3"])          # competitors always, on-topic keyword hits
+        self.assertEqual(dropped, {"excluded": 2, "off_topic": 2})
+
+    def test_ad_round_trip_for_rescore(self):
+        from viral_scout.ads.run import _ad_from_json
+        a = sources._google_ad(ApifyGoogleAdsScraperShape().row(), "US")
+        b = _ad_from_json(a.to_json())
+        self.assertEqual((b.id, b.advertiser, b.cta_text, b.landing_domain), (a.id, a.advertiser, a.cta_text, a.landing_domain))
+        self.assertAlmostEqual(b.days_running, a.days_running, delta=0.1)

@@ -40,7 +40,7 @@ export default async function AdsPage({ params }: { params: Promise<{ name: stri
         )}
       </div>
       {ads ? (
-        <AdsBoard data={ads} />
+        <AdsBoard data={ads} profile={name} />
       ) : (
         <div className="rounded-xl border border-dashed border-line p-8 text-center text-muted">
           No ads run yet. Add an <code className="text-text">ads:</code> block to the profile, then run{" "}

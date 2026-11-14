@@ -71,6 +71,8 @@ ads:
   apify_input: {}                   # merged into the APIFY_ADS_ACTOR input
   tiktok_top_input: {industries: [Home Improvement], period: "180"}   # TikTok Top Ads has no keyword search: pick a Creative Center industry
   google_input: {}                  # merged into the Google input (domains, searchTerms = names, maxAds = per_query)
+  topic: [gutter, handyman, roof]   # noise filter: ads found only by keyword/category searches must mention one of these
+  exclude_advertisers: [DramaBox, '\bgames?\b']   # regexes on the advertiser name, always dropped (single quotes keep \b)
   # output_dir: ...                 # default: the profile's output_dir
 ```
 

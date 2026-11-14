@@ -11,6 +11,9 @@ from .sources import instagram, links, tiktok, youtube, youtube_api
 def _log(msg, quiet):
     if not quiet:
         print(msg, flush=True)
+    else:
+        from . import activity
+        activity.note(msg)   # --quiet keeps it off the terminal, not out of the live log
 
 
 def scout(cfg, quiet=False, recheck=True, discover=True):

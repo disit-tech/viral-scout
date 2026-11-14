@@ -1,4 +1,5 @@
 """One ads run: sources → merge → hook/offer/CTA → variants + score → history → report + JSON → dashboard export."""
+import re
 import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
@@ -14,6 +15,9 @@ EU_NOTE = ("Meta Ad Library API: skipped for coverage, not a key. Commercial ads
 def _log(msg, quiet):
     if not quiet:
         print(msg, flush=True)
+    else:
+        from .. import activity
+        activity.note(msg)   # --quiet keeps it off the terminal, not out of the live log
 
 
 def _merge_same_meta_ad(ads):
@@ -101,6 +105,37 @@ def _alert_long_runners(cfg, ads, store, report_path, errors):
     return len(hits)
 
 
+def _competitor_query(ad):
+    """Found by searching for a named competitor (Meta advertiser search, Google domain/name), not a keyword."""
+    return any(("advertiser" in f) or ("google" in f) for f in ad.found_by)
+
+
+def on_topic(ads, cfg_ads):
+    """Drop noise from keyword and category searches. ads.exclude_advertisers (regexes) always drops; ads.topic
+    (words) must appear in the advertiser, copy, title or landing page of ads that only keyword/category searches
+    found (a keyword like "handyman near me" also returns drama apps and games). Competitor searches are kept."""
+    topic = [str(t).lower() for t in cfg_ads.get("topic") or [] if str(t).strip()]
+    excl = []
+    for p in cfg_ads.get("exclude_advertisers") or []:
+        try:
+            excl.append(re.compile(str(p), re.I))
+        except re.error:
+            excl.append(re.compile(re.escape(str(p)), re.I))
+    keep, dropped = [], {"excluded": 0, "off_topic": 0}
+    for a in ads:
+        if any(p.search(a.advertiser or "") for p in excl):
+            dropped["excluded"] += 1
+            continue
+        if topic and not _competitor_query(a):
+            text = " ".join(str(x or "") for x in (a.advertiser, a.body, a.title, a.link_url, a.link_caption,
+                                                   a.landing_domain)).lower()
+            if not any(t in text for t in topic):
+                dropped["off_topic"] += 1
+                continue
+        keep.append(a)
+    return keep, dropped
+
+
 def scout_ads(cfg, quiet=False):
     from ..db import Store
     usage.reset()
@@ -147,10 +182,29 @@ def scout_ads(cfg, quiet=False):
             coverage.append(f"Google Ads Transparency Center via Apify: {len(got)} ads (first/last shown dates; "
                             "no copy for some formats).")
 
-    ads = _merge_same_meta_ad([a for a in ads if a.id])
+    return _finish(cfg, cfg_ads, [a for a in ads if a.id], errors, skipped, coverage, wanted, quiet)
+
+
+def _finish(cfg, cfg_ads, ads, errors, skipped, coverage, wanted, quiet, fresh=True, old_usage=None):
+    """Filter, merge, score, report and export. fresh=False (rescore) skips history, alerts and the run log, so
+    "new since the last run" flags and the usage meter stay as the real run left them."""
+    from ..db import Store
+    import json
+    if fresh:                                          # everything as fetched, so a rescore can widen a filter again
+        raw = Path(cfg["db"]).parent / f"{cfg['name']}-ads-raw.json"
+        raw.write_text(json.dumps({"date": datetime.now().isoformat(), "ads": [a.to_json() for a in ads]},
+                                  ensure_ascii=False), encoding="utf-8")
+    ads, dropped = on_topic(ads, cfg_ads)
+    if dropped["excluded"] or dropped["off_topic"]:
+        coverage.append(f"Noise filter: dropped {dropped['off_topic']} ads from keyword/category searches that mention "
+                        f"none of ads.topic, and {dropped['excluded']} from ads.exclude_advertisers. Competitor "
+                        "searches are never filtered.")
+        _log(f"noise filter: dropped {dropped['off_topic']} off-topic, {dropped['excluded']} excluded", quiet)
+    ads = _merge_same_meta_ad(ads)
     score.enrich(ads)
     score.score(ads)
-    _history(cfg["db"], ads)
+    if fresh:
+        _history(cfg["db"], ads)
 
     now = datetime.now(timezone.utc)
     store = Store(cfg["db"])
@@ -158,15 +212,16 @@ def scout_ads(cfg, quiet=False):
     result = {
         "ads": ads, "advertisers": score.advertisers(ads), "offers": score.offer_summary(ads),
         "errors": errors, "skipped": skipped, "coverage": coverage, "lookup": sources.lookup_links(cfg_ads),
-        "usage": usage.snapshot(), "budget": usage.warnings(cfg, 0, month_apify), "countries": cfg_ads["countries"],
-        "sources_requested": wanted,
+        "usage": usage.snapshot() if fresh else (old_usage or {}), "budget": usage.warnings(cfg, 0, month_apify),
+        "countries": cfg_ads["countries"], "sources_requested": wanted,
     }
     paths = report.write(cfg, result)
-    sent = _alert_long_runners(cfg, ads, store, paths[0], errors)
-    if sent:
-        _log(f"ads alerts: sent {sent}", quiet)
-    store.log_run(cfg["name"], {"kind": "ads", "ads": len(ads), "errors": len(errors), "report": paths[0],
-                                "usage": usage.snapshot()})
+    if fresh:
+        sent = _alert_long_runners(cfg, ads, store, paths[0], errors)
+        if sent:
+            _log(f"ads alerts: sent {sent}", quiet)
+        store.log_run(cfg["name"], {"kind": "ads", "ads": len(ads), "errors": len(errors), "report": paths[0],
+                                    "usage": usage.snapshot()})
     store.db.close()
     try:
         from ..export import export_ads
@@ -174,3 +229,42 @@ def scout_ads(cfg, quiet=False):
     except Exception as err:                           # never fail a run over the dashboard
         _log(f"export for the dashboard failed: {err}", quiet)
     return result, paths
+
+
+_DERIVED = {"hook", "offers", "offer_text", "cta", "variants", "group", "reach_pct", "ad_score", "labels", "new",
+            "catalog", "start", "stop"}
+
+
+def _ad_from_json(d):
+    import dataclasses
+    from .model import Ad, parse_when
+    names = {f.name for f in dataclasses.fields(Ad)}
+    ad = Ad(**{k: v for k, v in d.items() if k in names and k not in _DERIVED and v is not None})
+    ad.start, ad.stop = parse_when(d.get("start")), parse_when(d.get("stop"))
+    ad.new = bool(d.get("new"))
+    ad.catalog = any("\U0001f6d2" in str(x) for x in d.get("labels") or [])   # the catalog-ad label
+    return ad
+
+
+def rescore_ads(cfg, quiet=False):
+    """Re-filter and re-score the last ads run without fetching anything (free): after editing ads.topic,
+    ads.exclude_advertisers or the scoring. Reads data/<profile>-ads-latest.json and rewrites the report."""
+    import json
+    usage.reset()
+    cfg_ads = dict(cfg.get("ads") or {})
+    cfg_ads.setdefault("countries", ["US"])
+    path = Path(cfg["db"]).parent / f"{cfg['name']}-ads-latest.json"
+    if not path.exists():
+        raise FileNotFoundError(f"no ads run yet for {cfg['name']} ({path})")
+    last = json.loads(path.read_text(encoding="utf-8"))
+    raw = Path(cfg["db"]).parent / f"{cfg['name']}-ads-raw.json"
+    # Start from the unfiltered copy when there is one: the latest JSON is already filtered.
+    source = json.loads(raw.read_text(encoding="utf-8")) if raw.exists() else last
+    ads = [_ad_from_json(a) for a in source.get("ads") or []]
+    coverage = [c for c in last.get("coverage") or [] if not c.startswith("Noise filter")]
+    coverage.append(f"Rescored without fetching ({datetime.now():%Y-%m-%d %H:%M}) from the run of "
+                    f"{str(last.get('date', ''))[:16].replace('T', ' ')}.")
+    _log(f"rescore: {len(ads)} ads from the last run ({'unfiltered copy' if raw.exists() else 'filtered copy'}), "
+         "nothing fetched", quiet)
+    return _finish(cfg, cfg_ads, ads, list(last.get("errors") or []), list(last.get("skipped") or []), coverage,
+                   last.get("sources_requested") or [], quiet, fresh=False, old_usage=last.get("usage"))

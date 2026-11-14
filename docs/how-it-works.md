@@ -97,6 +97,7 @@ Report sections:
 | `usage.py` | per-run counters and budget warnings |
 | `export.py` | data for the dashboard |
 | `mcp_server.py` | MCP tools |
+| `activity.py` | live logs and status of every run/ads/perf command (`data/activity/`), Apify run list and spend for the Activity page |
 | `search.py` | BM25 search over everything collected |
 | `keys.py` | key registry, live tests, `.env` writes |
 | `newproject.py` | profile generation from a description and keywords |
