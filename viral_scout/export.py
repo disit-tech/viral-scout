@@ -161,6 +161,16 @@ def ads_data(cfg):
     d = json.loads(p.read_text(encoding="utf-8"))
     for a in d.get("ads") or []:
         a.pop("snapshot_url", None)
+    try:                                   # first/last time viral-scout saw each ad (the ad page's history)
+        import sqlite3
+        db = sqlite3.connect(cfg["db"])
+        seen = {k: (f, l) for k, f, l in db.execute("select key, first_seen, last_seen from ads")}
+        db.close()
+        for a in d.get("ads") or []:
+            if a["key"] in seen:
+                a["first_seen"], a["last_seen"] = seen[a["key"]]
+    except sqlite3.Error:
+        pass
     d.pop("report", None)
     d["business"] = (cfg.get("business") or "").strip()
     reports = sorted(Path((cfg.get("ads") or {}).get("output_dir") or cfg["output_dir"]).glob("*-ads-scout.md"), reverse=True)

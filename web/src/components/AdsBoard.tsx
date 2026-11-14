@@ -3,17 +3,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { AdItem, AdsData } from "@/lib/types";
 import { num } from "@/lib/format";
-
-const OFFER: Record<string, string> = {
-  price: "price shown", free_trial: "free trial / lesson", free_quote: "free quote", free: "\"free\" claim",
-  discount: "discount", guarantee: "guarantee", financing: "financing", incentive: "tax credit / rebate",
-  urgency: "urgency", social_proof: "social proof",
-};
-const SOURCE: Record<string, string> = {
-  meta_api: "Meta API", tiktok_api: "TikTok API", apify_meta: "Facebook / Instagram",
-  apify_tiktok_top: "TikTok Top Ads", apify_google: "Google",
-};
-const SOURCE_SHORT: Record<string, string> = { meta_api: "FB", tiktok_api: "TT", apify_meta: "FB", apify_tiktok_top: "TT", apify_google: "G" };
+import { OFFER, SOURCE, SOURCE_SHORT, adHref, competitorSearch, queryLabel, worthStudying } from "@/lib/ads";
+import Link from "next/link";
 
 // ---------- filter state (kept in the URL, so a link reopens the same view) ----------
 
@@ -22,12 +13,12 @@ type Sort = "score" | "days" | "variants" | "newest" | "oldest" | "reach" | "lik
 type GroupBy = "advertiser" | "source" | "placement" | "offer" | "format" | "cta" | "domain" | "query" | "running" | "month" | "label";
 type F = {
   q: string; src: string[]; status: "all" | "running" | "stopped"; minDays: number; format: string; offer: string;
-  advertiser: string; found: "all" | "competitor" | "keyword"; newOnly: boolean; hide: string[];
+  advertiser: string; found: "all" | "competitor" | "keyword"; newOnly: boolean; worth: boolean; hide: string[];
   view: View; group: GroupBy; sort: Sort; dir: "desc" | "asc";
 };
 const DEFAULT: F = {
   q: "", src: [], status: "all", minDays: 0, format: "all", offer: "all", advertiser: "all", found: "all",
-  newOnly: false, hide: [], view: "cards", group: "advertiser", sort: "score", dir: "desc",
+  newOnly: false, worth: false, hide: [], view: "cards", group: "advertiser", sort: "score", dir: "desc",
 };
 
 function readUrl(): Partial<F> {
@@ -59,12 +50,6 @@ function writeUrl(f: F) {
 
 // ---------- derived values ----------
 
-const competitorSearch = (a: AdItem) => a.found_by.some((x) => x.includes("advertiser") || x.includes("google"));
-const queryLabel = (x: string) =>
-  x.replace(/^apify meta advertiser /, "competitor: ").replace(/^meta advertiser /, "competitor: ")
-    .replace(/^apify meta keyword /, "keyword: ").replace(/^meta keyword /, "keyword: ")
-    .replace(/^tiktok keyword /, "TikTok keyword: ").replace(/^apify google transparency.*/, "Google: competitor domains/names")
-    .replace(/^apify tiktok top ads/, "TikTok Top Ads (industry)");
 const runningBucket = (d: number | null) =>
   d === null ? "unknown start" : d < 7 ? "under 7 days" : d < 30 ? "7–30 days" : d < 60 ? "30–60 days 🏆" : d < 90 ? "60–90 days 🏆" : "90+ days 🏆";
 const BUCKET_ORDER = ["90+ days 🏆", "60–90 days 🏆", "30–60 days 🏆", "7–30 days", "under 7 days", "unknown start"];
@@ -160,6 +145,7 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
       (f.offer === "all" || a.offers.includes(f.offer)) &&
       (f.found === "all" || (f.found === "competitor" ? competitorSearch(a) : !competitorSearch(a))) &&
       (!f.newOnly || a.new) &&
+      (!f.worth || worthStudying(a)) &&
       !hidden.has(a.advertiser || "Unknown advertiser") &&
       (!needle || `${a.advertiser} ${a.hook} ${a.title ?? ""} ${a.body ?? ""} ${a.landing_domain ?? ""} ${a.cta} ${a.found_by.join(" ")}`
         .toLowerCase().includes(needle)));
@@ -210,6 +196,9 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
           <Select value={f.offer} onChange={(v) => set("offer", v)} all="All offers" options={offers} labels={OFFER} />
           <label className="flex items-center gap-1.5 text-sm text-muted">
             <input type="checkbox" checked={f.newOnly} onChange={(e) => set("newOnly", e.target.checked)} /> New since last run
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-muted" title="Still running after 30+ days, 60+ days in total, or 3+ variants">
+            <input type="checkbox" checked={f.worth} onChange={(e) => set("worth", e.target.checked)} /> <span className="text-viral">★</span> Worth studying
           </label>
           {active > 0 && (
             <button onClick={() => setF({ ...DEFAULT, view: f.view, group: f.group, sort: f.sort, dir: f.dir })}
@@ -262,18 +251,18 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
       ) : f.view === "cards" ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {list.slice(0, limit).map((a) => <AdCard key={a.key} ad={a} />)}
+            {list.slice(0, limit).map((a) => <AdCard key={a.key} ad={a} profile={profile} />)}
           </div>
           <More shown={Math.min(limit, list.length)} total={list.length} onMore={() => setLimit(limit + 60)} />
         </>
       ) : f.view === "table" ? (
         <>
-          <AdsTable ads={list.slice(0, limit * 2)} sort={f.sort} dir={f.dir}
+          <AdsTable ads={list.slice(0, limit * 2)} sort={f.sort} dir={f.dir} profile={profile}
             onSort={(s) => setF((x) => ({ ...x, sort: s, dir: x.sort === s && x.dir === "desc" ? "asc" : "desc" }))} />
           <More shown={Math.min(limit * 2, list.length)} total={list.length} onMore={() => setLimit(limit + 60)} />
         </>
       ) : (
-        <Groups ads={list} by={f.group} sort={f.sort} dir={f.dir}
+        <Groups ads={list} by={f.group} sort={f.sort} dir={f.dir} profile={profile}
           onFilter={f.group === "advertiser" ? (k) => set("advertiser", k) : undefined} />
       )}
 
@@ -425,7 +414,7 @@ function AdvertiserTable({ ads, selected, bursts, onSelect, onHide }: {
 
 // ---------- table view ----------
 
-function AdsTable({ ads, sort, dir, onSort }: { ads: AdItem[]; sort: Sort; dir: "asc" | "desc"; onSort: (s: Sort) => void }) {
+function AdsTable({ ads, sort, dir, onSort, profile }: { ads: AdItem[]; sort: Sort; dir: "asc" | "desc"; onSort: (s: Sort) => void; profile: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const head = (s: Sort | null, label: string, cls = "") => (
     <th className={`px-2 py-2 ${s ? "cursor-pointer select-none hover:text-text" : ""} ${cls}`} onClick={s ? () => onSort(s) : undefined}>
@@ -453,7 +442,10 @@ function AdsTable({ ads, sort, dir, onSort }: { ads: AdItem[]; sort: Sort; dir: 
                   ) : <div className="flex h-9 w-14 items-center justify-center rounded bg-panel-2 text-[10px] uppercase text-muted">{a.format}</div>}
                 </td>
                 <td className="px-2 py-1.5 font-semibold text-accent">{Math.round(a.ad_score)}</td>
-                <td className="max-w-[12rem] truncate px-2 py-1.5 font-medium" title={a.advertiser}>{a.advertiser || "—"}{a.new && <span className="ml-1 text-[10px] text-rise">new</span>}</td>
+                <td className="max-w-[12rem] truncate px-2 py-1.5 font-medium" title={a.advertiser}>
+                  <Link href={adHref(profile, a)} onClick={(e) => e.stopPropagation()} className="hover:text-accent hover:underline">{a.advertiser || "—"}</Link>
+                  {worthStudying(a) && <span className="ml-1 text-viral" title="worth studying">★</span>}{a.new && <span className="ml-1 text-[10px] text-rise">new</span>}
+                </td>
                 <td className="px-2 py-1.5 text-xs text-muted">{SOURCE[a.source] ?? a.source}<div className="text-[10px]">{a.platforms.join(", ")}</div></td>
                 <td className={`px-2 py-1.5 text-xs ${a.active ? "text-above" : "text-muted"}`}>{a.active ? "running" : "stopped"}</td>
                 <td className={`px-2 py-1.5 ${(a.days_running ?? 0) >= 30 ? "text-viral" : ""}`}>{a.days_running !== null ? Math.round(a.days_running) : "—"}</td>
@@ -472,6 +464,7 @@ function AdsTable({ ads, sort, dir, onSort }: { ads: AdItem[]; sort: Sort; dir: 
                       <span>Found by: {a.found_by.map(queryLabel).join("; ")}</span>
                       {a.labels.length > 0 && <span>Labels: {a.labels.join(" ")}</span>}
                       {a.offer_text && a.offer_text.length > 0 && <span>Offer text: {a.offer_text.slice(0, 4).join("; ")}</span>}
+                      <Link href={adHref(profile, a)} className="text-rise underline">Full analysis →</Link>
                       {a.url && <a href={a.url} target="_blank" rel="noreferrer" className="text-rise underline">Open in the ad library ↗</a>}
                     </div>
                     {a.body && <p className="mt-2 max-w-4xl whitespace-pre-line text-text">{a.body}</p>}
@@ -490,8 +483,8 @@ function AdsTable({ ads, sort, dir, onSort }: { ads: AdItem[]; sort: Sort; dir: 
 
 type GroupSort = "count" | "longest" | "score" | "name";
 
-function Groups({ ads, by, sort, dir, onFilter }: {
-  ads: AdItem[]; by: GroupBy; sort: Sort; dir: "asc" | "desc"; onFilter?: (k: string) => void;
+function Groups({ ads, by, sort, dir, onFilter, profile }: {
+  ads: AdItem[]; by: GroupBy; sort: Sort; dir: "asc" | "desc"; onFilter?: (k: string) => void; profile: string;
 }) {
   const [gsort, setGsort] = useState<GroupSort>(by === "running" ? "name" : "count");
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -545,7 +538,7 @@ function Groups({ ads, by, sort, dir, onFilter }: {
           {open.has(g.key) && (
             <div className="border-t border-line p-3">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {g.ads.slice(0, 8).map((a) => <AdCard key={a.key} ad={a} />)}
+                {g.ads.slice(0, 8).map((a) => <AdCard key={a.key} ad={a} profile={profile} />)}
               </div>
               {g.ads.length > 8 && (
                 <p className="mt-2 text-xs text-muted">
@@ -563,30 +556,31 @@ function Groups({ ads, by, sort, dir, onFilter }: {
 
 // ---------- small parts ----------
 
-function AdCard({ ad }: { ad: AdItem }) {
+function AdCard({ ad, profile }: { ad: AdItem; profile: string }) {
   const [open, setOpen] = useState(false);
   const long = (ad.days_running ?? 0) >= 30;
   return (
     <article className={`flex flex-col overflow-hidden rounded-2xl border bg-panel ${long ? "border-viral/40" : "border-line"} ${ad.active ? "" : "opacity-70"}`}>
-      <a href={ad.url || undefined} target="_blank" rel="noreferrer" className="relative block aspect-video bg-panel-2" title="Open in the ad library">
+      <Link href={adHref(profile, ad)} className="relative block aspect-video bg-panel-2" title="Open the full analysis">
         {ad.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={ad.image} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted">
             <span className="text-xs uppercase tracking-wide">{ad.format || "ad"}</span>
-            <span>No preview from this source. Open in the library ↗</span>
+            <span>No preview from this source. Open the analysis →</span>
           </div>
         )}
         <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
           <span className="rounded-full border border-accent bg-accent px-2 py-0.5 text-xs font-semibold text-ink">{Math.round(ad.ad_score)}</span>
           {ad.new && <span className="rounded-full border border-rise bg-rise px-2 py-0.5 text-xs font-semibold text-ink">new</span>}
+          {worthStudying(ad) && <span className="rounded-full border border-viral bg-ink/90 px-2 py-0.5 text-xs text-viral" title="Still running after 30+ days, 60+ days in total, or 3+ variants">★</span>}
           <span className={`rounded-full border px-2 py-0.5 text-xs ${ad.active ? "border-above bg-above text-ink" : "border-line bg-ink/90 text-muted"}`}>
             {ad.active ? "running" : "stopped"}
           </span>
         </div>
         <span className="absolute bottom-2 right-2 rounded bg-ink/80 px-1.5 py-0.5 text-[11px] text-muted">{SOURCE[ad.source] ?? ad.source} · {ad.format}</span>
-      </a>
+      </Link>
       <div className="flex flex-1 flex-col gap-2.5 p-3.5">
         <div className="flex items-start gap-2">
           <p className="line-clamp-3 flex-1 font-medium leading-snug">{ad.hook || ad.title || <span className="text-muted">No ad copy from this source</span>}</p>
@@ -617,6 +611,7 @@ function AdCard({ ad }: { ad: AdItem }) {
           </button>
         )}
         {open && <p className="whitespace-pre-line text-xs text-muted">{ad.body}</p>}
+        <Link href={adHref(profile, ad)} className={`${ad.body && ad.body !== ad.hook ? "" : "mt-auto "}text-xs font-medium text-accent hover:underline`}>Full analysis →</Link>
       </div>
     </article>
   );

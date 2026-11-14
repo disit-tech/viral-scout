@@ -158,6 +158,8 @@ export type AdItem = {
   labels: string[];
   found_by: string[];
   new?: boolean;
+  first_seen?: string;   // first/last time viral-scout saw it (run history)
+  last_seen?: string;
 };
 
 export type AdvertiserRow = {
