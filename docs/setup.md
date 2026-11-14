@@ -59,7 +59,13 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
 `python -m viral_scout ads <profile>` reads competitor ads. Every source is optional. Details, coverage and costs are in [ads-scout.md](ads-scout.md).
 - **Meta Ad Library API (free):** confirm your identity at facebook.com/ID, create a Meta for Developers app, get a user token in the Graph API Explorer (make it long-lived), then set `META_AD_LIBRARY_TOKEN=...`. It returns **ads delivered in the EU** plus political/issue ads. US commercial ads aren't available through the API.
 - **TikTok Commercial Content API (free, by application):** apply on TikTok for Developers. After approval, set `TIKTOK_RESEARCH_CLIENT_KEY` and `TIKTOK_RESEARCH_CLIENT_SECRET`. It covers ads shown in the EEA, without ad copy.
-- **Apify (paid):** with `APIFY_TOKEN`, set `APIFY_ADS_ACTOR` (Meta Ad Library, any country including the US, e.g. `apify~facebook-ads-scraper`), `APIFY_TIKTOK_ADS_ACTOR` (TikTok Creative Center Top Ads) and/or `APIFY_GOOGLE_ADS_ACTOR` (Google Ads Transparency Center). Check each actor's price. Usage counts toward `budget.apify_items_per_month`.
+- **Apify (paid):** with `APIFY_TOKEN`, set the actor for each route. The input and output mappings are written and tested for these three:
+  - `APIFY_ADS_ACTOR=apify~facebook-ads-scraper`: Meta Ad Library, any country including the US ($3.40–5.80 per 1,000 ads, by Apify plan)
+  - `APIFY_GOOGLE_ADS_ACTOR=automation-lab~google-ads-scraper`: Google Ads Transparency Center by competitor domain and name ($1.30 per 1,000 ads)
+  - `APIFY_TIKTOK_ADS_ACTOR=pulsedata~tiktok-creative-center-top-ads-scraper`: TikTok Creative Center Top Ads for an industry ($2 per 1,000 ads). Set `ads.tiktok_top_input.industries` in each profile, because it has no keyword search.
+  Usage counts toward `budget.apify_items_per_month`. See [costs and spend controls](ads-scout.md#costs-and-spend-controls).
+- **Search demand (Google Trends):** uses `APIFY_TOKEN` and Apify's own `apify~google-trends-scraper` (override with `APIFY_GOOGLE_TRENDS_ACTOR`), about $0.005 per term, only for profiles with a `demand:` block. See [search-demand.md](search-demand.md).
+- **Spend controls:** `APIFY_MAX_USD_PER_RUN` (default 0.50, 0 = no cap) is sent with every Apify run as its maximum charge. `VIRAL_SCOUT_MCP_PAID=1` lets MCP clients start paid runs (off by default). Both are on the dashboard's Setup page.
 ### Your own performance (optional, free)
 Reads **your own** accounts' private metrics for the [Your performance](performance.md) report. Each pair is optional:
 - **Instagram insights:** the `IG_GRAPH_TOKEN` above, with `instagram_manage_insights` (and `instagram_manage_comments` for comment sentiment) added.
@@ -96,22 +102,30 @@ alerts:
 ```
 claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py
 ```
-The launcher works from any folder. It gives Claude (or any MCP client) these tools:
-- `list_profiles`
-- `start_run`, then `get_job` (runs take minutes, so the client starts one and polls)
-- `get_results`, `get_post`, `get_ideas`, `usage`
-- `save_post`, `dismiss_posts`, `track_links`, `set_swipe_status`
-- `ads_run` (then `get_job`) and `ads_results`: the ads scout
-- `perf_run` (then `get_job`), `perf_results`, `perf_diagnose`: your own videos and ads
+The launcher works from any folder. Registered at user scope (`-s user`), it is available in **every Claude Code session in every repo** on this PC. That is how other repos and agents read the results. It gives Claude (or any MCP client) these tools:
+- `list_profiles`, `get_results`, `get_post`, `get_ideas`, `search`, `usage`: read the latest runs
+- `ads_results`: the ads scout results
+- `save_post`, `dismiss_posts`, `track_links`, `set_swipe_status`: the swipe file
+- `perf_run` (then `get_job`), `perf_results`, `perf_diagnose`: your own videos and ads (free official APIs)
+- `create_project`: a new profile (free; `start=True` is a paid run)
+- **Paid, off by default:** `start_run`, `ads_run` (then `get_job`) and `local_competitors`. They spend Apify or Google Places credit, so for MCP clients they return the latest results and the CLI command instead. To allow them, set `VIRAL_SCOUT_MCP_PAID=1` in `.env` (or `claude mcp add ... -e VIRAL_SCOUT_MCP_PAID=1`) and restart the server, which restarts with the Claude Code session. Paid runs stay available from the CLI and the scheduled task.
+
+Other ways to get the results:
+- **Obsidian:** the reports are Markdown in each profile's `output_dir` (for example `projects/northForge/05 Marketing/viral/` in the vault). Any agent with the Obsidian MCP or file access can read them.
+- **JSON:** `data/<profile>-latest.json`, `data/<profile>-ads-latest.json` and the dashboard copies in `web/data/` (`python -m viral_scout export`).
+- **Dashboard:** locally at http://localhost:3210, or published read-only on Vercel behind a password for people without access to this PC. See [dashboard](dashboard.md).
 
 ## Scheduling
 
 ### Windows (Task Scheduler)
-One command for all your profiles, staggered (YouTube rate-limits bursts), with the AI analysis and a final publish:
+One command for all your profiles, staggered (YouTube rate-limits bursts), with the AI analysis and a final publish. It registers **weekly** tasks, Monday by default. One Monday snapshot (trending posts, competitor ads, ideas note) gives a week of content, and daily runs would bill Apify every day:
 ```powershell
 scripts/schedule.ps1 -Profiles englishSchool,northForge,nfSolarPanels -Start 07:00 -GapMinutes 30 -Analyze -Publish
+scripts/schedule.ps1 -Profiles northForge -Day Daily     # daily instead (-Day Monday ... Sunday | Daily)
 scripts/schedule.ps1 -Remove     # remove them all
+Disable-ScheduledTask -TaskName "viral-scout northForge"  # pause one (Enable-ScheduledTask to resume)
 ```
+Keep `-Day` on the ads day of `run-daily.ps1` (`-AdsDay`, Monday), so each weekly run includes the ads snapshot.
 Or by hand:
 `scripts/run-daily.ps1 -Profile <name> [-Analyze]` writes logs to `data/logs/<profile>-<date>.log`. `-Analyze` then runs the `/viral-scout` skill headless through the Claude Code CLI (on your subscription) to write the ideas note.
 
@@ -119,7 +133,7 @@ In PowerShell:
 ```powershell
 $action  = New-ScheduledTaskAction -Execute "pwsh.exe" `
   -Argument '-NoProfile -ExecutionPolicy Bypass -File "D:\repo\viral-scout\scripts\run-daily.ps1" -Profile mybusiness -Analyze'
-$trigger = New-ScheduledTaskTrigger -Daily -At 7:30am
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 7:30am
 $set     = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable
 Register-ScheduledTask -TaskName "viral-scout mybusiness" -Action $action -Trigger $trigger -Settings $set
 ```

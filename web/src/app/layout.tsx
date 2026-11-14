@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import { isLocal } from "@/lib/data";
 import { isPublicDemo } from "@/lib/auth";
+import NavActivity from "@/components/NavActivity";
 
 export const metadata: Metadata = {
   title: { default: "Viral Scout", template: "%s · Viral Scout" },
@@ -25,9 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="ml-4 flex gap-1 text-sm">
               <Link href="/" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Businesses</Link>
-              <Link href="/search" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Search</Link>
-              <Link href="/new" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">New research</Link>
+              <Link href="/search" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text" title="Search every post already collected">Search posts</Link>
               <Link href="/check" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Check a video</Link>
+              {isLocal && <NavActivity local={isLocal} />}
               <Link href="/setup" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Setup</Link>
               <Link href="/docs" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Docs</Link>
             </nav>

@@ -15,6 +15,7 @@
   python -m viral_scout perf import <profile> <file.csv> --source meta|tiktok|youtube|generic
   python -m viral_scout perf auth youtube                         OAuth for the YouTube Analytics API
   python -m viral_scout profiles
+  python -m viral_scout profile <name> get | set                 editable fields as JSON / apply JSON from stdin
 """
 import argparse
 import sys
@@ -27,8 +28,35 @@ def main(argv=None):
         sys.stdout.reconfigure(encoding="utf-8")
     config.load_env()
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "activity":             # live jobs + Apify runs (the dashboard's Activity page)
+        from .activity import cli as activity_cli
+        return activity_cli(argv[1:])
+    if argv and argv[0] == "demand":               # search demand (Google Trends via Apify)
+        if len(argv) < 2:
+            print("usage: python -m viral_scout demand <profile> [--force] [--quiet]")
+            return 2
+        from . import activity, demand
+        cfg = config.load(argv[1])
+        with activity.track(cfg["name"], "demand", argv):
+            return demand.cli(cfg, force="--force" in argv, quiet="--quiet" in argv)
+    if argv and argv[0] == "profile":              # edit a profile without losing its comments (dashboard Settings)
+        from .profile_edit import cli as profile_cli
+        return profile_cli(argv[1:])
+    if argv and argv[0] == "ad":                   # one ad: transcribe | analyze | save
+        if len(argv) < 4 or argv[3] not in ("transcribe", "analyze", "save"):
+            print("usage: python -m viral_scout ad <profile> <ad key> transcribe|analyze|save [--force]")
+            return 2
+        from . import activity
+        from .ads import extra
+        cfg = config.load(argv[1])
+        with activity.track(cfg["name"], f"ad {argv[3]}", argv):
+            return extra.cli(cfg, argv[2], argv[3], force="--force" in argv)
     if argv and argv[0] == "perf":                 # own performance has its own sub-commands
         from .perf.cli import main as perf_main
+        if len(argv) > 1 and not argv[1].startswith("-") and argv[1] not in ("import", "auth"):
+            from . import activity
+            with activity.track(argv[1], "perf", argv):
+                return perf_main(argv[1:])
         return perf_main(argv[1:])
     from . import run   # after load_env, so VIRAL_SCOUT_YTDLP from .env applies
     from .report import n
@@ -39,11 +67,13 @@ def main(argv=None):
     r.add_argument("profile")
     r.add_argument("--no-recheck", action="store_true", help="skip re-measuring earlier finds")
     r.add_argument("--no-discover", action="store_true", help="only watch list, seeds and re-checks")
+    r.add_argument("--free", action="store_true", help="skip paid sources (TikTok via Apify): the dashboard's Run now")
     r.add_argument("--quiet", action="store_true")
     r.add_argument("--status-file", help="write running/done/failed JSON here (dashboard jobs)")
     ad = sub.add_parser("ads", help="scout the best-performing ads in the niche and write the ads report")
     ad.add_argument("profile")
     ad.add_argument("--quiet", action="store_true")
+    ad.add_argument("--rescore", action="store_true", help="re-filter and re-score the last ads run; fetches nothing (free)")
     ad.add_argument("--status-file", help="write running/done/failed JSON here (dashboard jobs)")
     a = sub.add_parser("add", help="track one or more post URLs")
     a.add_argument("profile")
@@ -228,27 +258,30 @@ def main(argv=None):
             sf.parent.mkdir(parents=True, exist_ok=True)
             sf.write_text(_json.dumps({"profile": cfg["name"], "updated": _dt.now().isoformat(), **kw}), encoding="utf-8")
 
-    _status(status="running", started=_dt.now().isoformat())
-    if args.cmd == "ads":
-        from .ads.run import scout_ads
+    from . import activity
+    with activity.track(cfg["name"], args.cmd, argv):   # live log for the Activity page
+        _status(status="running", started=_dt.now().isoformat())
+        if args.cmd == "ads":
+            from .ads.run import rescore_ads, scout_ads
+            try:
+                res, (md, js) = (rescore_ads if args.rescore else scout_ads)(cfg, quiet=args.quiet)
+            except Exception as err:
+                _status(status="failed", error=str(err)[:500])
+                raise
+            _status(status="done", ads=len(res["ads"]), errors=len(res["errors"]), report=md)
+            print(f"report: {md}\ndata:   {js}\nads: {len(res['ads'])}, advertisers: {len(res['advertisers'])}, "
+                  f"errors: {len(res['errors'])}, skipped sources: {len(res['skipped'])}")
+            return 0
         try:
-            res, (md, js) = scout_ads(cfg, quiet=args.quiet)
+            res, (md, js) = run.scout(cfg, quiet=args.quiet, recheck=not args.no_recheck, discover=not args.no_discover,
+                                     free=args.free)
         except Exception as err:
             _status(status="failed", error=str(err)[:500])
             raise
-        _status(status="done", ads=len(res["ads"]), errors=len(res["errors"]), report=md)
-        print(f"report: {md}\ndata:   {js}\nads: {len(res['ads'])}, advertisers: {len(res['advertisers'])}, "
+        _status(status="done", posts=len(res["items"]), errors=len(res["errors"]), report=md)
+        print(f"report: {md}\ndata:   {js}\nposts: {len(res['items'])}, new: {len(res['new'])}, "
               f"errors: {len(res['errors'])}, skipped sources: {len(res['skipped'])}")
         return 0
-    try:
-        res, (md, js) = run.scout(cfg, quiet=args.quiet, recheck=not args.no_recheck, discover=not args.no_discover)
-    except Exception as err:
-        _status(status="failed", error=str(err)[:500])
-        raise
-    _status(status="done", posts=len(res["items"]), errors=len(res["errors"]), report=md)
-    print(f"report: {md}\ndata:   {js}\nposts: {len(res['items'])}, new: {len(res['new'])}, "
-          f"errors: {len(res['errors'])}, skipped sources: {len(res['skipped'])}")
-    return 0
 
 
 if __name__ == "__main__":

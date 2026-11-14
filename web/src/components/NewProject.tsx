@@ -6,7 +6,7 @@ import Link from "next/link";
 type Job = { status: "running" | "done" | "failed"; posts?: number; errors?: number; error?: string; started?: string };
 
 export default function NewProject() {
-  const [mode, setMode] = useState<"research" | "project">("research");
+  const [mode, setMode] = useState<"research" | "project">("project");
   const [f, setF] = useState({ name: "", business: "", keywords: "", hashtags: "", languages: "", vaultProject: "", window: "month" });
   const [projects, setProjects] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -14,6 +14,9 @@ export default function NewProject() {
   const [profile, setProfile] = useState<string | null>(null);
   const [job, setJob] = useState<Job | null>(null);
 
+  useEffect(() => {                     // ?mode=research from "Quick research" on the Businesses page
+    if (new URLSearchParams(window.location.search).get("mode") === "research") setMode("research");
+  }, []);
   useEffect(() => { fetch("/api/new").then((r) => r.json()).then((d) => setProjects(d.projects ?? [])).catch(() => {}); }, []);
   useEffect(() => {
     if (!profile || job?.status === "done" || job?.status === "failed") return;
@@ -64,10 +67,10 @@ export default function NewProject() {
   return (
     <form onSubmit={submit} className="mt-6 space-y-4 rounded-2xl border border-line bg-panel p-5">
       <div className="flex gap-2">
-        {(["research", "project"] as const).map((m) => (
+        {(["project", "research"] as const).map((m) => (
           <button type="button" key={m} onClick={() => setMode(m)}
             className={`rounded-lg border px-3 py-1.5 text-sm ${mode === m ? "border-accent text-accent" : "border-line text-muted"}`}>
-            {m === "research" ? "Quick research (one-off)" : "New project (ongoing)"}
+            {m === "research" ? "Quick research (one-off)" : "New business (ongoing)"}
           </button>
         ))}
       </div>

@@ -128,7 +128,9 @@ def profile(cfg):
     return {
         "ads_summary": ads_summary,
         "name": cfg["name"],
+        "display_name": (cfg.get("display_name") or "").strip() or None,
         "business": (cfg.get("business") or "").strip(),
+        "setup": _setup(cfg),
         "date": latest.get("date"),
         "items": items,
         "sections": sections,
@@ -153,6 +155,22 @@ def profile(cfg):
     }
 
 
+def _setup(cfg):
+    """What each section is configured with (counts only), for the business overview."""
+    ads, dem, loc = cfg.get("ads") or {}, cfg.get("demand") or {}, cfg.get("local") or {}
+    own = cfg.get("own") or {}
+    return {
+        "ads": {"advertisers": len(ads.get("advertisers") or []), "keywords": len(ads.get("keywords") or []),
+                "domains": len(ads.get("domains") or []), "countries": ads.get("countries") or []} if ads else None,
+        "demand": {"terms": len(dem.get("terms") or []), "geo": dem.get("geo")} if dem else None,
+        "local": bool(loc.get("query")),
+        "perf": bool((cfg.get("perf") or {}).get("meta_ad_account_id")),
+        "own": len(own.get("youtube") or []) + len(own.get("urls") or []),
+        "tiktok": len(cfg["discover"]["tiktok"]["keywords"]) + len(cfg["discover"]["tiktok"]["hashtags"])
+        + len(cfg["watch"]["tiktok"]),
+    }
+
+
 def ads_data(cfg):
     """The latest ads run for the dashboard, or None. Meta snapshot URLs carry the access token, so they never leave."""
     p = Path(cfg["db"]).parent / f"{cfg['name']}-ads-latest.json"
@@ -161,6 +179,21 @@ def ads_data(cfg):
     d = json.loads(p.read_text(encoding="utf-8"))
     for a in d.get("ads") or []:
         a.pop("snapshot_url", None)
+    try:                                   # first/last time viral-scout saw each ad (the ad page's history)
+        import sqlite3
+        db = sqlite3.connect(cfg["db"])
+        seen = {k: (f, l) for k, f, l in db.execute("select key, first_seen, last_seen from ads")}
+        db.close()
+        for a in d.get("ads") or []:
+            if a["key"] in seen:
+                a["first_seen"], a["last_seen"] = seen[a["key"]]
+    except sqlite3.Error:
+        pass
+    from .ads import extra                 # transcripts, AI breakdowns, swipe notes (data/<p>-ads-extra.json)
+    more = extra.load(cfg)
+    for a in d.get("ads") or []:
+        for k, v in (more.get(a["key"]) or {}).items():
+            a[k] = v
     d.pop("report", None)
     d["business"] = (cfg.get("business") or "").strip()
     reports = sorted(Path((cfg.get("ads") or {}).get("output_dir") or cfg["output_dir"]).glob("*-ads-scout.md"), reverse=True)
@@ -175,6 +208,18 @@ def export_ads(cfg, out=WEB_DATA):
     (out / "ads").mkdir(parents=True, exist_ok=True)
     f = out / "ads" / f"{cfg['name']}.json"
     f.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    return f
+
+
+def export_demand(cfg, out=WEB_DATA):
+    """Search demand (Google Trends) for the dashboard: data/<profile>-demand.json as it is."""
+    from .demand import paths
+    p = paths(cfg)[0]
+    if not p.exists():
+        return None
+    (out / "demand").mkdir(parents=True, exist_ok=True)
+    f = out / "demand" / f"{cfg['name']}.json"
+    f.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
     return f
 
 
@@ -193,6 +238,7 @@ def export_all(names=None, out=WEB_DATA):
     for name in sorted(names):
         cfg = config.load(name)
         export_ads(cfg, out)
+        has_demand = bool(export_demand(cfg, out))
         data = profile(cfg)
         if not data:
             continue
@@ -201,11 +247,11 @@ def export_all(names=None, out=WEB_DATA):
         live = [i for i in data["items"] if not i["dismissed"]]
         top = sorted([i for i in live if (i.get("outlier") or 0) >= 3], key=lambda i: -(i.get("weighted") or 0))[:4]
         index.append({
-            "name": name, "date": data["date"], "business": data["business"][:220],
+            "name": name, "display_name": data.get("display_name"), "date": data["date"], "business": data["business"][:220],
             "posts": len(live), "outliers": sum(1 for i in live if (i.get("outlier") or 0) >= 3),
             "mega": sum(1 for i in live if (i.get("outlier") or 0) >= 10),
             "new": sum(1 for i in live if i.get("new")), "saved": len(data["swipe"]), "ideas": len(data["ideas"]),
-            "ads": (data.get("ads_summary") or {}).get("ads"),
+            "ads": (data.get("ads_summary") or {}).get("ads"), "demand": has_demand,
             "top": [{"title": i["title"], "thumbnail": i.get("thumbnail"), "outlier": i.get("outlier"),
                      "channel": i["channel"], "url": i["url"]} for i in top],
         })

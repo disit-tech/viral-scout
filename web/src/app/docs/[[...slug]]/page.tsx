@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import DocsSearch from "@/components/DocsSearch";
 import { docSlugs, loadDoc } from "@/lib/docs";
 
 export async function generateStaticParams() {
@@ -23,6 +24,7 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
   return (
     <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
       <aside className="lg:sticky lg:top-20 lg:self-start">
+        <DocsSearch />
         <p className="mb-2 text-xs uppercase tracking-wide text-muted">Docs</p>
         <nav className="flex gap-1 overflow-x-auto lg:flex-col">
           {titles.map(([s, t]) => (

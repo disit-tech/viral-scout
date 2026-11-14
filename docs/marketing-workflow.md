@@ -5,9 +5,9 @@ How to use viral-scout as a weekly habit for short-form video, whether you're a 
 ## The loop
 
 ```
- every morning (scheduled)          weekly (30 min)                 per video
+ Monday morning (scheduled)         Monday (30 min)                 Tue–Sun, per video
 ┌───────────────────────────┐   ┌────────────────────────────┐   ┌──────────────────────────┐
-│ run → report              │   │ read ideas note            │   │ swipe note: status idea  │
+│ run + ads → reports       │   │ read ideas note            │   │ swipe note: status idea  │
 │ /viral-scout analyze      │──▶│ save 2–3 references        │──▶│ → scripted → filmed      │
 │ → ideas note              │   │ dismiss junk               │   │ → posted                 │
 │ Telegram: 🔥 alerts        │   │ tune profile (hashtags,    │   │ track your own post as a │
@@ -15,18 +15,19 @@ How to use viral-scout as a weekly habit for short-form video, whether you're a 
                                 └────────────────────────────┘   └──────────────────────────┘
 ```
 
-## Daily (automatic)
+## Monday (automatic)
 
-`scripts/run-daily.ps1 -Profile <name> -Analyze`, scheduled with Task Scheduler with "wake the computer to run" on. See [setup](setup.md#scheduling). Each morning you get:
+One snapshot a week, then a week of content made from it. `scripts/schedule.ps1 -Profiles <names> -Analyze -Publish` registers `run-daily.ps1 -Profile <name> -Analyze` every Monday, with "wake the computer to run" on. See [setup](setup.md#scheduling). Daily runs are possible (`-Day Daily`), but they bill Apify every day and long-running ads barely change from one day to the next. Each Monday you get:
 - `<date>-viral-scout.md`: the data report.
 - `<date>-viral-ideas.md`: patterns this week, a breakdown table (format, hook type, why it works) and **5 ideas adapted to your business**.
+- `<date>-ads-scout.md`: competitor ads on Facebook/Instagram, Google and TikTok that keep running (the longer an ad runs, the likelier it pays for itself), with hooks, offers and CTAs. See [ads scout](ads-scout.md).
 - **Telegram messages** for new 🔥 outliers and fast risers, each post once.
 
 If you only have 2 minutes: read **Patterns this week** and **Ideas** in the ideas note.
 
-## Weekly (30 minutes)
+## Monday (30 minutes)
 
-1. **Pick.** Open the latest ideas note and pick 1–3 ideas to film this week.
+1. **Pick.** Open the latest ideas note and the ads report, and pick 1–3 ideas to film this week. An offer or hook that competitors have run for 30+ days is evidence that it works: borrow the angle, never the creative.
 2. **Save the references.** In Claude Code: "save Daisy's spectrum and the Oliver skit". Or from the shell:
    ```
    python -m viral_scout save <profile> <ID> --note "spectrum: one situation, 7 phrases polite → rude"

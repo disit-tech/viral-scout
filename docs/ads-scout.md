@@ -29,24 +29,50 @@ It uses the same YAML profile as the organic scout, with an `ads:` block ([profi
 | `meta_api`: Meta Ad Library API (`ads_archive`) | official Graph API | `META_AD_LIBRARY_TOKEN` | **Ads that reached the EU**, plus political/issue ads anywhere. **US-only commercial ads are not in the API.** | free; rate-limited |
 | `tiktok_api`: TikTok Commercial Content API (`/v2/research/adlib/ad/query/`) | official, by application | `TIKTOK_RESEARCH_CLIENT_KEY` + `TIKTOK_RESEARCH_CLIENT_SECRET` | **Ads shown in the EEA** (TikTok's API country list leaves out the UK and Switzerland). Gives media, first/last shown dates and reach, but **no ad copy**. | free after approval |
 | `apify_meta`: Meta Ad Library via an Apify actor | paid provider | `APIFY_TOKEN` + `APIFY_ADS_ACTOR` | **Any country, including the US.** Whatever the public Ad Library shows: active and inactive ads, copy, dates, media, variant counts, no spend. | per ad (e.g. `apify~facebook-ads-scraper`, from $3.40 to $5.80 per 1,000 ads depending on the Apify plan, Nov 2026) |
-| `apify_tiktok_top`: TikTok Creative Center Top Ads via an Apify actor | paid provider | `APIFY_TOKEN` + `APIFY_TIKTOK_ADS_ACTOR` | TikTok's own selection of top ads, by region/industry. Usually no start date, so longevity isn't scored. | depends on the actor |
-| `apify_google`: Google Ads Transparency Center via an Apify actor | paid provider | `APIFY_TOKEN` + `APIFY_GOOGLE_ADS_ACTOR` | Search, YouTube and Display ads by advertiser/domain, with first/last shown dates. | depends on the actor |
+| `apify_tiktok_top`: TikTok Creative Center Top Ads via `pulsedata~tiktok-creative-center-top-ads-scraper` | paid provider | `APIFY_TOKEN` + `APIFY_TIKTOK_ADS_ACTOR` | TikTok's own selection of top ads **for an industry and country** (no keyword or brand search). Caption, brand, likes, video, cover, landing page. No start date, so longevity isn't scored. | $2 per 1,000 ads + $0.005 per run (Nov 2026) |
+| `apify_google`: Google Ads Transparency Center via `automation-lab~google-ads-scraper` | paid provider | `APIFY_TOKEN` + `APIFY_GOOGLE_ADS_ACTOR` | Search, YouTube and Display ads by competitor **domain** (`ads.domains`) and **name** (`ads.advertisers`), with first/last shown dates, text, headline, CTA and landing domain. | $1.30 per 1,000 ads from 2026-11-24 ($1 before) + $0.005 per run |
 
 ### What "coverage" means for a US business
 
 - **The free official route only shows EU ads.** If a profile's `countries` is `[US]`, the Meta API source is skipped with a coverage note rather than a key note: it would only return political ads. Set `ads.meta_countries: [DE, PL, ...]` to read what the same advertisers (or the category) run in Europe. That's useful for hooks and offers, though not for US pricing.
 - On the official endpoint, Meta says that ads which "did not reach any location in the EU will only return if they are about social issues, elections or politics". Some ArchivedAd fields mention "UK & EU" targeting data, but UK-only commercial ads aren't promised by that sentence, so treat UK coverage as unconfirmed.
 - **For US competitors, use `apify_meta`.** The actor reads the public Ad Library pages, which show all active and inactive ads in every country, so you aren't the one fetching them. Results depend on the actor, so fields are read loosely, and different actors give different fields.
-- **TikTok** lists EEA ads only in its official API. US TikTok ads appear in Creative Center Top Ads (a curated selection), which has no public API, so the only route is an Apify actor.
-- **Google:** the Transparency Center has no public API for US ads. Google provides API access to EEA ad data under the Transparency Center terms (not implemented here). For the US, use an Apify actor or the lookup links.
+- **TikTok** lists EEA ads only in its official API. US TikTok ads appear in Creative Center Top Ads (a curated selection), which has no public API, so the only route is an Apify actor. Without a login the Creative Center has no keyword search, so the actor ranks a whole **industry**: set `ads.tiktok_top_input.industries` per profile (for example `[Home Improvement]` or `[Education]`; the actor matches the closest Creative Center name and warns on unknown ones). Narrow industries return few ads over 30 days, so the profiles use `period: "180"`. Never give an actor a TikTok login.
+- **Google:** the Transparency Center has no public API for US ads. Google provides API access to EEA ad data under the Transparency Center terms (not implemented here). For the US, use an Apify actor or the lookup links. The tool sends domains as `domains` and names as `searchTerms` (one advertiser per name, the largest match), `per_query` ads each, in **batches of 6 competitors per run**: a synchronous Apify run that passes 300 s fails the request while the run keeps going and billing. An ad found by both its domain and its name is counted once.
 
 ### Getting the keys
 
 - **Meta Ad Library API:** confirm your identity and location for Meta (facebook.com/ID, which takes a few days), create a Meta for Developers app, then get a user access token in the Graph API Explorer and exchange it for a long-lived one. Put it in `META_AD_LIBRARY_TOKEN`. The default Graph version is `v26.0`; override it with `META_GRAPH_VERSION`. The ad snapshot URLs Meta returns contain your token, so the tool never writes them to the report or the dashboard export. It links to the public `facebook.com/ads/library/?id=<id>` page instead.
 - **TikTok Commercial Content API:** apply on TikTok for Developers (research section). After approval, a research client is created. Put its key and secret in `TIKTOK_RESEARCH_CLIENT_KEY` / `TIKTOK_RESEARCH_CLIENT_SECRET`. The tool exchanges them for a 2-hour client token (`client_credentials`) on each run.
-- **Apify:** `APIFY_TOKEN` (the same key the organic TikTok source uses), plus the actor id for each route: `APIFY_ADS_ACTOR`, `APIFY_TIKTOK_ADS_ACTOR`, `APIFY_GOOGLE_ADS_ACTOR`. Actor inputs differ, so the profile can pass `ads.apify_input`, `ads.tiktok_top_input` and `ads.google_input`, which are merged over the defaults. Check each actor's price per result before scheduling. Results are counted in the quota meter (`apify_items`, monthly cap `budget.apify_items_per_month`).
+- **Apify:** `APIFY_TOKEN` (the same key the organic TikTok source uses), plus the actor id for each route: `APIFY_ADS_ACTOR`, `APIFY_TIKTOK_ADS_ACTOR`, `APIFY_GOOGLE_ADS_ACTOR`. The default inputs use the field names of the three actors above (`resultsLimit`; `countries`/`period`/`maxAdsPerCountry`; `domains`/`searchTerms`/`maxAds`/`maxAdvertisersPerTerm`). Another actor needs its own field names: pass them in `ads.apify_input`, `ads.tiktok_top_input` or `ads.google_input`, which are merged over the defaults. Check each actor's price per result before scheduling. Results are counted in the quota meter (`apify_items`, monthly cap `budget.apify_items_per_month`).
 
 All of these appear on the dashboard **Setup** page (and `python -m viral_scout keys`), each with a cheap live test. The Meta test reads one ad ID, the TikTok test only fetches a client token, and the Apify actor test looks the actor up without running it.
+
+## Noise filter and rescoring
+
+Keyword and category searches return more than competitors: a Meta search for "handyman near me" also returns drama apps, games and story pages, and TikTok's Home Improvement top ads are mostly product shops. Two profile settings clean that up:
+
+- `ads.topic`: words, at least one of which must appear in the advertiser, copy, title or landing page of an ad that **only** keyword or category searches found (Meta keywords, TikTok Top Ads). Ads from **competitor searches** (a named advertiser on Meta, a domain or name on Google) are never filtered.
+- `ads.exclude_advertisers`: regexes on the advertiser name, always dropped (for example `DramaBox`, `'\bgames?\b'`; single quotes in YAML keep the backslash).
+- For TikTok, `tiktok_top_input.objectives: [Lead Generation]` keeps the lead-gen ads that service businesses run.
+
+The report's Coverage section says how many ads the filter dropped. Every real run also saves the unfiltered ads in `data/<profile>-ads-raw.json`, so after changing these settings, `python -m viral_scout ads <profile> --rescore` filters and scores the last run again **without fetching anything** (free). It rewrites the report and the dashboard, and keeps the "new since the last run" flags and the usage meter as the real run left them.
+
+## One ad in depth: transcript, AI breakdown, swipe note
+
+```
+python -m viral_scout ad <profile> <ad key> transcribe        # video ads: local Whisper, free
+python -m viral_scout ad <profile> <ad key> analyze [--force]  # Claude Code CLI headless, about a minute
+python -m viral_scout ad <profile> <ad key> save               # swipe note in the vault
+```
+
+The same three actions are buttons on the dashboard's ad page (local only), and each one shows on the Activity page.
+
+- **Transcribe** downloads the video from the ad library's link and transcribes it on this PC with faster-whisper (`ads.transcribe: {model: base, max_seconds: 240}`). Free. Those links are signed and expire after a few days, so **each real ads run transcribes the video ads among the "worth studying" picks by itself** (`ads.transcribe.max_per_run`, default 6; `ads.transcribe: false` turns it off).
+- **Analyze** runs `claude -p` (your Claude subscription; the reply reports an API-equivalent cost, about $0.25–0.40, that counts against your limits and isn't billed). Claude gets the ad's copy, its image (downloaded to `data/ad-media/`, opened with the Read tool, the only tool allowed), the transcript, the variants' hooks, the advertiser's numbers in this run, the profile's `business:` and `taste_note:`. It returns a summary, angle, audience, the structure (hook, problem, offer, proof, CTA, visual), an 8-criteria scorecard (hook, problem, offer, proof, clarity, CTA, visual, fit for us; 1–5 each, scaled to /100), risks (Meta special ad categories, unprovable claims, fake urgency, endorsement rules), **our version** (angle, hook, primary text written for the 125-character cut, headline, CTA, format, visual with our own footage, why, and a *must be true* checklist of claims to prove before it runs) and test ideas. The prompt says to borrow the angle and never the wording, brand names or creative, and treats the ad's text as data, not instructions. A stored breakdown is reused; `--force` redoes it.
+- **Save** writes `ad-<advertiser>-<hook>-<id>.md` into the profile's `swipe_dir` with `type: swipe`, `kind: ad`, `status: idea`, so it sits in `swipe.base` next to saved videos. It includes the breakdown, our version with the checklist, their copy and the transcript, plus a local copy of the image in `swipe/media/` (the library's image links expire). It never overwrites a note you edited.
+
+Results live in `data/<profile>-ads-extra.json` and are merged into the dashboard export, so the published site shows them read-only.
 
 ## Scoring "winning" ads
 
@@ -102,7 +128,7 @@ Nobody outside the advertiser can see spend, conversions or ROAS. Everything bel
 - `data/<profile>-ads-latest.json`: `ads[]` (every field above, including `ad_score`, `labels`, `offers`, `hook`, `cta`, `landing_domain`, `days_running`, `variants`), `advertisers[]`, `offers[]`, `coverage`, `lookup`, `skipped`, `errors`, `usage`.
 - SQLite `data/<profile>.sqlite`, table `ads`: first/last seen per ad (that's what "new since the last run" uses). Ads runs are logged in `runs` with `kind: "ads"`, so Apify usage counts toward the monthly budget.
 - Dashboard: `/p/<profile>/ads`, linked from the business page, read-only from `web/data/ads/<profile>.json`.
-- MCP: `ads_run` (start a job, poll `get_job`) and `ads_results` (top ads, advertisers, offers, coverage, skipped sources; filter by advertiser or format).
+- MCP: `ads_results` (top ads, advertisers, offers, coverage, skipped sources; filter by advertiser or format) works for every client. `ads_run` is a paid tool and is **off by default**: it returns the latest results and the CLI command unless the server runs with `VIRAL_SCOUT_MCP_PAID=1`. See [setup](setup.md#mcp-server-optional).
 
 ## Code
 
@@ -123,11 +149,30 @@ Nobody outside the advertiser can see spend, conversions or ROAS. Everything bel
 
 All links: [references.md](references.md#ads-scout).
 
+## Costs and spend controls
+
+Nov 2026 prices. Each advertiser and each keyword is its own Meta run.
+
+| Route | One run with `per_query: 30` | Example: northForge (13 advertisers, 11 keywords, 10 domains) |
+|---|---|---|
+| Meta (`apify_meta`) | about $0.10 on Starter, about $0.17 on the Free plan | 24 runs, about $2.50 |
+| Google (`apify_google`) | up to 180 ads per batch of 6 competitors, about $0.24 | 4 batches, about $0.70–0.90 |
+| TikTok (`apify_tiktok_top`) | 30 ads, about $0.07 | 1 run |
+
+- **The cap per run:** every Apify call (ads, organic TikTok, trends) passes Apify's `maxTotalChargeUsd`, from `APIFY_MAX_USD_PER_RUN` in `.env` (default $0.50, 0 = no cap). A run whose input turns out far bigger than intended stops there. It caps one run, not the month, so `per_query` and the number of advertisers and keywords set the total.
+- **The plan limit:** the Apify Free plan includes $5 per monthly cycle and blocks every run once it's used up. In Nov 2026 the first daily setup used it up in 2 days (Meta $3.34, organic TikTok $1.67). One weekly pass over three profiles costs about that much, so weekly runs for several profiles need a paid plan or smaller profiles.
+- **Schedule weekly, not daily:** long-running ads change slowly. `scripts/schedule.ps1` registers **weekly** tasks (Monday by default; `-Day Daily` for daily), and `run-daily.ps1` runs the ads scout on `-AdsDay` (Monday). One Monday snapshot is enough for a week of content.
+- **MCP clients can't spend:** `ads_run`, `start_run` and `local_competitors` are off for MCP clients unless `VIRAL_SCOUT_MCP_PAID=1`.
+- **Check the spend:** the Apify console's Usage page shows the cost per actor.
+
 ## When you add keys: checklist
 
-1. **US ads (recommended):** create an Apify account, then on the dashboard's **Setup** page save `APIFY_TOKEN` and `APIFY_ADS_ACTOR=apify~facebook-ads-scraper`, and click **Test**. That actor charges about $3.40–5.80 per 1,000 ads, depending on your Apify plan.
+1. **US ads (recommended):** create an Apify account, then on the dashboard's **Setup** page save `APIFY_TOKEN` and the three actor ids, and click **Test** on each (a free lookup, nothing runs):
+   - `APIFY_ADS_ACTOR=apify~facebook-ads-scraper` (Meta)
+   - `APIFY_GOOGLE_ADS_ACTOR=automation-lab~google-ads-scraper` (Google)
+   - `APIFY_TIKTOK_ADS_ACTOR=pulsedata~tiktok-creative-center-top-ads-scraper` (TikTok), plus `ads.tiktok_top_input: {industries: [...], period: "180"}` in each profile
 2. **Optional official EU sources:** `META_AD_LIBRARY_TOKEN` (Meta identity verification) and `TIKTOK_RESEARCH_CLIENT_KEY` / `_SECRET` (approval). These only cover ads shown in the EU.
-3. Run one profile by hand: `python -m viral_scout ads nfSolarPanels`. Check the report: advertisers found, days running, hooks and offers. The field mapping follows the actor's documented output and is covered by tests (`tests/test_ads.py`, `ApifyFacebookAdsScraperShape`). If an actor version renames a field, adjust `viral_scout/ads/sources.py` → `_meta_apify_ad`.
-4. Keep costs predictable: `ads.per_query` caps the ads fetched per advertiser or keyword (each one is a separate actor run), and `budget.apify_items_per_month` warns at 80%.
-5. **Schedule:** `scripts/run-daily.ps1` runs the ads scout **weekly** (`-AdsDay Monday` by default; `Never` turns it off), before the AI step, so the ideas note covers ads too.
+3. Run one profile by hand: `python -m viral_scout ads northForge`. Check the report: advertisers found, days running, hooks and offers per source. The field mappings follow each actor's documented output and are covered by tests (`tests/test_ads.py`: `ApifyFacebookAdsScraperShape`, `ApifyGoogleAdsScraperShape`, `ApifyTiktokTopAdsShape`). If an actor version renames a field, adjust `_meta_apify_ad`, `_google_ad` or `_tiktok_top_ad` in `viral_scout/ads/sources.py`.
+4. Keep costs predictable: see [Costs and spend controls](#costs-and-spend-controls). `ads.per_query` caps the ads per advertiser or keyword, and `budget.apify_items_per_month` warns at 80%.
+5. **Schedule:** `scripts/schedule.ps1 -Profiles a,b,c -Analyze -Publish` registers weekly Monday tasks. `run-daily.ps1` runs the ads scout on `-AdsDay` (Monday by default; `Never` turns it off), before the AI step, so the ideas note covers ads too.
 6. **Alerts:** if the profile has an `alerts:` block, competitor ads that just passed `ads.alert_days` (default 30) and are still running are sent to Telegram once each. `ads.alert_max` caps the count (default 3).

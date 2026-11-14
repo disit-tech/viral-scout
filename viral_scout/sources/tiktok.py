@@ -9,6 +9,7 @@ import statistics
 
 import requests
 
+from .. import usage
 from ..models import Item, parse_date
 
 DEFAULT_ACTOR = "clockworks~tiktok-scraper"
@@ -22,12 +23,11 @@ def _run(payload, label, errors):
     actor = os.environ.get("APIFY_TIKTOK_ACTOR", DEFAULT_ACTOR)
     url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
     try:
-        r = requests.post(url, params={"token": os.environ["APIFY_TOKEN"]}, json=payload, timeout=300)
+        r = requests.post(url, params=usage.apify_params(), json=payload, timeout=300)
         if r.status_code >= 400:
             errors.append(f"{label}: Apify HTTP {r.status_code} {r.text[:200]}")
             return []
         rows = r.json()
-        from .. import usage
         usage.add("apify_items", len(rows) if isinstance(rows, list) else 0)
         return rows
     except (requests.RequestException, ValueError) as err:

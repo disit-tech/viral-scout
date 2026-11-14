@@ -69,8 +69,11 @@ ads:
   top: 30                           # rows in "Winning ads"
   meta_video_pass: true             # one extra Meta API call per search to tag video ads
   apify_input: {}                   # merged into the APIFY_ADS_ACTOR input
-  tiktok_top_input: {}              # input for APIFY_TIKTOK_ADS_ACTOR
-  google_input: {}                  # input for APIFY_GOOGLE_ADS_ACTOR
+  tiktok_top_input: {industries: [Home Improvement], period: "180"}   # TikTok Top Ads has no keyword search: pick a Creative Center industry
+  google_input: {}                  # merged into the Google input (domains, searchTerms = names, maxAds = per_query)
+  topic: [gutter, handyman, roof]   # noise filter: ads found only by keyword/category searches must mention one of these
+  transcribe: {max_per_run: 6, model: base, max_seconds: 240}   # video ads worth studying, transcribed after each run (false = off)
+  exclude_advertisers: [DramaBox, '\bgames?\b']   # regexes on the advertiser name, always dropped (single quotes keep \b)
   # output_dir: ...                 # default: the profile's output_dir
 ```
 
@@ -132,3 +135,17 @@ Start strict and loosen it later. Each post alerts only once.
 ## Example
 
 `profiles/example-language-school.yaml` is a working profile for an online English school. Copy it as a starting point.
+
+## Search demand (`demand:`)
+
+```yaml
+demand:
+  terms: [gutter cleaning, christmas light installation]    # one seasonal curve each, as customers type them
+  compare: [permanent lights, christmas light installation]  # up to 5 phrasings on one scale
+  geo: US-IL-602        # US, a state (US-IL) or a metro DMA (US-IL-602 = Chicago)
+  time: today 5-y
+  every_days: 7         # refetch at most this often
+  lead_weeks: 3         # start posting this many weeks before a season starts
+```
+
+See [search-demand.md](search-demand.md).

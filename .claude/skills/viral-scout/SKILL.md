@@ -7,6 +7,8 @@ description: Find what's going viral on a topic right now (YouTube Shorts, Insta
 
 Tool repo: `D:\repo\viral-scout` (README there). Run from that folder with `PYTHONIOENCODING=utf-8`.
 
+**Paid runs cost real money (Apify bills per result).** `run` (TikTok via Apify) and `ads` (Facebook, Google and TikTok actors, about $3 per profile) spend the user's Apify budget. Before starting one, check the date of `data/<profile>-latest.json` / `data/<profile>-ads-latest.json`: if a run from this week exists (the weekly Monday task makes one), analyze it instead of running again, unless the user asks for a fresh run. Never run several profiles or repeat runs without asking. Scheduled runs (`analyze`) never collect.
+
 Args: `<profile> [analyze | ads] [urls...]`. `ads` = only the Ads step below. No profile → `python -m viral_scout profiles` and pick the one matching the active project (`$OBSIDIAN_PROJECT`), else ask. `analyze` = skip the run, analyze the latest report (used by the scheduled run).
 
 ## 1. Collect
@@ -40,6 +42,9 @@ Run `python -m viral_scout check <profile> <file>` (or use an existing check id)
 ## 4. Report back (short)
 3–5 lines: the strongest pattern, the best idea, where the notes are, which source a key would unlock (YouTube API key is free; Instagram Graph needs a business account; TikTok via Apify is paid).
 
+## 4b. Timing (search demand)
+If `data/<profile>-demand.json` exists (the weekly run refreshes it), read its `calendar`: say which services are **in season now** and which need content started soon (`start_by` within the next 6 weeks), and put the most-searched wording from `compare` into hooks. Use rising **buyer** searches (`related.rising` with `buyer: true`) as video and ad ideas; ignore the other rising queries unless they're clearly on topic. Don't run `python -m viral_scout demand` yourself unless the user asks (Apify, about $0.005 per term).
+
 ## 5. Ads (the paid side)
 Run when the user asks about competitors' ads or ad ideas, with `<profile> ads`, or offer it after step 4 when the profile has an `ads:` block.
 
@@ -50,6 +55,7 @@ Run when the user asks about competitors' ads or ad ideas, with `<profile> ads`,
    - **Offer and CTA:** from `offers`/`offer_text`/`cta`: free trial or quote, price, financing, guarantee, urgency
    - **Format:** video / image / carousel and platforms; open `image` or the library `url` to see the creative
    - **Why it probably keeps running:** days, variants, still running
+   For the 1–3 ads you build ideas on, `python -m viral_scout ad <profile> <key> analyze` stores a structured breakdown and an adapted "our version" on the ad's dashboard page (Claude subscription, about a minute each; reuse a stored one, don't `--force` without a reason), and `... ad <profile> <key> save` puts it in the swipe file. Transcripts of video ads (`... transcribe`, free) are usually there already after a run.
 3. **Write `<date>-ads-ideas.md`** next to the ads report (frontmatter `type: ads-ideas`, `profile`, `date`, a link to the report) with these sections:
    - **Angle breakdown:** a table of angle · how many ads · longest run · advertisers · example hook (paraphrased)
    - **Offers that keep running:** what they mean for this business's pricing
@@ -74,7 +80,7 @@ Fastest: `python -m viral_scout new <name> --business "..." --keywords "a; b; c"
 Copy `profiles/_template.yaml` to `profiles/<name>.yaml` (git-ignored). Fill `business:`, keywords (formats + the customer's situations, in every language the audience speaks, with `languages:`), hashtags, `must_match` (topic words, so hashtag spam is dropped), `exclude`, `output_dir`/`swipe_dir` in the vault. Run once, tune the filters from what slipped through.
 
 ## MCP alternative
-If the `viral-scout` MCP server is connected (`claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py`), the same steps are tools: list_profiles, start_run → get_job (poll ~30 s), get_results, get_post, get_ideas, save_post, dismiss_posts, track_links, set_swipe_status, usage; ads: ads_run → get_job → ads_results.
+If the `viral-scout` MCP server is connected (`claude mcp add viral-scout -s user -- python <repo>/scripts/mcp_server.py`), the same steps are tools: list_profiles, get_results, get_post, get_ideas, search, save_post, dismiss_posts, track_links, set_swipe_status, usage; ads: ads_results. The paid tools (start_run, ads_run, local_competitors) are **off by default** and answer `status: disabled` with the latest results and the CLI command. Then use the latest results, or ask the user before running the CLI command yourself.
 
 ## Rules
 - Never call Instagram's or TikTok's private web APIs or spoof headers; only yt-dlp on public posts, the official APIs, or Apify.

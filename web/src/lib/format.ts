@@ -41,3 +41,15 @@ export function deObsidian(md: string): string {
     .replace(/\[\[([^\]]+)\]\]/g, (_, p: string) => p.split("/").pop() ?? p)
     .replace(/^>\s*\[!(\w+)\][-+]?\s*(.*)$/gm, "> **$2**");
 }
+
+/** "3h ago", "2d ago": how long since a scan. */
+export function ago(iso: string | null | undefined): string {
+  if (!iso) return "never";
+  const m = (Date.now() - new Date(iso).getTime()) / 6e4;
+  if (m < 1) return "just now";
+  if (m < 60) return `${Math.round(m)}m ago`;
+  const h = m / 60;
+  if (h < 24) return `${Math.round(h)}h ago`;
+  const d = h / 24;
+  return d < 60 ? `${Math.round(d)}d ago` : `${Math.round(d / 30)}mo ago`;
+}

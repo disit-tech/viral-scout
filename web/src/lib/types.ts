@@ -64,6 +64,7 @@ export type Item = {
   watched: boolean;
   saved: boolean;
   dismissed: boolean;
+  first_seen?: string | null;   // first time viral-scout saw it; history holds every scan
   history: [string, number | null][];
 };
 
@@ -105,9 +106,23 @@ export type Profile = {
   trends?: { hashtag: string; views: number | null; posts: number | null; rank: number; on_topic: boolean }[];
   sources: { keywords: number; hashtags: number; watch: number; seeds: number };
   ads_summary?: { date: string | null; ads: number; advertisers: number } | null;
+  display_name?: string | null;
+  setup?: Setup;
 };
 
+/** What each section of a business is configured with (counts from the profile), for the overview. */
+export type Setup = {
+  ads: { advertisers: number; keywords: number; domains: number; countries: string[] } | null;
+  demand: { terms: number; geo: string | null } | null;
+  local: boolean; perf: boolean; own: number; tiktok: number;
+};
+
+/** Editable profile fields from `python -m viral_scout profile <name> get` (raw YAML values). */
+export type ProfileFields = { name: string; base: string; fields: Record<string, unknown>; kinds: Record<string, string> };
+
 export type IndexEntry = {
+  display_name?: string | null;
+  demand?: boolean;
   name: string;
   date: string;
   business: string;
@@ -117,6 +132,8 @@ export type IndexEntry = {
   new: number;
   saved: number;
   ideas: number;
+  ads?: number | null;
+  perf?: boolean;
   top: { title: string; thumbnail?: string; outlier: number | null; channel: string; url: string }[];
 };
 
@@ -156,6 +173,24 @@ export type AdItem = {
   labels: string[];
   found_by: string[];
   new?: boolean;
+  first_seen?: string;   // first/last time viral-scout saw it (run history)
+  last_seen?: string;
+  transcript?: AdTranscript;  // video ads: local Whisper (ad <p> <key> transcribe)
+  ai?: AdAI;                  // AI breakdown + our version (ad <p> <key> analyze)
+  swipe_note?: string;        // path of the swipe note in the vault
+};
+
+export type AdTranscript = { text: string; segments: [number, string][]; duration: number; lang: string; date: string; words: number };
+export type AdOurVersion = {
+  angle: string; hook: string; primary_text: string; headline: string; cta: string; format: string; visual: string;
+  why: string; must_be_true: string[];
+};
+export type AdAI = {
+  summary: string; angle: string; audience: string;
+  structure: { part: string; text: string; note: string }[];
+  scorecard: Record<string, { score: number; why: string }>;
+  risks: string[]; our_version: AdOurVersion; test_ideas: string[];
+  total: number | null; date: string; cost_usd: number | null; model: string | null; had_image: boolean; had_transcript: boolean;
 };
 
 export type AdvertiserRow = {

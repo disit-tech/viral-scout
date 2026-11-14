@@ -20,6 +20,9 @@ try {
   if ($AdsDay -ne "Never" -and (Get-Date).DayOfWeek.ToString() -eq $AdsDay) {
     Log "=== ads $Profile (weekly)"
     & python -m viral_scout ads $Profile 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $log -Append
+    # Search demand (Google Trends): only for profiles with a demand: block; cached, refetched every demand.every_days.
+    Log "=== search demand $Profile (weekly)"
+    & python -m viral_scout demand $Profile 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $log -Append
   }
   if ($code -eq 0 -and $Analyze) {
     $claude = (Get-Command claude -ErrorAction SilentlyContinue).Source

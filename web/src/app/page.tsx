@@ -11,7 +11,12 @@ export default async function Home() {
           <h1 className="text-2xl font-bold tracking-tight">Your businesses</h1>
           <p className="text-sm text-muted">What&apos;s going viral in each niche, and what to film next.</p>
         </div>
-        <p className="text-xs text-muted">Data exported {when(exported)}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted">Data exported {when(exported)}</span>
+          <Link href="/new?mode=research" className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:border-accent/60 hover:text-text"
+            title="A one-off look at a topic: a research-… profile with reports in the repo">Quick research</Link>
+          <Link href="/new" className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-ink hover:opacity-90">+ New business</Link>
+        </div>
       </div>
 
       {profiles.length === 0 ? (
@@ -22,8 +27,9 @@ export default async function Home() {
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {profiles.map((p) => (
-            <Link key={p.name} href={`/p/${p.name}`}
+            <div key={p.name}
               className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-panel transition hover:-translate-y-0.5 hover:border-accent/60">
+            <Link href={`/p/${p.name}`} className="flex flex-1 flex-col">
               <div className="grid h-32 grid-cols-4 gap-px bg-line">
                 {[0, 1, 2, 3].map((i) => {
                   const t = p.top[i];
@@ -37,7 +43,7 @@ export default async function Home() {
               </div>
               <div className="flex flex-1 flex-col gap-3 p-4">
                 <div className="flex items-baseline justify-between gap-2">
-                  <h2 className="text-lg font-semibold">{p.name}</h2>
+                  <h2 className="text-lg font-semibold">{p.display_name || p.name}</h2>
                   <span className="text-xs text-muted">{when(p.date)}</span>
                 </div>
                 <p className="line-clamp-2 text-sm text-muted">{p.business || "No business description in the profile."}</p>
@@ -54,6 +60,12 @@ export default async function Home() {
                 )}
               </div>
             </Link>
+            <Link href={`/p/${p.name}/ads`}
+              className="flex items-center justify-between border-t border-line px-4 py-2 text-sm text-muted hover:bg-panel-2 hover:text-text">
+              <span>{p.ads ? <>Ads · <span className="text-text">{num(p.ads)}</span> running in the niche</> : "Ads · no ads run yet"}</span>
+              <span>→</span>
+            </Link>
+            </div>
           ))}
         </div>
       )}
