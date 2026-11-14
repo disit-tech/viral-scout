@@ -117,6 +117,8 @@ export type IndexEntry = {
   new: number;
   saved: number;
   ideas: number;
+  ads?: number | null;
+  perf?: boolean;
   top: { title: string; thumbnail?: string; outlier: number | null; channel: string; url: string }[];
 };
 

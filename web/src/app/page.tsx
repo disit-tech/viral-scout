@@ -22,8 +22,9 @@ export default async function Home() {
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {profiles.map((p) => (
-            <Link key={p.name} href={`/p/${p.name}`}
+            <div key={p.name}
               className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-panel transition hover:-translate-y-0.5 hover:border-accent/60">
+            <Link href={`/p/${p.name}`} className="flex flex-1 flex-col">
               <div className="grid h-32 grid-cols-4 gap-px bg-line">
                 {[0, 1, 2, 3].map((i) => {
                   const t = p.top[i];
@@ -54,6 +55,12 @@ export default async function Home() {
                 )}
               </div>
             </Link>
+            <Link href={`/p/${p.name}/ads`}
+              className="flex items-center justify-between border-t border-line px-4 py-2 text-sm text-muted hover:bg-panel-2 hover:text-text">
+              <span>{p.ads ? <>Ads · <span className="text-text">{num(p.ads)}</span> running in the niche</> : "Ads · no ads run yet"}</span>
+              <span>→</span>
+            </Link>
+            </div>
           ))}
         </div>
       )}
