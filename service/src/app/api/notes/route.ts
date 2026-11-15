@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { apiSecret, allowedChats, config, labelOf, projectOf, projectOfText, projectSlugs, tokenOf, videoBotOf } from "@/lib/config";
+import { apiSecret, allowedChats, config, labelOf, noteBotsFor, noteProjectOf, projectSlugs, tokenOf, videoBotOf } from "@/lib/config";
 import { prisma } from "@/lib/db";
 import { bearer, safeEqual } from "@/lib/auth";
 import { api } from "@/lib/telegram";
@@ -23,16 +23,8 @@ export const dynamic = "force-dynamic";
 
 const full = (req: Request) => safeEqual(bearer(req), apiSecret());
 const json = (body: unknown, status = 200) => Response.json(body, { status });
-/** The bots whose notes a project reads: the shared video bot and the project's own older bot. */
-const botsFor = (project: string | null): string[] | null => {
-  if (!project || !projectOf(project)) return null;
-  const own = projectOf(project)!.bot;
-  return [...new Set([videoBotOf(), ...(own ? [own] : [])])];
-};
-/** The project a note belongs to. */
-const noteProject = (n: { bot: string; replyToText: string | null; text: string | null }) =>
-  projectOfText(n.replyToText, n.bot) ?? projectOfText(n.text?.replace(/^\s*(#?claude|клод)\b[\s,:-]*/i, ""), n.bot) ?? (
-    projectSlugs().find((p) => projectOf(p)!.bot === n.bot && n.bot !== videoBotOf()) ?? config().defaultProject);
+const botsFor = noteBotsFor;
+const noteProject = noteProjectOf;
 const sigOf = (id: number) => createHmac("sha256", apiSecret() ?? "").update(`note-file:${id}`).digest("hex").slice(0, 32);
 
 type Note = {

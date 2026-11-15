@@ -99,6 +99,16 @@ How it behaves:
 - **Until a generic bot's token is set, nothing changes.** `ideasBot` and `videoBot` only take over once `TELEGRAM_STUDIO_IDEAS_BOT_TOKEN` / `TELEGRAM_STUDIO_VIDEO_BOT_TOKEN` exist. So the config can be deployed before the bots are created.
 - `projects.<p>.bot` becomes optional once `ideasBot` is set. `scriptsBot` and `blog.bot` are only used without a `videoBot`.
 
+### Checking the bots
+
+The dashboard's **Bots** page shows, per business, whether its ideas and video bots are connected and used ([dashboard.md](dashboard.md#pages)). Behind it:
+
+- `GET /api/status[?project=…]` on the service (`Bearer IDEAS_API_SECRET`): per project, each bot's @username, token yes/no, where its webhook points (`service`, `forward`, `elsewhere`, `none`), updates waiting at Telegram and the last delivery error (from `getWebhookInfo`), and the latest activity from the database (idea posted, button tap, comment, notes). Tokens never leave the service.
+- `POST /api/status {project, role: "ideas"|"video"}`: a short test message through that bot, headed with the project's label.
+- CLI: `python -m viral_scout ideas <profile> status [--test ideas|video]`, or `ideas all status` for every profile with an `ideas:` block. It calls the service at `STUDIO_SERVICE_URL` (in `.env`), else the ideas API's own URL.
+
+`forward` is only shown when the service has that bot's forward secret; without it, the CRM site's forwards can't be checked here and the bot shows as `elsewhere`.
+
 ### Setting them up
 
 1. In Telegram, @BotFather → `/newbot` twice (for example "Studio Ideas" and "Studio Video"). Keep privacy mode on: bots still get replies to their own messages and button presses.

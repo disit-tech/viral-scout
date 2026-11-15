@@ -93,6 +93,13 @@ class Client:
     def blog_list(self):
         return self.call("GET", None, "/api/blog-review")
 
+    def status(self, all_projects=False):
+        q = "" if all_projects else f"?project={quote(self.project, safe='')}"
+        return self.call("GET", None, f"/api/status{q}")
+
+    def test_bot(self, role):
+        return self.call("POST", {"project": self.project, "role": role}, "/api/status")
+
     def blog_published(self, review_id):
         return self.call("PATCH", {"id": review_id, "status": "published"}, "/api/blog-review")
 

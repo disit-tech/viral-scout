@@ -31,7 +31,9 @@ MARKET_TYPES = ["viral-scout", "viral-ideas", "ads-scout", "ads-ideas", "search-
 DEFAULTS = {
     "project": "",
     "api": {"env_file": "", "url_env": "IDEAS_SITE_URL", "secret_env": "IDEAS_API_SECRET",
-            "default_url": "http://localhost:3000"},
+            "default_url": "http://localhost:3000",
+            # The studio bot service (service/), for `ideas <p> status`; defaults to the ideas API's own URL.
+            "service_url_env": "STUDIO_SERVICE_URL"},
     "header": "",
     "rubrics": [],
     "score": {"criteria": ["Hook", "Clarity", "Proof", "Call-out", "Fit"], "threshold": 38},
@@ -104,8 +106,8 @@ def read_env_file(path):
     return out
 
 
-def credentials(ic, environ=None):
-    """→ (base_url, secret). The secret is required."""
+def credentials(ic, environ=None, service=False):
+    """→ (base_url, secret). The secret is required. service=True: the bot service's URL (status) instead."""
     environ = os.environ if environ is None else environ
     api = ic["api"]
     file_env = read_env_file(api.get("env_file"))
@@ -114,6 +116,8 @@ def credentials(ic, environ=None):
         return environ.get(k) or file_env.get(k) if k else None
 
     base = (get(api.get("url_env")) or api.get("default_url") or "http://localhost:3000").rstrip("/")
+    if service:
+        base = (get(api.get("service_url_env")) or base).rstrip("/")
     secret = get(api.get("secret_env"))
     if not secret:
         where = api.get("env_file") or "the environment"

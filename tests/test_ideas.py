@@ -371,3 +371,39 @@ class TestCredentialsAndCli(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestStatus(unittest.TestCase):
+    """`ideas <p> status`: asks the bot service (STUDIO_SERVICE_URL, else the ideas API) about this business's bots."""
+
+    def test_status_goes_to_the_service_and_can_send_a_test(self):
+        class Svc:
+            def __init__(self):
+                self.calls = []
+
+            def __call__(self, method, url, headers, body, timeout=60):
+                self.calls.append((method, url, json.loads(body) if body else None))
+                if method == "POST":
+                    return 200, json.dumps({"ok": True, "bot": "studio-video", "message_id": 7})
+                return 200, json.dumps({"checkedAt": "2026-11-15T16:00:00Z",
+                                        "projects": [{"project": "homes", "ideas": {"where": "service"}}]})
+
+        with tempfile.TemporaryDirectory() as d:
+            prof = Path(d) / "nf.yaml"
+            prof.write_text(json.dumps({"name": "nf", "ideas": ideas_block()}), encoding="utf-8")
+            env = {"T_URL": "http://site.test", "T_SECRET": "s", "STUDIO_SERVICE_URL": "https://svc.test/"}
+            rec = Svc()
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = cli.main([str(prof), "status", "--test", "video"], rec, env)
+            self.assertEqual(code, 0)
+            self.assertEqual(rec.calls[0], ("POST", "https://svc.test/api/status", {"project": "homes", "role": "video"}))
+            self.assertEqual(rec.calls[1][:2], ("GET", "https://svc.test/api/status?project=homes"))
+            row = json.loads(out.getvalue())
+            self.assertEqual(row["ideas"], {"where": "service"})
+            self.assertEqual(row["test"]["message_id"], 7)
+            # Without STUDIO_SERVICE_URL it asks the ideas API's own URL.
+            rec2 = Svc()
+            with redirect_stdout(io.StringIO()):
+                cli.main([str(prof), "status"], rec2, {"T_URL": "http://site.test", "T_SECRET": "s"})
+            self.assertEqual(rec2.calls[0][1], "http://site.test/api/status?project=homes")

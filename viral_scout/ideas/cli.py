@@ -59,7 +59,50 @@ def register(subparsers):
     sub.add_parser("blog-list")
     s = sub.add_parser("blog-published")
     s.add_argument("id", type=int)
+    s = sub.add_parser("status", help="are this business's ideas and video bots connected? (profile `all` = every business)")
+    s.add_argument("--test", choices=["ideas", "video"], help="also send a test message through that bot")
     return p
+
+
+def _profiles_with_ideas():
+    """Names of the profiles that have an ideas: block."""
+    out = []
+    for p in sorted(config.PROFILES.glob("*.yaml")):
+        if p.name.startswith("_") or p.stem.startswith("example"):
+            continue
+        try:
+            cfg = config.load(p.stem)
+        except Exception:
+            continue
+        if isinstance(cfg.get("ideas"), dict) and cfg["ideas"].get("project"):
+            out.append(cfg["name"])
+    return out
+
+
+def status(args, transport=None, environ=None):
+    """`ideas <p> status [--test ideas|video]` and `ideas all status`: the bot service's /api/status, per profile."""
+    names = _profiles_with_ideas() if args.profile == "all" else [args.profile]
+    out = {"profiles": []}
+    for name in names:
+        row = {"profile": name}
+        try:
+            cfg = config.load(name)
+            ic = ideas_cfg(cfg)
+            base, secret = credentials(ic, environ, service=True)
+            c = Client(ic["project"], base, secret, transport)
+            row["service"] = base
+            if args.test:
+                if args.profile == "all":
+                    raise IdeasError("--test needs one profile, not all")
+                row["test"] = c.test_bot(args.test)
+            s = c.status()
+            row.update(s["projects"][0] if s.get("projects") else {})
+            row["checkedAt"] = s.get("checkedAt")
+        except (IdeasError, OSError, json.JSONDecodeError, KeyError) as e:
+            row["error"] = str(e)
+        out["profiles"].append(row)
+    _print(out if args.profile == "all" else out["profiles"][0])
+    return 0 if all("error" not in r for r in out["profiles"]) else 1
 
 
 def _print(obj):
@@ -95,6 +138,8 @@ def info(cfg, ic):
 
 def dispatch(args, transport=None, environ=None):
     """Run a parsed `ideas` command. transport/environ are for tests (no network)."""
+    if args.ideas_cmd == "status":
+        return status(args, transport, environ)
     try:
         cfg = config.load(args.profile)
         ic = ideas_cfg(cfg)

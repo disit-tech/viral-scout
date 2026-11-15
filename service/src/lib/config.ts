@@ -190,6 +190,19 @@ export function ideaScopeOf(bot: string): { project?: string | { in: string[] } 
   return own.length ? { project: { notIn: own } } : {};
 }
 
+/** The bots whose notes a project reads: the shared video bot and the project's own older bot. */
+export const noteBotsFor = (project: string | null): string[] | null => {
+  if (!project || !projectOf(project)) return null;
+  const own = projectOf(project)!.bot;
+  return [...new Set([videoBotOf(), ...(own ? [own] : [])])];
+};
+
+/** The project a note belongs to: the label of the message it replies to, else the label in its own text, else its bot's only project, else defaultProject. */
+export const noteProjectOf = (n: { bot: string; replyToText: string | null; text: string | null }) =>
+  projectOfText(n.replyToText, n.bot) ??
+  projectOfText(n.text?.replace(/^\s*(#?claude|клод)\b[\s,:-]*/i, ""), n.bot) ??
+  (projectSlugs().find((p) => projectOf(p)!.bot === n.bot && n.bot !== videoBotOf()) ?? config().defaultProject);
+
 export const hasPacks = (i: { project: string }) => Boolean(projectOf(i.project)?.packs);
 export const REASONS = () => config().reasons;
 export const PLATFORMS = () => config().platforms;
