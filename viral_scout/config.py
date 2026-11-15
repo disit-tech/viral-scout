@@ -13,7 +13,7 @@ DEFAULTS = {
                  "tiktok": {"keywords": [], "hashtags": [], "per_query": 30}},
     "watch": {"youtube": [], "instagram": [], "tiktok": []},
     "seeds": [],
-    "filters": {"min_views": 5000, "exclude": [], "must_match": "", "max_age_days": 60},
+    "filters": {"min_views": 5000, "exclude": [], "must_match": "", "max_age_days": 60, "languages": []},
     "enrich_top": 40,
     "recheck": {"max_age_days": 30, "limit": 60},
     "report": {"top": 25},

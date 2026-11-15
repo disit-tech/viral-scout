@@ -49,7 +49,9 @@ def _seconds(iso):
     return d * 86400 + h * 3600 + mi * 60 + s
 
 
-def discover(keywords, window="week", shorts=True, per_query=30, languages=None, region=None, errors=None):
+def discover(keywords, window="week", shorts=True, per_query=30, languages=None, region=None, errors=None,
+             default_language=None):
+    """default_language: relevanceLanguage for keywords without their own entry in languages (the business's main one)."""
     errors = errors if errors is not None else []
     after = (datetime.now(timezone.utc) - timedelta(days=WINDOW_DAYS.get(window, 7))).strftime("%Y-%m-%dT%H:%M:%SZ")
     found = {}   # video id -> found_by
@@ -60,7 +62,7 @@ def discover(keywords, window="week", shorts=True, per_query=30, languages=None,
             params["videoDuration"] = "short"     # under 4 minutes
         if region:
             params["regionCode"] = region
-        lang = (languages or {}).get(kw) if isinstance(languages, dict) else None
+        lang = ((languages or {}).get(kw) if isinstance(languages, dict) else None) or default_language
         if lang:
             params["relevanceLanguage"] = lang
         data = _get("search", params, errors, f"youtube api search: {kw}")

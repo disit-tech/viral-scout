@@ -15,7 +15,7 @@ Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy f
 | `swipe_dir` | where saved posts go | default `<output_dir>/swipe` |
 | `discover.youtube.keywords` | search terms | needs `YOUTUBE_API_KEY` for Shorts. Mix **formats** ("how native speakers say") with **customer situations** ("english at the doctor") |
 | `discover.youtube.languages` | keyword → ISO code | e.g. `английский идиомы: ru`, so the API favours that language |
-| `discover.youtube.region` | ISO country | optional |
+| `discover.youtube.region` | ISO country | e.g. `US`: keyword search favours videos for that country |
 | `discover.youtube.hashtags` | hashtag feeds | free; noisy, so `must_match` matters |
 | `discover.youtube.window` | hour, today, week, month, year | `month` with per-day ranking works well |
 | `discover.youtube.shorts` | under 4 minutes | `true` for short-form |
@@ -28,6 +28,7 @@ Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy f
 | `filters.max_age_days` | ignore older discoveries | 30–60 |
 | `filters.must_match` | regex the title (hashtags removed) + channel must match | your topic words, in every language |
 | `filters.exclude` | regex on title + channel | competitors' niches you don't serve, kids' content, news, live streams |
+| `filters.languages` | ISO 639-1 codes, e.g. `[en, pl, uk, ru]` | Posts found in none of these languages are dropped; the language is read from the post's own title, caption and description (scripts, plus common words, incl. Hindi written in Latin letters), because platforms mislabel it. Tracked and watched posts stay; unsure means kept. The first code is asked for in YouTube keyword search (`relevanceLanguage`). Empty: any language. |
 | `enrich_top` | YouTube videos opened per run for full stats when there is no `YOUTUBE_API_KEY` (with a key, the Data API fills all of them) | 60–90 |
 | `recheck` | re-measure recent posts | `{max_age_days: 30, limit: 60}` |
 | `report` | `top` rows per section, `hooks` shown, `transcripts` fetched | `{top: 25, hooks: 20, transcripts: 40}` |
