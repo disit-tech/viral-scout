@@ -50,6 +50,10 @@ def settings(cfg):
         s[j] = _merge(JOB_DEFAULTS[j], v if isinstance(v, dict) else {"enabled": bool(v)} if j in raw else {})
     s["cwd"] = s["cwd"] or str(config.ROOT)
     ideas = cfg.get("ideas") if isinstance(cfg.get("ideas"), dict) else {}
+    # The older daily idea runs (scripts/ideas-daily.ps1) read ideas.daily.add_dirs: the jobs get the same folders.
+    daily = ideas.get("daily") if isinstance(ideas.get("daily"), dict) else {}
+    if not s["add_dirs"] and isinstance(daily.get("add_dirs"), list):
+        s["add_dirs"] = daily["add_dirs"]
     # The ideas: block keeps its API settings under ideas.api (docs/ideas.md); the project slug sits on ideas itself.
     ideas_api = ideas.get("api") if isinstance(ideas.get("api"), dict) else {}
     found = {k: ideas_api.get(k) or ideas.get(k) for k in ("url_env", "secret_env", "env_file")}

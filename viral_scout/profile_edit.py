@@ -40,6 +40,8 @@ FIELDS = {
     "demand.every_days": "int", "demand.lead_weeks": "int",
     "local.query": "str", "local.near": "str", "local.limit": "int",
     "perf.meta_ad_account_id": "str",
+    # Idea generator schedule (dashboard Schedule page → the studio ideas job, docs/publish-and-jobs.md)
+    "jobs.ideas.enabled": "bool", "jobs.ideas.at": "hhmm", "jobs.ideas.days": "jobdays", "jobs.ideas.count": "int",
 }
 MISSING = object()
 
@@ -146,6 +148,20 @@ def _clean(path, kind, v):
         if v and not re.fullmatch(r"[A-Z]{2}(-[A-Z0-9]{1,4}){0,2}", v):
             raise ValueError(f"{path}: a Google Trends geo like US, US-IL or US-IL-602")
         return v
+    if kind == "hhmm":
+        v = s(v, 5)
+        if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
+            raise ValueError(f"{path}: a time like 08:00")
+        return v
+    if kind == "jobdays":                     # "daily" or weekday names (jobs/schedule.py)
+        days = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+        items = [x.strip() for x in (v if isinstance(v, list) else str(v).split(","))]
+        if items == ["daily"]:
+            return "daily"
+        bad = [x for x in items if x not in days]
+        if bad or not items:
+            raise ValueError(f"{path}: daily or weekday names like Monday ({', '.join(bad)})")
+        return items[0] if len(items) == 1 else [d for d in days if d in items]
     if kind == "regex":
         return rx(v) if str(v).strip() else ""
     if kind == "regex_list":
@@ -397,7 +413,12 @@ def set_fields(name, patch, base=None):
         raise ValueError("Not saved: the edited file didn't read back as expected. The file is unchanged.")
     backups = config.ROOT / "data" / "profile-backups"
     backups.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(p, backups / f"{p.stem}-{datetime.now():%Y%m%d-%H%M%S}.yaml")
+    # Two edits in one second must not overwrite the first backup (the one with the original text).
+    stamp = f"{p.stem}-{datetime.now():%Y%m%d-%H%M%S}"
+    dest, n = backups / f"{stamp}.yaml", 1
+    while dest.exists():
+        dest, n = backups / f"{stamp}-{n}.yaml", n + 1
+    shutil.copy2(p, dest)
     p.write_bytes(new_text.encode("utf-8"))
     config.load(p.stem)                       # still loads with the defaults merged
     return {"changed": changed, "base": _hash(new_text)}

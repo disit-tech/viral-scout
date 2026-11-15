@@ -144,6 +144,6 @@ The drafts are in [examples/](examples/): one instructions note per business, wi
 The old skill lives in the vault: `projects/agency/.claude/skills/agency-ideas/SKILL.md`, runner `projects/agency/.claude/scripts/ideas-daily.ps1`.
 1. Create `profiles/agency.yaml` (Acme Agency has no viral-scout profile yet) with the blocks from the vault draft `projects/agency/ideas/studio-instructions.md`.
 2. The instructions note goes to `projects/agency/ideas/studio-instructions.md`.
-3. The vault skill becomes a trigger calling `/studio-ideas agency`; the "Acme Agency Ideas" task runs `ideas-daily.ps1 -Profile agency` (`daily.add_dirs` keeps the BeHuman folder).
+3. The vault skill becomes a trigger calling `/studio-ideas agency`; the "Acme Agency Ideas" task runs `ideas-daily.ps1 -Profile agency` (`daily.add_dirs` keeps the humanizer skill folder).
 
-What stayed per business (now in the instructions notes): rubrics and tracks (Acme Agency's 3 growth + 2 content), score criteria, the storm-first idea (solar only), platforms and packs (Homeworks only), the BeHuman pass (Acme Agency content only), compliance rules, language and voice, tracker table and where ✅ rows go, batch name prefix, budget per idea, and the reason-tag reading notes.
+What stayed per business (now in the instructions notes): rubrics and tracks (Acme Agency's 3 growth + 2 content), score criteria, the storm-first idea (solar only), platforms and packs (Homeworks only), the humanizer pass (Acme Agency content only), compliance rules, language and voice, tracker table and where ✅ rows go, batch name prefix, budget per idea, and the reason-tag reading notes.

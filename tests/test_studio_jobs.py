@@ -246,6 +246,61 @@ class ScheduleTest(Base):
         self.assertNotIn("\\", c)                # forward slashes: a Claude Code "!" prompt strips backslashes
 
 
+class IdeaSchedule(unittest.TestCase):
+    """The dashboard's Idea generator: jobs.ideas edited in the profile file (comments kept)."""
+
+    def setUp(self):
+        from viral_scout import profile_edit
+        self.pe = profile_edit
+        self.tmp = Path(tempfile.mkdtemp())
+        self._root, self._profiles = config.ROOT, config.PROFILES
+        config.ROOT, config.PROFILES = self.tmp, self.tmp / "profiles"
+        config.PROFILES.mkdir()
+        # The file is "copy", its name: line says "demo": edits must go to the FILE, never to profiles/demo.yaml.
+        self.text = ("# keep this comment\nname: demo\ntopic: test\nideas:\n  project: demo\n"
+                     "  daily: {count: 4, at: '07:45', add_dirs: [D:/repo/site]}\n")
+        (config.PROFILES / "copy.yaml").write_text(self.text, encoding="utf-8")
+        (config.PROFILES / "demo.yaml").write_text("name: demo\ntopic: other\n", encoding="utf-8")
+
+    def tearDown(self):
+        config.ROOT, config.PROFILES = self._root, self._profiles
+
+    def test_writes_the_file_named_on_the_command_line(self):
+        from viral_scout.jobs import cli
+        cli.set_ideas("copy", ["--enabled", "1", "--at", "09:10", "--days", "Thursday,Monday", "--count", "3"])
+        got = yaml.safe_load((config.PROFILES / "copy.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(got["jobs"]["ideas"], {"enabled": True, "at": "09:10", "days": ["Monday", "Thursday"], "count": 3})
+        self.assertIn("# keep this comment", (config.PROFILES / "copy.yaml").read_text(encoding="utf-8"))
+        self.assertEqual((config.PROFILES / "demo.yaml").read_text(encoding="utf-8"), "name: demo\ntopic: other\n")
+
+    def test_bad_values_change_nothing(self):
+        from viral_scout.jobs import cli
+        for args in (["--at", "9:5"], ["--days", "Funday"], ["--days", ""], ["--count", "x"]):
+            with self.assertRaises(ValueError):
+                cli.set_ideas("copy", args)
+        self.assertEqual((config.PROFILES / "copy.yaml").read_text(encoding="utf-8"), self.text)
+
+    def test_backups_in_the_same_second_do_not_overwrite(self):
+        from viral_scout.jobs import cli
+        cli.set_ideas("copy", ["--at", "09:00"])
+        cli.set_ideas("copy", ["--at", "09:30"])
+        backups = sorted((self.tmp / "data" / "profile-backups").glob("copy-*.yaml"))
+        self.assertEqual(len(backups), 2)
+        self.assertIn(self.text, [b.read_text(encoding="utf-8") for b in backups])   # the original survives
+
+    def test_jobs_get_the_older_daily_folders(self):
+        cfg = config.load("copy")
+        self.assertEqual(S.settings(cfg)["add_dirs"], ["D:/repo/site"])
+
+    def test_overview_suggests_the_older_daily_time_until_set(self):
+        from viral_scout.jobs import cli
+        row = next(r for r in cli.overview() if r["profile"] == "copy")
+        self.assertEqual((row["configured"], row["at"], row["count"], row["days"]), (False, "07:45", 4, "daily"))
+        cli.set_ideas("copy", ["--enabled", "0", "--at", "10:00", "--count", "2"])
+        row = next(r for r in cli.overview() if r["profile"] == "copy")
+        self.assertEqual((row["configured"], row["at"], row["count"]), (True, "10:00", 2))
+
+
 if __name__ == "__main__":
     unittest.main()
 

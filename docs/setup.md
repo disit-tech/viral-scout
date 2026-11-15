@@ -124,15 +124,15 @@ Runs are **weekly**, Monday by default: one Monday snapshot (trending posts, com
 ### Windows (Task Scheduler)
 Register them all at once:
 ```powershell
-scripts/schedule.ps1 -Profiles englishSchool,northForge,nfSolarPanels -Start 07:00 -GapMinutes 30 -Analyze -Publish
-scripts/schedule.ps1 -Profiles northForge -Day Daily     # daily instead (-Day Monday ... Sunday | Daily)
+scripts/schedule.ps1 -Profiles mybusiness,otherbusiness -Start 07:00 -GapMinutes 30 -Analyze -Publish
+scripts/schedule.ps1 -Profiles mybusiness -Day Daily     # daily instead (-Day Monday ... Sunday | Daily)
 scripts/schedule.ps1 -Remove                             # remove them all
 ```
 - `-Analyze` runs the `/viral-scout` skill headless after each run (Claude Code CLI, your subscription) to write the ideas note.
 - `-Publish` adds a `viral-scout publish` task after the last business: it exports and deploys the read-only dashboard ([publish to Vercel](dashboard.md#publish-to-vercel)).
 - Keep `-Day` on the ads day of `run-daily.ps1` (`-AdsDay`, Monday), so each weekly run includes the ads scout and search demand.
 
-Then manage them one by one on the local dashboard's **Schedule** page (`/schedule`): turn on or pause, change day and time, toggle the ideas note, run now, stop, add or remove. It calls `scripts/tasks.ps1` (`list | enable | disable | run | stop | set | add | remove`), which you can also run directly.
+Then manage them one by one on the local dashboard's **Schedule** page (`/schedule`): turn on or pause, change day and time, toggle the ideas note, run now, stop, add or remove. The same page schedules the **idea generator** per business (days, time, ideas per run; see [publish and jobs](publish-and-jobs.md#the-idea-generator-from-the-dashboard)) and lists older idea tasks from other folders. It calls `scripts/tasks.ps1` (`list | enable | disable | run | stop | set | add | remove | studio-sync`), which you can also run directly.
 
 Each task runs `scripts/run-daily.ps1 -Profile <name> [-Analyze]`, which you can run by hand too. Logs go to `data/logs/<profile>-<date>.log`, and the live log of any run is on the Activity page.
 

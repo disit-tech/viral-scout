@@ -116,6 +116,25 @@ Tasks are named `viral-scout <profile>.<job>` and run `scripts/studio.ps1`. Buil
 
 The dashboard's Schedule page lists them under "Studio jobs": pause, resume, run now, stop, remove, last log. Times are changed in the profile, then the install script is run again.
 
+### The idea generator from the dashboard
+
+The `ideas` job has its own section on the Schedule page, **Idea generator**, with one card per profile that has an `ideas:` block. There, without editing YAML or running the install script:
+- **Set up (paused)** writes `jobs.ideas` into the profile (`enabled: true`, `at`, `days`, `count`) and registers `viral-scout <profile>.ideas`, paused. Until it's set up, the card suggests the time and count of the older daily run (`ideas.daily.at` / `count`).
+- **Days** (every day, or any weekdays), **time** and **ideas per run**: **Save** edits the profile (comments kept, a backup in `data/profile-backups/`) and re-registers the task. A paused task stays paused, an on one stays on.
+- **Turn on / Pause**, **Run now** (asks first: it starts the Claude CLI), **Stop**, **last log**.
+- **Remove** sets `jobs.ideas.enabled: false` and removes the task; the other settings stay in the profile.
+
+The job gets the same extra folders as the older daily run: when `jobs.add_dirs` is empty, `ideas.daily.add_dirs` is used.
+
+The same from the CLI:
+```
+python -m viral_scout jobs --overview                                       # profiles with ideas: and their jobs.ideas
+python -m viral_scout jobs myhomes schedule ideas --enabled 1 --at 08:15 --days Monday,Thursday --count 5
+pwsh -NoProfile -File scripts/tasks.ps1 studio-sync -Profile myhomes        # register/update/remove the profile's studio tasks
+```
+
+The section **Older idea and content tasks** lists tasks the business sites registered before the move (any task that runs an `ideas-daily.ps1` or a site's `scripts/jobs/run.ps1`): pause, turn on, run now, stop or remove, not reschedule. Once a business's idea generator is set up here, pause or remove its older task so ideas aren't made twice.
+
 ## Moving solar's jobs here (steps)
 
 1. Write `profiles/mysolar.yaml` blocks: `studio:` (vault `projects/mysolar`, CTA solar.example.com/checklist), `publish:` (the four slots, handles, `env_file: D:/repo/solar-site/site/.env.local`, `morning_pack` with `delivery: telegram`, `token_env: TELEGRAM_IDEAS_BOT_TOKEN`), `jobs:` (owner Alex, language Ukrainian, `cwd: D:/repo/solar-site`, `notes_command` as above, `api.project: solar`).
