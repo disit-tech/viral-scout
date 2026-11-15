@@ -8,7 +8,7 @@ The ideas bot as a small always-on service, in [`service/`](../service/README.md
 |---|---|---|
 | Generation | your PC (Claude Code, daily task) | reads the vault and viral-scout reports, writes ideas, scenarios, content packs, blog drafts |
 | Rendering | your PC | films and edits videos, writes files |
-| Ideas CLI | your PC (`site/scripts/ideas.mjs`) | pushes ideas and packs to `/api/ideas`, pulls ratings back |
+| Ideas CLI | your PC (`python -m viral_scout ideas <profile> ...`) | pushes ideas and packs to `/api/ideas`, pulls ratings back |
 | **Service** | Vercel | stores ideas, posts them, handles every button and reply, keeps the feedback log |
 | CRM pages | homes.example.com/admin/ideas, solar.example.com/admin/ideas | read and rate the same rows |
 
