@@ -70,6 +70,10 @@ export type Item = {
 
 export type SwipeNote = {
   file: string;
+  kind?: string;            // "ad" for a saved competitor ad (post_id is then the ad key); videos have none
+  days_running?: number | string;
+  variants?: number | string;
+  ad_score?: number | string;
   title?: string;
   status?: string;
   format?: string;
