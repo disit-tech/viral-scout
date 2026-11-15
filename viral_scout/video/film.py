@@ -56,11 +56,59 @@ def render(v: dict, d: str, out: str | None = None, quality: str = "delivery", e
     return 0
 
 
+def recover_edges(rc: dict, words: list[dict]) -> list[dict]:
+    """A take that lost its first or last script word because Whisper heard it differently ("Do" as "so",
+    "Save" as "Tape"): the take starts at the script's second word (or ends at its second-to-last), and the word
+    just outside it is extra speech no other take uses. Extend the take by that word (the audio is the script
+    word) and return [{heard, script, line, n}] (n = index in `words`). Changes rc in place (takes, `dropped`)."""
+    from .cut import FILLERS, WILD, dropped_between, norm, tokens
+    said = [norm(w["w"]) for w in words]
+    heard = []
+
+    def free(n: int) -> bool:
+        return 0 <= n < len(words) and said[n] not in FILLERS and not any(
+            l["take"]["i"] <= n < l["take"]["j"] for l in rc["lines"])
+
+    for k, line in enumerate(rc["lines"]):
+        script_words = [x for x in line["text"].split() if tokens(x)]
+        toks = [tokens(x)[0] for x in script_words]
+        take = line["take"]
+        if len(toks) < 2 or WILD in (toks[0], toks[-1]):
+            continue
+        n = take["i"] - 1
+        if said[take["i"]] == toks[1] != toks[0] and free(n) and said[n] != toks[1]:
+            heard.append({"heard": words[n]["w"], "script": script_words[0], "line": k, "n": n})
+            take.update(i=n, s=words[n]["s"])
+        n = take["j"]
+        if said[take["j"] - 1] == toks[-2] != toks[-1] and free(n) and said[n] != toks[-2]:
+            heard.append({"heard": words[n]["w"], "script": script_words[-1], "line": k, "n": n})
+            take.update(j=n + 1, e=words[n]["e"])
+    if heard:
+        rc["dropped"] = dropped_between(words, [(l["take"]["i"], l["take"]["j"]) for l in rc["lines"]])
+    return heard
+
+
+def align(lines: list[dict], raw: list[dict], vocab: dict | None = None, log=print) -> tuple[list[dict], dict, list[dict]]:
+    """Transcript + script lines → (word times [{w, s, e, i}] in the script's words, rough cut, heard differently)."""
+    from .captions import fix_words
+    from .cut import match_script_words, rough_cut
+    ws = match_script_words(raw, lines)
+    rc = rough_cut(lines, ws, log)
+    heard = recover_edges(rc, ws)
+    script_text = {h["n"]: h["script"] for h in heard}  # the audio there is the script word: use the script's text
+    timed, i = [], -1
+    for k, line in enumerate(rc["lines"]):
+        i = next(n for n in range(i + 1, len(lines)) if lines[n]["text"] == line["text"])
+        for n in range(line["take"]["i"], line["take"]["j"]):
+            w = ws[n]
+            timed.append({"w": script_text.get(n, w["w"]), "s": w["s"], "e": w["e"], "line": k, "i": i})
+    fixed = fix_words(rc["lines"], timed, vocab or {}, keep_digits=False)
+    return [{"w": w["w"], "s": w["s"], "e": w["e"], "i": w["i"]} for w in fixed], rc, heard
+
+
 def words(v: dict, d: str, voice: str, script: str, section: str | None = None, model: str | None = None) -> int:
     """Transcribe the film's voice, align it to the script, write work-words.json and a voice check."""
     from . import media
-    from .captions import fix_words
-    from .cut import match_script_words, rough_cut
     from .pipeline import find_script
     from .script import load_script
     from .settings import vocabulary
@@ -76,15 +124,7 @@ def words(v: dict, d: str, voice: str, script: str, section: str | None = None, 
     _, wav16 = media.extract_audio(wav, work)
     raw = transcribe(wav16, work / f"words-{wav.stat().st_size}.json", model or v.get("whisper_model") or None,
                      print, v.get("language") or "en")
-    ws = match_script_words(raw, sc["lines"])
-    rc = rough_cut(sc["lines"], ws, print)
-    timed, i = [], -1
-    for k, line in enumerate(rc["lines"]):
-        i = next(n for n in range(i + 1, len(sc["lines"])) if sc["lines"][n]["text"] == line["text"])
-        for w in ws[line["take"]["i"]:line["take"]["j"]]:
-            timed.append({"w": w["w"], "s": w["s"], "e": w["e"], "line": k, "i": i})
-    fixed = fix_words(rc["lines"], timed, vocabulary(v), keep_digits=False)
-    out = [{"w": w["w"], "s": w["s"], "e": w["e"], "i": w["i"]} for w in fixed]
+    out, rc, heard = align(sc["lines"], raw, vocabulary(v))
     (film / "work-words.json").write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
 
     long = [w for w in out if w["e"] - w["s"] > LONG_WORD]
@@ -92,12 +132,14 @@ def words(v: dict, d: str, voice: str, script: str, section: str | None = None, 
             f"- {len(out)} words, {len(rc['lines'])}/{len(sc['lines'])} script sentences found",
             "", "## Missing sentences (regenerate them)", *([f"- {m}" for m in rc["missing"]] or ["- none"]),
             "", "## Extra speech (repeats, wrong words: regenerate or mute)", *([f"- {x}" for x in rc["dropped"]] or ["- none"]),
+            "", "## Heard differently (first or last word of a sentence; the script's word is used, listen to check)",
+            *([f"- heard differently: {h['heard']} → {h['script']}" for h in heard] or ["- none"]),
             "", f"## Words longer than {LONG_WORD} s (may hide a repeat: look at the loudness envelope there)",
             *([f"- {w['s']:.2f}–{w['e']:.2f}s \"{w['w']}\" (sentence {w['i']})" for w in long] or ["- none"]),
             "", "Ears catch what this can't: watch the film with sound before it goes out."]
     (film / "voice-check.md").write_text("\n".join(rows) + "\n", encoding="utf-8")
     problems = len(rc["missing"]) + len(rc["dropped"]) + len(long)
     print(f"{'✓' if not problems else '⚠'} voice check: {len(rc['missing'])} missing, {len(rc['dropped'])} extra, "
-          f"{len(long)} long word(s) → {film / 'voice-check.md'}")
+          f"{len(heard)} heard differently, {len(long)} long word(s) → {film / 'voice-check.md'}")
     print(f"word times: {film / 'work-words.json'}")
     return 0 if not problems else 1

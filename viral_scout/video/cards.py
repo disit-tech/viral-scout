@@ -36,9 +36,11 @@ def values(v: dict) -> dict:
     logo = v.get("logo")
     logo_html = (f'<img src="{html.escape(Path(logo).resolve().as_uri())}" alt="">' if logo and Path(logo).exists()
                  else '<span class="dot"></span>')
-    for k in ("bg", "bg_deep", "bg_light", "accent", "text", "muted"):
-        hex_rgb(c[k])                     # fail early on a bad color in the profile
+    label_color = c.get("brand_label") or c["accent"]   # the label on top of each card; default: the accent
+    for x in (c["bg"], c["bg_deep"], c["bg_light"], c["accent"], c["text"], c["muted"], label_color):
+        hex_rgb(x)                        # fail early on a bad color in the profile
     return {
+        "brand_label_color": label_color,
         "bg": c["bg"], "bg_deep": c["bg_deep"], "bg_light": c["bg_light"], "accent": c["accent"],
         "accent_rgb": ",".join(str(x) for x in hex_rgb(c["accent"])), "text": c["text"], "muted": c["muted"],
         "font_display": _css_font(fo["display"]), "font_body": _css_font(fo["body"]),

@@ -186,15 +186,19 @@ def rough_cut(lines: list[dict], words: list[dict], log=print) -> dict:
         others = len(takes) - 1
         log(f"  ✓ line {k + 1}: take at {pick['s']:.1f}s (match {pick['score']:.2f}{f', {others} other take(s)' if others else ''})")
         out.append({**line, "take": pick})
-    kept = sorted(used)
+    return {"lines": out, "dropped": dropped_between(words, used), "missing": missing}
+
+
+def dropped_between(words: list[dict], kept: list[tuple[int, int]]) -> list[str]:
+    """The transcript outside the kept takes ([i, j) word ranges), one string per gap."""
     dropped, prev = [], 0
-    for a, b in kept:
+    for a, b in sorted(kept):
         if a > prev:
             dropped.append(" ".join(w["w"] for w in words[prev:a]))
-        prev = b
+        prev = max(prev, b)
     if prev < len(words):
         dropped.append(" ".join(w["w"] for w in words[prev:]))
-    return {"lines": out, "dropped": [d for d in dropped if d.strip()], "missing": missing}
+    return [d for d in dropped if d.strip()]
 
 
 def build_timeline(cut: dict, words: list[dict], duration: float) -> tuple[list[tuple[float, float]], list[dict]]:

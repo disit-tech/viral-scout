@@ -9,7 +9,7 @@
      A profile can point video.card_template at its own copy of this file (keep the placeholders and window.CARD). */
   {{font_faces}}
   :root { --bg-deep:{{bg_deep}}; --bg:{{bg}}; --bg-light:{{bg_light}}; --accent:{{accent}}; --accent-rgb:{{accent_rgb}};
-          --text:{{text}}; --muted:{{muted}}; --font-display:{{font_display}}; --font-body:{{font_body}}; }
+          --brand-label:{{brand_label_color}}; --text:{{text}}; --muted:{{muted}}; --font-display:{{font_display}}; --font-body:{{font_body}}; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 1080px; height: 1920px; }
   body { font-family: var(--font-body), Arial, sans-serif; color: var(--text); overflow: hidden;
@@ -17,7 +17,7 @@
   .glow { position: absolute; width: 900px; height: 900px; left: 90px; top: 140px; border-radius: 50%;
           background: radial-gradient(circle, rgba(var(--accent-rgb),.16) 0%, rgba(var(--accent-rgb),0) 65%); }
   .brand { position: absolute; top: 120px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 16px;
-           font-weight: 800; letter-spacing: .32em; font-size: 30px; color: var(--accent); opacity: .85; }
+           font-weight: 800; letter-spacing: .32em; font-size: 30px; color: var(--brand-label); opacity: .85; }
   .brand .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
                 box-shadow: 0 0 22px 6px rgba(var(--accent-rgb),.55); }
   .brand img { height: 64px; width: auto; }

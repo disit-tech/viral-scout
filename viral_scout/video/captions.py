@@ -24,18 +24,41 @@ def fix_words(lines: list[dict], timed: list[dict], vocab: dict | None = None, k
         script_words = [x for x in re.split(r"\s+", line["text"]) if x]
         script_toks = [tokens(x)[0] if tokens(x) else "" for x in script_words]
         said = [norm(w["w"]) for w in ws]
-        fixed = [dict(w) for w in ws]
+        fixed = []
         sm = SequenceMatcher(None, script_toks, said, autojunk=False)
         for op, a0, a1, b0, b1 in sm.get_opcodes():
+            part = [dict(w) for w in ws[b0:b1]]
             if op == "equal" or (op == "replace" and a1 - a0 == b1 - b0):
-                for a, b in zip(range(a0, a1), range(b0, b1)):
-                    sw = script_words[a]
-                    if script_toks[a] == WILD or (keep_digits and re.search(r"\d", ws[b]["w"])):
+                for a, w in zip(range(a0, a1), part):
+                    if script_toks[a] == WILD or (keep_digits and re.search(r"\d", w["w"])):
                         continue
-                    fixed[b]["w"] = sw.strip("'\"“”‘’")
+                    w["w"] = script_words[a].strip("'\"“”‘’")
+            elif op == "replace" and not keep_digits and _numeric(script_toks[a0:a1], part):
+                # "one eight hundred" heard as "1-800", "forty eight" as "48": the script's words, the heard time
+                part = _respell(script_words[a0:a1], part)
+            fixed.extend(part)
         for w in fixed:
             w["w"] = apply_vocab(w["w"], vocab)
         out.extend(fixed)
+    return out
+
+
+def _numeric(script_toks: list[str], heard: list[dict]) -> bool:
+    return bool(script_toks and heard) and all(re.fullmatch(r"\d+(?:st|nd|rd|th)?", t) for t in script_toks) \
+        and all(re.search(r"\d", w["w"]) for w in heard)
+
+
+def _respell(script_words: list[str], heard: list[dict]) -> list[dict]:
+    """The heard span's time shared among the script's words by length."""
+    s, e = heard[0]["s"], heard[-1]["e"]
+    texts = [x.strip("'\"“”‘’") for x in script_words]
+    total = sum(len(x) for x in texts) or 1
+    out, t = [], s
+    for x in texts:
+        end = t + (e - s) * len(x) / total
+        out.append({**heard[0], "w": x, "s": round(t, 3), "e": round(end, 3)})
+        t = end
+    out[-1]["e"] = e
     return out
 
 

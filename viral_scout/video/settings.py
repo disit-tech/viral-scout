@@ -28,6 +28,7 @@ DEFAULTS = {
         "bg": "#0b1124", "bg_deep": "#070b16", "bg_light": "#121a33",
         "accent": "#ffc45c", "text": "#fbfaf7", "muted": "#9aa3c0",
         "caption": "#ffffff", "caption_outline": "#101010",
+        "brand_label": "",            # the card's brand label; default: accent
     },
     "fonts": {
         "display": "Segoe UI Black", "body": "Segoe UI", "caption": "Segoe UI Black",

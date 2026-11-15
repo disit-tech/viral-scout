@@ -2,7 +2,7 @@
 
 WhisperX needs its own Python 3.11 env (`.venv-video`, see scripts/setup-video.ps1). The main CLI calls `transcribe()`,
 which runs in this interpreter if WhisperX is importable here, else in the video env as
-  <video python> -m viral_scout.video.transcribe <wav16k> <cache.json> [--model M] [--language en]
+  <video python> -m viral_scout.video.transcribe <wav16k> <cache.json> [--model M] [--language en|auto]
 """
 import argparse
 import importlib.util
@@ -40,23 +40,27 @@ def _whisperx(wav16k: Path, cache: Path, model_name, log, language) -> list[dict
     cpu_model = "small.en" if language == "en" else "small"
     model_name = model_name or ("large-v3" if cuda else cpu_model)
     compute = "float16" if cuda else "int8"
-    log(f"transcript: WhisperX {model_name} on {device}")
+    lang = whisper_language(language)
+    log(f"transcript: WhisperX {model_name} on {device}, language {lang or 'auto'}")
 
     audio = whisperx.load_audio(str(wav16k))
     try:
-        model = whisperx.load_model(model_name, device, compute_type=compute, language=language)
+        model = whisperx.load_model(model_name, device, compute_type=compute, language=lang)
     except Exception as e:  # CUDA libs missing for ctranslate2 → CPU
         if not cuda:
             raise
         log(f"transcript: GPU load failed ({e.__class__.__name__}: {e}); falling back to CPU {cpu_model}")
         device, model_name = "cpu", cpu_model
-        model = whisperx.load_model(model_name, device, compute_type="int8", language=language)
-    result = model.transcribe(audio, batch_size=8 if device == "cuda" else 4, language=language)
+        model = whisperx.load_model(model_name, device, compute_type="int8", language=lang)
+    result = model.transcribe(audio, batch_size=8 if device == "cuda" else 4, language=lang)
     del model
     if device == "cuda":
         torch.cuda.empty_cache()
+    if not lang:
+        lang = result.get("language") or "en"
+        log(f"transcript: detected language {lang}")
 
-    align_model, meta = whisperx.load_align_model(language_code=language, device=device)
+    align_model, meta = whisperx.load_align_model(language_code=lang, device=device)
     aligned = whisperx.align(result["segments"], align_model, meta, audio, device, return_char_alignments=False)
 
     words: list[dict] = []
@@ -74,6 +78,12 @@ def _whisperx(wav16k: Path, cache: Path, model_name, log, language) -> list[dict
     cache.write_text(json.dumps(words, indent=1), encoding="utf-8")
     log(f"transcript: {len(words)} words")
     return words
+
+
+def whisper_language(language: str | None) -> str | None:
+    """A language code for WhisperX; "auto" (or empty) → None, which lets Whisper detect it."""
+    lang = (language or "").strip().lower()
+    return None if lang in ("", "auto") else lang
 
 
 def fill_missing_times(words: list[dict]) -> None:
@@ -109,7 +119,7 @@ def main() -> int:
     ap.add_argument("wav")
     ap.add_argument("cache")
     ap.add_argument("--model")
-    ap.add_argument("--language", default="en")
+    ap.add_argument("--language", default="en", help="language code, or auto to detect it")
     a = ap.parse_args()
     if importlib.util.find_spec("whisperx") is None:
         print("error: WhisperX is not installed in this Python (run scripts/setup-video.ps1)", file=sys.stderr)

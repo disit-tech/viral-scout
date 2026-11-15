@@ -396,6 +396,174 @@ def test_mode_not_allowed():
             assert "VOICE+CARDS" in str(e)
 
 
+# ---- regressions found re-rendering a real film ---------------------------------------------------------------------
+def test_docs_have_no_mangled_paths():
+    """A path written through a shell that ate the backslashes ("D:\\repo\\viral-scout" → "D:", CR, "epo", VT,
+    "iral-scout") or one that mixes slashes."""
+    import re
+    for p in [*(ROOT / "docs").glob("*.md"), *(ROOT / ".claude" / "skills").rglob("*.md")]:
+        text = p.read_bytes().decode("utf-8").replace("\r\n", "\n")
+        bad = re.findall(r"[\x00-\x08\x0b\x0c\x0e-\x1f\r]", text)
+        assert not bad, f"{p.name}: control characters {bad!r}"
+        assert not re.search(r"[A-Za-z]:/[^\s`]*\\", text), f"{p.name}: a path with mixed slashes"
+        assert not re.search(r"\b[A-Z]:\n", text), f"{p.name}: a drive letter followed by a line break"
+
+
+FILM_SCRIPT = ("Power just went out.\nDo these three things first.\nThen report it to Amperio.\n"
+               "Call one eight hundred Amperio one, or use the app.\nAbout forty eight for a full freezer.\n"
+               "Save this before you need it.\n")
+# Whisper hears the first word of line 2, the last of line 3 and the first of line 6 differently
+FILM_HEARD = say("power just went out", "so these three things first", "then report it to imperial",
+                 "call 1-800 Amperio 1 or use the app", "about 48 for a full freezer", "Tape this before you need it.")
+
+
+def _film_lines(d):
+    p = Path(d) / "film.txt"
+    p.write_text(FILM_SCRIPT, encoding="utf-8")
+    return load_script(p)["lines"]
+
+
+def test_film_words_keep_edge_words_heard_differently():
+    from viral_scout.video import film
+    with tempfile.TemporaryDirectory() as d:
+        lines = _film_lines(d)
+    out, rc, heard = film.align(lines, FILM_HEARD, {}, log=lambda m: None)
+    assert rc["dropped"] == [] and rc["missing"] == []
+    assert [(h["heard"], h["script"]) for h in heard] == [("so", "Do"), ("imperial", "Amperio."), ("Tape", "Save")]
+    by_line = {}
+    for w in out:
+        by_line.setdefault(w["i"], []).append(w["w"])
+    assert " ".join(by_line[1]) == "Do these three things first."
+    assert by_line[2][-1] == "Amperio."
+    assert by_line[5][0] == "Save"
+    assert [w["w"] for w in out] == FILM_SCRIPT.split()                      # every script word, the script's text
+    so = next(w for w in FILM_HEARD if w["w"] == "so")
+    assert next(w for w in out if w["w"] == "Do")["s"] == so["s"]           # the heard word's time
+
+
+def test_film_words_spelled_numbers_keep_script_form():
+    from viral_scout.video import film
+    with tempfile.TemporaryDirectory() as d:
+        lines = _film_lines(d)
+    out, _, _ = film.align(lines, FILM_HEARD, {}, log=lambda m: None)
+    span = next(w for w in FILM_HEARD if w["w"] == "1-800")
+    nums = [w for w in out if w["w"] in ("one", "eight", "hundred") and w["i"] == 3][:3]
+    assert [w["w"] for w in nums] == ["one", "eight", "hundred"]
+    assert nums[0]["s"] == span["s"] and nums[-1]["e"] == span["e"]
+    assert all(a["e"] <= b["s"] for a, b in zip(nums, nums[1:]))
+    assert "forty eight" in " ".join(w["w"] for w in out)
+    # the cut's captions keep digits
+    timed = [dict(w, line=0) for w in say("about 48 for a full freezer")]
+    cut_caps = captions.fix_words([{"text": "About forty eight for a full freezer."}], timed)
+    assert [w["w"] for w in cut_caps][1] == "48"
+
+
+def test_film_words_voice_check_report():
+    if not shutil.which("ffmpeg"):
+        skip("ffmpeg not installed")
+    from viral_scout.video import film
+    v = vset()
+    with tempfile.TemporaryDirectory() as d:
+        fd = Path(d) / "film"
+        (fd / "work").mkdir(parents=True)
+        wav = Path(d) / "vo.wav"
+        _ffmpeg("-f", "lavfi", "-i", "sine=frequency=300:duration=2", str(wav))
+        (fd / "work" / f"words-{wav.stat().st_size}.json").write_text(json.dumps(FILM_HEARD), encoding="utf-8")
+        _film_lines(d)
+        assert film.words(v, str(fd), str(wav), str(Path(d) / "film.txt")) == 0
+        check = (fd / "voice-check.md").read_text(encoding="utf-8")
+        assert "heard differently: so → Do" in check and "heard differently: Tape → Save" in check
+        extra = check.split("## Extra speech")[1].split("##")[0]
+        assert extra.strip().endswith("- none")
+        ws = json.loads((fd / "work-words.json").read_text(encoding="utf-8"))
+        assert [w["w"] for w in ws][:6] == ["Power", "just", "went", "out.", "Do", "these"]
+
+
+def test_render_reextracts_missing_voice_wav():
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        skip("ffmpeg not installed")
+    from viral_scout.video import media, pipeline
+    with tempfile.TemporaryDirectory() as d:
+        rec, work = Path(d) / "rec.wav", Path(d) / "job" / "work"
+        work.mkdir(parents=True)
+        _ffmpeg("-f", "lavfi", "-i", "sine=frequency=220:duration=1", "-ar", "44100", str(rec))
+        wav = pipeline.voice_wav(work, rec)
+        assert wav == work / "voice-48k.wav" and wav.exists()
+        assert media.probe(wav)["duration"] > 0.9
+        info = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=sample_rate,channels", "-of", "csv=p=0",
+                               str(wav)], capture_output=True, text=True).stdout.strip()
+        assert info == "48000,1"                                                  # the cut's settings
+        wav.unlink()
+        rec.unlink()
+        try:
+            pipeline.voice_wav(work, rec)
+            raise AssertionError("expected SystemExit")
+        except SystemExit as e:
+            assert isinstance(e.code, str) and "voice-48k.wav" in e.code and "rec.wav" in e.code   # exit code 1
+
+
+def test_cover_fallback_trims_function_words():
+    assert plan.cover_words("Most homes lose the heat first.") == "Most homes lose"
+    assert plan.cover_words("Power just went out.") == "Power just went out"
+    assert plan.cover_words("The") == "The"
+    lines = [{"text": "Most people forget to unplug the TV.", "part": "hook", "t0": 0, "t1": 2}]
+    assert plan.draft(lines, [])[1]["big"] == "Most people forget"
+
+
+def test_spelled_digit_runs_are_one_number():
+    c = plan.auto_card({"text": "If the power goes out, call nine one one only for emergencies.", "part": "body"})
+    assert c["kind"] == "stat" and c["big"] == "911" and not c["small"].startswith("one")
+    c = plan.auto_card({"text": "Call one eight hundred and ask for the outage line.", "part": "body"})
+    assert c["big"] == "1-800"
+    assert plan.auto_card({"text": "Storms left over two million homes in the dark.", "part": "hook"})["big"] == "2 million"
+    assert plan.auto_card({"text": "About eight hundred homes lost power.", "part": "body"})["big"] == "8 hundred"
+
+
+def test_card_brand_label_color():
+    v = vset()
+    assert cards.values(v)["brand_label_color"] == v["colors"]["accent"]       # default: unchanged output
+    with tempfile.TemporaryDirectory() as d:
+        page = cards.write_template(dict(v, colors=dict(v["colors"], brand_label="#ffffff")), Path(d)).read_text(
+            encoding="utf-8")
+    assert "--brand-label:#ffffff" in page and "color: var(--brand-label)" in page
+    try:
+        cards.values(dict(v, colors=dict(v["colors"], brand_label="white")))
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass
+
+
+def test_cli_transcribe_language_plumbing():
+    from viral_scout.video import media, pipeline, transcribe
+    seen = []
+
+    def fake_transcribe(wav16, cache, model, log, language):
+        seen.append(language)
+        return [{"w": "hello", "s": 0.0, "e": 0.4}]
+
+    def fake_extract(src, work):
+        return work / "voice-48k.wav", work / "voice-16k.wav"
+
+    old_t, old_x = transcribe.transcribe, media.extract_audio
+    transcribe.transcribe, media.extract_audio = fake_transcribe, fake_extract
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            rec = Path(d) / "a.m4a"
+            rec.write_bytes(b"x")
+            out = str(Path(d) / "a.txt")
+            assert video_main([str(PROFILE), "transcribe", str(rec), "--out", out]) == 0
+            assert video_main([str(PROFILE), "transcribe", str(rec), "--out", out, "--language", "auto"]) == 0
+            assert video_main([str(PROFILE), "transcribe", str(rec), "--out", out, "--language", "pl"]) == 0
+            pipeline.transcript(dict(vset(), language="uk"), str(rec), out)
+            pipeline.transcript(dict(vset(), language=""), str(rec), out)
+            assert Path(out).read_text(encoding="utf-8").strip() == "hello"
+    finally:
+        transcribe.transcribe, media.extract_audio = old_t, old_x
+    assert seen == ["en", "auto", "pl", "uk", "en"]                           # default: video.language, else en
+    assert transcribe.whisper_language("auto") is None and transcribe.whisper_language("") is None
+    assert transcribe.whisper_language("PL") == "pl"
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted((k, f) for k, f in dict(globals()).items() if k.startswith("test_") and callable(f)):

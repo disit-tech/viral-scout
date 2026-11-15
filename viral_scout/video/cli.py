@@ -6,7 +6,7 @@
   video <profile> make <media> <script.md> ...      cut + render in one go (--music FILE)
   video <profile> cards <job dir>                    render only the cards (preview the PNGs before the full render)
   video <profile> render <job dir> [--music FILE]    build the master from <job>/edit.json
-  video <profile> transcribe <media> [--out FILE.txt]   plain transcript (+ word times as .json next to it)
+  video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto]   plain transcript (+ word times .json)
   video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--cfg 0.5 0.3] [--exaggeration 0.5]
   video <profile> film words|check|render <film dir> ...
   video <profile> still --top a.png --bottom b.png --top-text ... --bottom-text ... --out still.png [--source ...]
@@ -59,6 +59,7 @@ def _parser() -> argparse.ArgumentParser:
     tr.add_argument("media")
     tr.add_argument("--out", help="transcript .txt (default: <media>.txt)")
     tr.add_argument("--model")
+    tr.add_argument("--language", help="language code (en, pl, uk...) or auto to detect it (default: video.language, else en)")
     vo = sub.add_parser("voice")
     vo.add_argument("reference", help="reference .wav, or `profile` for video.voice.reference")
     vo.add_argument("out")
@@ -154,7 +155,7 @@ def main(argv: list[str]) -> int:
             return 0
         if a.action == "transcribe":
             from . import pipeline
-            print(pipeline.transcript(v, a.media, a.out, a.model))
+            print(pipeline.transcript(v, a.media, a.out, a.model, a.language))
             return 0
         if a.action == "voice":
             from . import voice

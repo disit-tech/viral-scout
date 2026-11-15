@@ -3,13 +3,19 @@ refines the cards' words and sources, then `render` builds the video from it."""
 import re
 from pathlib import Path
 
-NUM_WORDS = r"(?:\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred)"
+_DIGIT = r"(?:zero|one|two|three|four|five|six|seven|eight|nine)(?!\w)"
+# a number read digit by digit is one number: "nine one one" → 911, "one eight hundred" → 1-800
+DIGIT_RUN = rf"(?:{_DIGIT}(?:\s+{_DIGIT}){{2,}}|{_DIGIT}(?:\s+{_DIGIT})+\s+hundred(?!\w))"
+NUM_WORDS = rf"(?:{DIGIT_RUN}|\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred)"
 BASE_UNITS = ["%", "percent", "million", "billion", "thousand", "hundred", "hours?", "days?", "years?", "minutes?",
               "dollars?"]
 STOP = set("a an the and or but so i i'm im you your my we our it its is are was be to of in on for at with this that "
            "these those if then just will can do does every time some".split())
 NUMS = {w: str(i) for i, w in enumerate("zero one two three four five six seven eight nine ten".split())}
 NUMS.update({"twenty": "20", "thirty": "30", "forty": "40", "fifty": "50"})
+# a cover that ends on one of these reads cut off ("Most homes lose the"): trimmed from the fallback cover
+FUNCTION = set("a an the and or but nor so of to in on at by for from with as than then if your my our their its "
+               "is are was be this that".split())
 MIN_CARD = 1.4  # lines shorter than this keep the previous visual (no flashing cuts)
 DEFAULT_CTA = {"big": "Link in bio", "pill": "Link in bio", "triggers": ["link", "comment", "dm", "check"]}
 
@@ -25,13 +31,27 @@ def stat_pattern(extra_units: list[str] | None = None) -> re.Pattern:
 STAT = stat_pattern()
 
 
+def _run(m: re.Match) -> str:
+    ds = [NUMS[w] for w in m.group(0).lower().split() if w != "hundred"]
+    return "".join(ds[:-1]) + "-" + ds[-1] + "00" if m.group(0).lower().endswith("hundred") else "".join(ds)
+
+
 def _digits(s: str) -> str:
-    """Number words → digits (punchier on screen): "two million" → "2 million"."""
+    """Number words → digits (punchier on screen): "two million" → "2 million", "nine one one" → "911"."""
+    s = re.sub(rf"(?i)(?<!\w){DIGIT_RUN}", _run, s)
     return re.sub(r"(?i)\b(" + "|".join(NUMS) + r")\b", lambda x: NUMS[x.group(1).lower()], s)
 
 
 def _words(s: str) -> list[str]:
     return re.findall(r"[\w$%'’-]+", s)
+
+
+def cover_words(text: str, n: int = 4) -> str:
+    """The first n words, without a trailing function word ("Most homes lose the" → "Most homes lose")."""
+    ws = _words(text)[:n]
+    while len(ws) > 1 and ws[-1].lower() in FUNCTION:
+        ws.pop()
+    return " ".join(ws)
 
 
 def auto_card(line: dict, cta: dict | None = None, stat: re.Pattern = STAT) -> dict:
@@ -85,6 +105,6 @@ def draft(lines: list[dict], broll: list[Path], cta: dict | None = None,
         visuals.append(v)
     hook = next((l for l in lines if l["part"] == "hook"), lines[0])
     m = stat.search(hook["text"])
-    cover_big = f"*{_digits(m.group(1))}*" if m else " ".join(_words(hook["text"])[:4])
+    cover_big = f"*{_digits(m.group(1))}*" if m else cover_words(hook["text"])
     cover = {"kind": "cover", "big": cover_big, "small": ""}
     return visuals, cover

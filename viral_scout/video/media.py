@@ -29,9 +29,15 @@ def probe(path: Path) -> dict:
     return {"duration": float(info.get("format", {}).get("duration", 0)), "video": video}
 
 
-def extract_audio(src: Path, work: Path) -> tuple[Path, Path]:
-    wav48, wav16 = work / "voice-48k.wav", work / "voice-16k.wav"
+def extract_voice(src: Path, work: Path) -> Path:
+    """The recording's audio as mono 48 kHz <work>/voice-48k.wav: what the cut's segments are cut from."""
+    wav48 = work / "voice-48k.wav"
     run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "48000", str(wav48)])
+    return wav48
+
+
+def extract_audio(src: Path, work: Path) -> tuple[Path, Path]:
+    wav48, wav16 = extract_voice(src, work), work / "voice-16k.wav"
     run(["ffmpeg", "-y", "-v", "error", "-i", str(wav48), "-ac", "1", "-ar", "16000", str(wav16)])
     return wav48, wav16
 

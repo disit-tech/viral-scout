@@ -96,8 +96,10 @@ def cut(v: dict, recording: str, script: str, section=None, name=None, broll=Non
     return job
 
 
-def transcript(v: dict, media_file: str, out: str | None = None, model: str | None = None) -> Path:
-    """Plain transcript of a recording (for repurposing): <out>.txt plus the word times in <out>.json."""
+def transcript(v: dict, media_file: str, out: str | None = None, model: str | None = None,
+               language: str | None = None) -> Path:
+    """Plain transcript of a recording (for repurposing): <out>.txt plus the word times in <out>.json.
+    language: a code, or "auto" to let WhisperX detect it; default the profile's video.language, else "en"."""
     from .transcribe import transcribe
     import tempfile
     rec = Path(media_file).resolve()
@@ -108,7 +110,8 @@ def transcript(v: dict, media_file: str, out: str | None = None, model: str | No
     cache = txt.with_suffix(".json")
     with tempfile.TemporaryDirectory() as d:
         _, wav16 = media.extract_audio(rec, Path(d))
-        words = transcribe(wav16, cache, model or v.get("whisper_model") or None, log, v.get("language") or "en")
+        words = transcribe(wav16, cache, model or v.get("whisper_model") or None, log,
+                           language or v.get("language") or "en")
     txt.write_text(" ".join(w["w"] for w in words) + "\n", encoding="utf-8")
     return txt
 
@@ -121,6 +124,19 @@ def card_specs(edit: dict) -> list[dict]:
 def render_cards(v: dict, job: Path) -> list[Path]:
     edit = json.loads((job / "edit.json").read_text(encoding="utf-8"))
     return cards.render(v, card_specs(edit), job / "work", job / "work" / "cards")
+
+
+def voice_wav(work: Path, rec: Path) -> Path:
+    """<job>/work/voice-48k.wav, the audio the cut's segments refer to. Re-extracted from the recording when it is
+    gone (a cleaned work folder, a job copied without work/)."""
+    wav48 = work / "voice-48k.wav"
+    if wav48.exists():
+        return wav48
+    if not rec.exists():
+        raise SystemExit(f"error: {wav48} is missing and so is the recording it is made from: {rec} "
+                         "(edit.json `recording`). Put the recording back or fix that path, then render again.")
+    log(f"      {wav48.name} missing: extracting it again from {rec.name}")
+    return media.extract_voice(rec, work)
 
 
 def render(v: dict, job: Path, music: str | None = None) -> Path:
@@ -137,7 +153,7 @@ def render(v: dict, job: Path, music: str | None = None) -> Path:
     rec = Path(edit["recording"])
     log(f"render {slug}: {total:.1f}s, mode={edit['mode']}")
 
-    voice = media.cut_audio(work / "voice-48k.wav", [tuple(s) for s in edit["segments"]], work)
+    voice = media.cut_audio(voice_wav(work, rec), [tuple(s) for s in edit["segments"]], work)
 
     ass, srt = work / "captions.ass", job / f"{slug}.srt"
     hook = {i for i, l in enumerate(lines) if l["part"] == "hook"}
