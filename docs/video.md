@@ -2,7 +2,7 @@
 
 `python -m viral_scout video <profile> ...` turns a recording and a script into a finished vertical video for one business. It also clones the owner's voice, renders animated films with HyperFrames and makes stills. Every brand value (name, colors, fonts, logo, caption spelling, voice, folders) comes from the profile. The `/studio-video` skill drives it: script, edit, film, week plan, review, repurpose and the compliance step.
 
-It is the generic version of the solar repo's `tools/video`. The method behind it is the vault playbook `shared/playbooks/05 Marketing/video-generation.md`.
+It is the generic version of the `tools/video` scripts a project repo used to carry (moving one over: [below](#moving-a-repo-from-its-own-toolsvideo)). The method behind it is the vault playbook `shared/playbooks/05 Marketing/video-generation.md`.
 
 ## What it does
 
@@ -50,9 +50,9 @@ WhisperX and Chatterbox need separate envs: Chatterbox pins torch 2.6 and numpy 
 Already have the tools elsewhere? Point at them instead of installing again:
 
 ```
-VIRAL_SCOUT_VIDEO_PY=D:/repo/solar-site\tools\video\.venv\Scripts\python.exe
-VIRAL_SCOUT_VOICE_PY=D:/repo/solar-site\tools\video\.venv-clone\Scripts\python.exe
-VIRAL_SCOUT_VIDEO_NODE_MODULES=D:/repo/solar-site\tools\video\node_modules
+VIRAL_SCOUT_VIDEO_PY=D:/repo/<your-site>/tools/video/.venv/Scripts/python.exe
+VIRAL_SCOUT_VOICE_PY=D:/repo/<your-site>/tools/video/.venv-clone/Scripts/python.exe
+VIRAL_SCOUT_VIDEO_NODE_MODULES=D:/repo/<your-site>/tools/video/node_modules
 ```
 
 These can go in `.env`. `python -m viral_scout video doctor` lists what is installed (`--deep` also reports CUDA). A command that needs a missing tool exits with code 3 and says how to install it.
@@ -76,7 +76,7 @@ Two blocks in `profiles/<name>.yaml`. `${ENV}` is expanded everywhere, so `${OBS
 | Field | Default | What |
 |---|---|---|
 | `owner` | `""` | fills `[NAME]` in scripts and the AI label line |
-| `language` | `en` | Whisper language |
+| `language` | `en` | Whisper language code, or `auto` to let WhisperX detect it |
 | `modes` | `[REAL, FILM, VOICE+CARDS]` | allowed modes; add `TWIN` only if the business uses an avatar service |
 | `script_dir` | | where the skill writes scripts; `cut` also looks for a script file name here |
 | `footage_dir` | | recordings, voice samples, B-roll (outside the vault and git) |
@@ -88,7 +88,7 @@ Two blocks in `profiles/<name>.yaml`. `${ENV}` is expanded everywhere, so `${OBS
 | `brand_label` | `studio.brand` in capitals | the small label on top of each card |
 | `logo` | a glowing dot | PNG or SVG next to the label |
 | `card_template` | `viral_scout/video/node/card.html` | your own card page; keep the placeholders and `window.CARD` |
-| `colors` | night blue + warm yellow | `bg`, `bg_deep`, `bg_light`, `accent`, `text`, `muted`, `caption`, `caption_outline` (hex) |
+| `colors` | night blue + warm yellow | `bg`, `bg_deep`, `bg_light`, `accent`, `text`, `muted`, `caption`, `caption_outline` (hex); optional `brand_label`: the label's color on the cards (default: `accent`) |
 | `fonts` | Segoe UI | `display`, `body`, `caption` (installed font names), `files` (`[{family, path, weight}]` loaded into the cards), `still_bold`, `still_regular` (.ttf for stills) |
 | `vocabulary` | none | caption fixes: `{regex: text}` (case-insensitive), or a list of words to keep as written |
 | `stat_units` | none | extra units that make a number a stat card (`kwh`, `homes?`) |
@@ -134,7 +134,7 @@ python -m viral_scout video <profile> cut <media> <script.md> [--section N] [--s
 python -m viral_scout video <profile> make <media> <script.md> ... [--music FILE]          cut + render
 python -m viral_scout video <profile> cards <job>                                           preview the card PNGs
 python -m viral_scout video <profile> render <job> [--music FILE]
-python -m viral_scout video <profile> transcribe <media> [--out FILE.txt]
+python -m viral_scout video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto]   default: video.language, else en; auto = WhisperX detects it
 python -m viral_scout video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--section N] [--cfg 0.5 0.3] [--exaggeration 0.6] [--seed 1]
 python -m viral_scout video <profile> film words <film> <voice.wav> <script.md> [--section N]
 python -m viral_scout video <profile> film check <film>
@@ -149,7 +149,9 @@ python -m viral_scout video <profile> still --top a.png --bottom b.png --top-tex
 1. `cut` writes `<output_dir>/<slug>/edit.json` and keeps the auto draft as `edit.draft.json`. Every script line should print ✓. A ✗ line is not in the recording.
 2. Read `dropped` in edit.json (also in report.md). With an AI voice nothing should be dropped.
 3. Edit the cards in edit.json: `visuals[].card` is `{kind: stat|headline|list|cta, kicker, big, small, items[], pill, source}`; `*word*` in `big` is highlighted. Or set `broll: <path>` instead of a card. `cover.big` is the cover text (≤ 4 words). Fix caption typos in `words[].w`, never the times.
-4. `cards` renders only the card PNGs to `work/cards/` for a look. `render` builds the master. A stat card with `source: "ADD SOURCE"` prints a warning and must not be posted.
+4. `cards` renders only the card PNGs to `work/cards/` for a look. `render` builds the master. A stat card with `source: "ADD SOURCE"` prints a warning and must not be posted. If `work/voice-48k.wav` was deleted, `render` extracts it again from `recording` in edit.json; when that file is gone too it stops with exit code 1 and names both paths.
+
+The auto draft reads a number spoken digit by digit as one number ("nine one one" → `911`, "one eight hundred" → `1-800`). The fallback cover (a hook without a number) is its first 4 words, minus a trailing function word ("the", "of", "to", "and").
 
 ### Script files
 
@@ -172,7 +174,7 @@ Scripts for an AI voice spell numbers out ("seventeenth", "nine one one"); Whisp
 
 A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REVIEW.md` (see the playbook §8 and HyperFrames' own skills in `viral_scout/video/node/node_modules/hyperframes/dist/skills/`).
 
-- `film words` transcribes the voice, aligns it to the script, writes `work-words.json` (`[{w, s, e, i}]`, `i` = script sentence, `w` exactly as in the script) and `voice-check.md`: missing sentences, extra speech (repeats like "two two"), and words longer than 0.8 s, which can hide a repeat the aligner merged. Exit code 1 when it finds any.
+- `film words` transcribes the voice, aligns it to the script, writes `work-words.json` (`[{w, s, e, i}]`, `i` = script sentence, `w` exactly as in the script) and `voice-check.md`: missing sentences, extra speech (repeats like "two two"), and words longer than 0.8 s, which can hide a repeat the aligner merged. Exit code 1 when it finds any. A first or last word of a sentence that Whisper heard as another word ("Do" as "so", "Save" as "Tape") is kept with the script's text and listed as `heard differently: so → Do`, not as extra speech; listen to those spots. Spelled numbers keep the script's words ("one eight hundred", not "1-800") with the heard word's time shared among them.
 - `film check` runs `hyperframes check` (lint, runtime, layout, contrast).
 - `film render` renders to `<film>/out/<name>-film.mp4` and reports loudness against about -14 LUFS and -1 dBTP.
 
@@ -186,21 +188,21 @@ Project repos don't copy the tool. They call it:
   $env:PYTHONIOENCODING = "utf-8"
   python -m viral_scout video <profile> make "D:\Videos\<project>\2026-11-15-rec.m4a" "<script.md>" --section 1
   ```
-  with the viral-scout repo as the working directory (`Push-Location D:epoiral-scout`). Exit codes: 0 done, 1 a step failed (message on stderr), 2 bad arguments or profile, 3 an optional tool is missing.
+  with the viral-scout repo as the working directory (`Push-Location "<path to viral-scout>"`). Exit codes: 0 done, 1 a step failed (message on stderr), 2 bad arguments or profile, 3 an optional tool is missing.
 - **Outputs** land in the profile's `output_dir`, never in the calling repo. Read `report.md` and `edit.json` there.
 
-## Migrating the solar repo from tools/video
+## Moving a repo from its own tools/video
 
-Not done yet. The steps, in order:
+A project repo that grew its own video scripts (a `tools/video` folder, per-repo video skills) can hand them over to this tool. The steps, in order:
 
-1. Add the `studio:` and `video:` blocks to `profiles/solar.yaml` (the example above; check the voice reference and font paths).
-2. Copy the Bricolage fonts and any logo from `tools/video/assets/` to `D:/Videos/bright-solar/brand/` (outside git) and point `video.fonts` at them. For the cards, add them to `video.fonts.files` and set `display`.
-3. Point viral-scout at the existing installs to avoid a second download: `VIRAL_SCOUT_VIDEO_PY`, `VIRAL_SCOUT_VOICE_PY` and `VIRAL_SCOUT_VIDEO_NODE_MODULES` in viral-scout's `.env` (paths above). Or run `scripts/setup-video.ps1 -All`.
-4. Run `python -m viral_scout video solar doctor`, then one old recording through `make` and compare the master with the old one (same takes, same `dropped`, same captions).
-5. Move the film folders (`tools/video/films/*`) to `video.films_dir` (they are brand content, so they stay out of this repo) and check one with `film check`.
-6. Replace the solar skills `video-script`, `video-edit`, `video-review`, `video-week`, `repurpose` and `compliance-check` with `/studio-video solar ...`. Move their solar-only text (State Shines rules, CityPower/StatePower, the CTA keyword, carousel and blog paths) into the note named by `studio.instructions` and the compliance note.
-7. Update the unattended film job (`site/scripts/jobs/film.md`) to call `python -m viral_scout video solar film ...` instead of `tools/video` paths.
-8. Once a week of videos has gone through the new path, delete `tools/video` from the solar repo (keep the films, moved in step 5).
+1. Add the `studio:` and `video:` blocks to `profiles/<profile>.yaml` (the example above). Check the voice reference, font and logo paths.
+2. Copy the brand files (fonts, logo) from `tools/video/assets/` to a folder outside git, e.g. `D:/Videos/<project>/brand/`, and point `video.fonts` and `video.logo` at them. For the cards, add the fonts to `video.fonts.files` and set `display`.
+3. Reuse the existing installs instead of downloading them again: `VIRAL_SCOUT_VIDEO_PY`, `VIRAL_SCOUT_VOICE_PY` and `VIRAL_SCOUT_VIDEO_NODE_MODULES` in viral-scout's `.env` (see [Install](#install)). Or run `scripts/setup-video.ps1 -All`. Then `python -m viral_scout video <profile> doctor`.
+4. **Acceptance test: re-render something the old tool made.** Run one old recording through `make` (and one old film through `film words`) and compare with the old output: the same takes, the same `dropped`, the same caption words and times in `edit.json` / `work-words.json`. Captions identical to the old tool's are the bar; any difference is either a bug here or a fix you can name. Don't move on until it passes.
+5. Point `video.films_dir` at the film folders, or move them there (they are brand content, so they stay out of this repo), and run `film check` on one.
+6. Replace the repo's video skills (script, edit, review, week plan, repurpose, compliance) with `/studio-video <profile> ...` triggers. Move their business-only text (program rules, vocabulary, the CTA keyword, carousel and blog paths) into the note named by `studio.instructions`, the compliance note and `video.vocabulary`.
+7. Update any unattended job that called `tools/video` to call `python -m viral_scout video <profile> ...`.
+8. Once a week of videos has gone through the new path, delete `tools/video` from that repo (keep the films and recordings).
 
 ## Limits
 

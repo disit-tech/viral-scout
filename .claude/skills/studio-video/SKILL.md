@@ -112,7 +112,7 @@ Follow the method in the playbook §8 and the HyperFrames skills in `viral_scout
 1. Script as above, mode FILM; compliance PASS.
 2. Voice: the owner's memo, or `voice` above.
 3. Film folder `<video.films_dir>/<slug>/` with `SPEC.md`: GOAL · OUTPUT · TIME · STORY · LOOK (the profile's colors and fonts) · OBJECTS · MOTION · SHOTS (second by second, keyed to words) · SOUND · BANNED · QA frames.
-4. `python -m viral_scout video <profile> film words <slug> <voice.wav> <script.md> --section N`: writes `work-words.json` (the voice is the clock) and `voice-check.md`. Missing or extra speech, or a word over 0.8 s (a hidden repeat), → regenerate that line or mute it, then run `words` again.
+4. `python -m viral_scout video <profile> film words <slug> <voice.wav> <script.md> --section N`: writes `work-words.json` (the voice is the clock) and `voice-check.md`. Missing or extra speech, or a word over 0.8 s (a hidden repeat), → regenerate that line or mute it, then run `words` again. A `heard differently: so → Do` line is Whisper mishearing the first or last word of a sentence: the script's word is kept, just listen to that spot.
 5. Build `index.html` + `compositions/`; captions from `work-words.json` on dark plates, out of the bottom 20%.
 6. `video <profile> film check <slug>` until 0 errors. Snapshots at the SPEC's QA frames; review like a viewer, 2+ rounds, each written in `REVIEW.md` (nothing still for > 2 s, empty thirds, unreadable text, captions over the action, a number without a source tag, an ending that isn't the CTA).
 7. `video <profile> film render <slug>`: it reports loudness against about -14 LUFS / -1 dBTP. Transcribe the final audio once more (`film words` on the master) to confirm it says exactly the script.
