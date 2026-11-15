@@ -281,13 +281,16 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
             </ul>
           </Panel>
         )}
-        {data.coverage.length > 0 && (
-          <Panel title="Coverage">
-            <ul className="list-disc space-y-1.5 pl-5">{data.coverage.map((c) => <li key={c}>{c}</li>)}</ul>
-          </Panel>
-        )}
-        <Panel title="Skipped sources">
-          {data.skipped.length ? <ul className="list-disc space-y-1.5 pl-5">{data.skipped.map((s) => <li key={s}>{s}</li>)}</ul> : <p>Everything ran.</p>}
+        <Panel title="This ads run">
+          <p>
+            {num(data.ads.length)} ads from {data.coverage.length} ad librar{data.coverage.length === 1 ? "y" : "ies"} ·{" "}
+            {data.skipped.length ? `${data.skipped.length} skipped` : "nothing skipped"} ·{" "}
+            <span className={data.errors.length ? "text-mega" : ""}>{data.errors.length} error{data.errors.length === 1 ? "" : "s"}</span>
+          </p>
+          {data.budget?.map((b) => <p key={b} className="mt-2 text-viral">⚠️ {b}</p>)}
+          <p className="mt-2 text-xs">
+            <Link href={`/p/${profile}/runs#run-ads`} className="text-rise hover:underline">What it read, what it skipped and why, and what it used →</Link>
+          </p>
         </Panel>
         {data.lookup.length > 0 && (
           <Panel title="Look them up yourself">
@@ -301,15 +304,6 @@ export default function AdsBoard({ data, profile = "ads" }: { data: AdsData; pro
                 </li>
               ))}
             </ul>
-          </Panel>
-        )}
-        {(data.errors.length > 0 || (data.usage && Object.keys(data.usage).length > 0)) && (
-          <Panel title="Usage and errors">
-            {data.usage && <p className="text-xs">{Object.entries(data.usage).map(([k, v]) => `${k.replace(/_/g, " ")}: ${num(v)}`).join(" · ") || "Nothing counted."}</p>}
-            {data.budget?.map((b) => <p key={b} className="mt-2 text-viral">⚠️ {b}</p>)}
-            {data.errors.length > 0 && (
-              <ul className="mt-2 max-h-48 space-y-1 overflow-auto font-mono text-[11px]">{data.errors.slice(0, 30).map((e, i) => <li key={i} className="break-all">{e}</li>)}</ul>
-            )}
           </Panel>
         )}
       </div>
@@ -336,6 +330,7 @@ function AdvertiserTable({ ads, selected, bursts, onSelect, onHide }: {
   const [asc, setAsc] = useState(false);
   const [q, setQ] = useState("");
   const [all, setAll] = useState(false);
+  const [open, setOpen] = useState(false);
   const rows = useMemo(() => {
     const m = new Map<string, AdItem[]>();
     ads.forEach((a) => { const k = a.advertiser || "Unknown advertiser"; m.set(k, [...(m.get(k) ?? []), a]); });
@@ -368,12 +363,16 @@ function AdvertiserTable({ ads, selected, bursts, onSelect, onHide }: {
   );
   return (
     <section className="rounded-2xl border border-line bg-panel">
-      <div className="flex flex-wrap items-center gap-2 px-3 pt-3">
-        <h2 className="font-semibold">Advertisers <span className="font-normal text-muted">({rows.length}, following the filters)</span></h2>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find advertiser…"
-          className="ml-auto w-48 rounded-lg border border-line bg-panel-2 px-2.5 py-1 text-sm outline-none focus:border-accent" />
+      <div className="flex flex-wrap items-center gap-2 px-3 py-3">
+        <button onClick={() => setOpen(!open)} className="font-semibold hover:text-accent">
+          {open ? "▾" : "▸"} Advertisers <span className="font-normal text-muted">({rows.length}, following the filters)</span>
+        </button>
+        {selected !== "all" && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">{selected}</span>}
+        {open && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find advertiser…"
+          className="ml-auto w-48 rounded-lg border border-line bg-panel-2 px-2.5 py-1 text-sm outline-none focus:border-accent" />}
       </div>
-      <div className="mt-2 max-h-[28rem] overflow-auto">
+      {open && (<>
+      <div className="max-h-[28rem] overflow-auto">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="sticky top-0 bg-panel-2 text-left text-xs uppercase tracking-wide text-muted">
             <tr>
@@ -410,6 +409,7 @@ function AdvertiserTable({ ads, selected, bursts, onSelect, onHide }: {
           {all ? "Show top 15" : `Show all ${shown.length} advertisers`}
         </button>
       )}
+      </>)}
     </section>
   );
 }

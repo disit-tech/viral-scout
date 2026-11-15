@@ -3,6 +3,22 @@ import { localOnly, runCli } from "@/lib/cli";
 
 export const dynamic = "force-dynamic";
 
+/** Local only. GET ?profile= → the editable fields and their base hash (python -m viral_scout profile <name> get). */
+export async function GET(req: NextRequest) {
+  const deny = localOnly(req);
+  if (deny) return deny;
+  const profile = req.nextUrl.searchParams.get("profile") ?? "";
+  if (!/^[\w.-]+$/.test(profile)) return NextResponse.json({ ok: false, error: "bad request" }, { status: 400 });
+  const r = await runCli(["profile", profile, "get"]);
+  try {
+    const data = JSON.parse(r.output.split("\n").filter((l) => l.startsWith("{")).pop() ?? "{}");
+    if (data.error || r.code !== 0) return NextResponse.json({ ok: false, error: data.error ?? r.output.slice(-300) }, { status: 400 });
+    return NextResponse.json({ ok: true, ...data });
+  } catch {
+    return NextResponse.json({ ok: false, error: r.output.slice(-300) }, { status: 500 });
+  }
+}
+
 /** Local only. POST {profile, base, set: {path: value}} → profiles/<name>.yaml edited in place (comments kept), then export. */
 export async function POST(req: NextRequest) {
   const deny = localOnly(req);

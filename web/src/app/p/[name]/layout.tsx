@@ -22,6 +22,7 @@ export default async function BusinessLayout({ children, params }: { children: R
       <BusinessNav name={name} counts={{
         videos: entry ? num(entry.posts) : undefined,
         ads: entry?.ads ? num(entry.ads) : undefined,
+        swipe: entry?.saved ? num(entry.saved) : undefined,
       }} />
       {children}
     </div>
