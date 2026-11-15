@@ -167,7 +167,7 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 #   footage_dir: D:/Videos/mybusiness   # recordings, voice samples, B-roll (outside the vault and git)
 #   output_dir: D:/Videos/mybusiness/out        # default: <footage_dir>/out
 #   films_dir: D:/Videos/mybusiness/films       # HyperFrames film folders; default: <footage_dir>/films
-#   music_dir: D:/Videos/mybusiness/music       # commercial-library tracks only
+#   music_dir: D:/Videos/mybusiness/music       # the owner's own licensed tracks only (--music, off by default)
 #   voice: {reference: D:/Videos/mybusiness/voice/ref.wav, cfg: 0.5, exaggeration: 0.5}   # 8-12 s of the owner's clean speech
 #   brand_label: "MY BUSINESS"          # label on top of each card; default: studio.brand in capitals
 #   logo: D:/Videos/mybusiness/brand/logo.png

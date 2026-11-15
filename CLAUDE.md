@@ -7,6 +7,7 @@ Python tool that finds viral posts on a topic per business profile. See README.m
 - New platform = a module in `viral_scout/sources/` returning `Item`s; wire it into `run.scout`. Keep optional sources optional: no key → add a line to `skipped`, never fail the run.
 - Legitimate access only: yt-dlp on public pages, official APIs (YouTube Data API, Instagram Graph), or Apify. No private APIs, header spoofing or hidden logins.
 - `.env`, `data/`, `reports/` are git-ignored. Keys never go in profiles.
+- The video tools may run on a business's existing installs (`VIRAL_SCOUT_VIDEO_PY`, `VIRAL_SCOUT_VOICE_PY`, `VIRAL_SCOUT_VIDEO_NODE_MODULES` in `.env`; docs/video.md#install). Never delete or move a folder those env vars point at, in any repo: every video command and the film job stop. Remove the env var first, once this repo's own installs pass `video doctor`.
 
 ## Deployments (Vercel): read before any deploy, link or delete
 

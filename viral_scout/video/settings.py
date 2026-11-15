@@ -18,7 +18,7 @@ DEFAULTS = {
     "footage_dir": "",                # raw recordings, voice samples, B-roll (outside the vault and git)
     "output_dir": "",                 # default: <footage_dir>/out, else data/video/<profile>
     "films_dir": "",                  # HyperFrames film folders; default: <footage_dir>/films
-    "music_dir": "",                  # commercial-library tracks only
+    "music_dir": "",                  # the owner's own licensed tracks (--music, off by default)
     "whisper_model": "",              # default: large-v3 on GPU, small(.en) on CPU
     "voice": {"reference": "", "cfg": 0.5, "exaggeration": 0.5, "seed": 1, "pause": 0.25},
     "brand_label": "",                # small label on top of every card; default: studio.brand in capitals

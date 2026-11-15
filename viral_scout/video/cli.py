@@ -50,7 +50,7 @@ def _parser() -> argparse.ArgumentParser:
         c.add_argument("--slug")
         c.add_argument("--out", help="output base folder (default video.output_dir)")
         if name == "make":
-            c.add_argument("--music", help="commercial-library music file, mixed −20 dB under the voice")
+            c.add_argument("--music", help="off by default: only a track the owner made or licensed (platform-library music is added in the app), mixed −20 dB under the voice")
     c = sub.add_parser("cards")
     c.add_argument("job")
     r = sub.add_parser("render")

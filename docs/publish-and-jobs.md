@@ -88,6 +88,8 @@ The API publisher is `viral_scout/publish/node/publish.mjs` (plain `fetch`, no d
 5. `claude -p` with the prompt on stdin, `--permission-mode acceptEdits`, the job's `--allowedTools`, `--add-dir <vault>`. Output goes to `data/logs/studio/<profile>-<job>-<date>.log`.
 6. Exit 0 → `data/jobs/<profile>/<job>-<date>.done`. The film job is the exception: Claude writes the marker itself as the last step, only when a film was delivered. A run that broke halfway is retried next hour.
 
+A job can only use the tools on its list. A step that needs another tool fails quietly, and only the log shows it. After the first run of each job, search its log for refused tools and add the ones it really needs to `jobs.allowed_tools`. The film job copies binary assets (fonts, sound effects) with `video <profile> film new <slug> --from <reference>`, which is on its list already, so it needs no copy command.
+
 The prompt is the header (unattended rules, paths, CTA, compliance note), the core prompt `viral_scout/jobs/prompts/<job>.md` (generic), the profile's `studio.instructions` note and `jobs.instructions.<job>`, and the footer (the "never" list). Business specifics belong in the instructions note: the reference film, voice, sources, what never to show, which repo to commit to.
 
 ## Notes API
@@ -101,7 +103,7 @@ The prompt is the header (unattended rules, paths, CTA, compliance note), the co
 | `PATCH /api/notes {id, project, status: done\|skipped\|open, result, reply}` | closes or answers a note in its thread |
 | `POST /api/notes` multipart `file`, `caption`, `project`, `reply_to` | `{message_id}` |
 
-Until the service has these endpoints, set `jobs.notes_command` to a CLI with the same verbs (solar: `node D:/repo/solar-site/site/scripts/notes.mjs`).
+The service has these endpoints. `jobs.notes_command` is only for a business that keeps its own notes CLI with the same verbs.
 
 ## Install the schedule
 
@@ -135,14 +137,17 @@ pwsh -NoProfile -File scripts/tasks.ps1 studio-sync -Profile myhomes        # re
 
 The section **Older idea and content tasks** lists tasks the business sites registered before the move (any task that runs an `ideas-daily.ps1` or a site's `scripts/jobs/run.ps1`): pause, turn on, run now, stop or remove, not reschedule. Once a business's idea generator is set up here, pause or remove its older task so ideas aren't made twice.
 
-## Moving solar's jobs here (steps)
+## Moving a business's own jobs here (steps)
 
-1. Write `profiles/mysolar.yaml` blocks: `studio:` (vault `projects/mysolar`, CTA solar.example.com/checklist), `publish:` (the four slots, handles, `env_file: D:/repo/solar-site/site/.env.local`, `morning_pack` with `delivery: telegram`, `token_env: TELEGRAM_IDEAS_BOT_TOKEN`), `jobs:` (owner Alex, language Ukrainian, `cwd: D:/repo/solar-site`, `notes_command` as above, `api.project: solar`).
-2. Move the solar-only parts of `site/scripts/jobs/{film,script,notes,blog}.md` into the vault note `05 Marketing/studio-instructions.md`: the reference film `tools/video/films/nov17-grid-truth/`, the voice command and `refB.wav`, the official sources, the never-show list, the blog's one allowed website change, commit and push rules.
+Done once for the solar example below; the same steps fit any business whose site repo runs its own jobs.
+
+1. Write `profiles/mysolar.yaml` blocks: `studio:` (vault `projects/mysolar`, CTA solar.example.com/checklist), `publish:` (the four slots, handles, `env_file: D:/repo/solar-site/site/.env.local`, `morning_pack` with `delivery: telegram`, `token_env: TELEGRAM_IDEAS_BOT_TOKEN`), `jobs:` (owner Alex, language Ukrainian, `cwd: D:/repo/solar-site`, `api.project: solar`).
+2. Move the business-only parts of the old job prompts (for example `site/scripts/jobs/{film,script,notes,blog}.md`) into the vault note `05 Marketing/studio-instructions.md`: the reference film `tools/video/films/nov17-grid-truth/`, the voice command and `refB.wav`, the official sources, the never-show list, the blog's one allowed website change, commit and push rules.
 3. Add the film tools to `jobs.allowed_tools.film` (npx hyperframes, ffmpeg, the voice venv, git add/commit/push in that repo).
 4. Compare `jobs mysolar prompt film` with the old `film.md`. Then do one watched run: `jobs mysolar run film --force`.
-5. The owner removes the old tasks (`site/scripts/jobs/schedule.ps1 -Remove`) and runs `schedule-studio.ps1 -Profile mysolar`.
-6. Keep `post-today.mjs` until a `publish mysolar today --dry-run` matches its `--dry` output for a queued day.
+5. The owner removes the old tasks (with the old runner's own remove command) and runs `schedule-studio.ps1 -Profile mysolar`.
+6. Keep the old morning-pack script until a `publish mysolar today --dry-run` matches its dry-run output for a queued day.
+7. Before deleting the old runner, prompts and pack script, note the last commit that has them: restoring that commit and re-registering the old tasks is the rollback.
 
 ## What was moved from solar, and what was not
 

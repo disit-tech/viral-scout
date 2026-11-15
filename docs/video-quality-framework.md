@@ -78,12 +78,26 @@ All the performance KPIs (attention, retention, engagement, traffic, conversion 
 3. Make several variations: different hooks, angles, demos, offers, CTAs.
 4. Compare fairly: the same audience, placement and period.
 5. Read early signals (hook rate, retention, CTR, engagement), then the final outcome (qualified leads, sales, CPA, profit).
-6. Read the retention curve: what's on screen where people leave?
+6. Read the retention curve: what's on screen where people leave, and which shape it has ([performance.md, Curve shapes](performance.md#curve-shapes))? Rises show what people rewound for.
 7. Watch for creative fatigue as frequency rises.
 8. Change the weakest part that matters, allowing for sample size.
 9. Scale only validated winners, not views or cheap clicks.
 
 Don't compare a 7-second entertainment clip with a 45-second sales video on completion rate.
+
+### One metric per format
+
+Judge each video first by the metric its format is made for, against videos of the same format. Defaults (a business can set others in its instructions note):
+
+| Format | Primary metric | Secondary |
+|---|---|---|
+| Talking-head tip | avg % viewed | shares |
+| List or checklist | saves | shares |
+| Story | follows and profile visits | comments |
+| How-to or breakdown | retention to the payoff | saves |
+| Comparison or before/after | comment-keyword replies and leads | link clicks |
+
+A hook type is judged after 3 posts, not 1.
 
 ## What's easy to forget
 

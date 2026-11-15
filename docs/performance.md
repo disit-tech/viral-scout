@@ -139,7 +139,7 @@ All rates are percentages. Every value in the JSON carries its numerator, denomi
 | Completion rate | completed (100%) views ÷ starts × 100 | plays started | |
 | ThruPlay rate | ThruPlays ÷ impressions × 100 | impressions | Meta |
 | Retention curve | % of the starting audience still watching at each point | | YouTube audienceWatchRatio; else built from the quartile counts (+ the 3-s point when the length is known) |
-| Rewatch / loop | peak audience watch ratio − 100% | starting audience | only YouTube shows it (curve above 100%) |
+| Rewatch / loop | peak audience watch ratio − 100% | starting audience | only YouTube shows it (curve above 100%); note what was on screen at each rise |
 | Drop-off points | the largest falls between neighbouring curve points (resampled to every 10%) | | shown in seconds when the length is known |
 
 ### C. Engagement
@@ -223,6 +223,21 @@ Benchmarks are **your account's medians**: same kind (organic or paid), same pla
 | Creative fatigue | frequency up ≥15% while CTR down ≥20% (last third vs first third of ≥6 daily rows, or ≥3 snapshots) | refresh the hook and first frame, widen the audience, rotate a new variation in |
 
 The **biggest problem** is the finding with the highest weight × severity. Weights follow the priorities below, so a paid sales ad with a weak hook but a fine CPA isn't flagged first for its hook. Every diagnosis also lists caveats: attribution, "4× ROAS isn't profit" with your break-even ROAS, like-for-like length, hook proxies, small samples (<1,000 impressions or views).
+
+### Curve shapes
+
+The drop-off points say where people left. The shape of the whole retention curve says which part of the video failed. The tool doesn't label shapes yet: read them by eye from the curve (or the drop-off points) and change one thing per re-cut.
+
+| Shape | What it looks like | Points at | Fix |
+|---|---|---|---|
+| Early cliff | a hard fall in the first 1–3 s | the hook | re-cut only the opening: headline on screen at frame 0, start on the problem or the payoff, no intro |
+| Early slide | keeps falling through the first quarter while a core stays | a hook that is too broad | name who it's for and what they get in the first line |
+| Single dip | flat, with one sharp fall in the middle | one bad moment (a repeat, a detour, a slow line) | cut or move that moment |
+| Slow slide | a steady fall through the middle | the body: too slow, too generic, or the question got weaker | cut the middle; a new fact, example or re-hook every few seconds |
+| Late drop | holds, then the biggest fall is in the last 20%, before or at the CTA | the payoff | is the payoff there, does it answer the hook, does the CTA start too early or sound like an ad; make the ask the last useful line |
+| Healthy | flat or a gentle fall to the end | nothing | keep it: reuse the structure on the next topic |
+
+**Rises are findings too.** A bump means people rewound (YouTube shows it as a curve above 100%, see Rewatch / loop). Write down what was on screen there and repeat it.
 
 ### The 5 tests
 

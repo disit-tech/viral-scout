@@ -55,7 +55,9 @@ VIRAL_SCOUT_VOICE_PY=D:/repo/<your-site>/tools/video/.venv-clone/Scripts/python.
 VIRAL_SCOUT_VIDEO_NODE_MODULES=D:/repo/<your-site>/tools/video/node_modules
 ```
 
-These can go in `.env`. `python -m viral_scout video doctor` lists what is installed (`--deep` also reports CUDA). A command that needs a missing tool exits with code 3 and says how to install it.
+These can go in `.env`. While they point at a business's install, that install is what every video command and the film job run on: don't delete or move those folders (the venvs, `node_modules`, fonts, films) until `setup-video.ps1 -All` has run here and `video doctor` passes without the env vars. HyperFrames' own Claude skills then come from `$VIRAL_SCOUT_VIDEO_NODE_MODULES/hyperframes/dist/skills/`, not from `viral_scout/video/node/node_modules/`.
+
+`python -m viral_scout video doctor` lists what is installed (`--deep` also reports CUDA). A command that needs a missing tool exits with code 3 and says how to install it.
 
 ## Profile blocks
 
@@ -82,7 +84,7 @@ Two blocks in `profiles/<name>.yaml`. `${ENV}` is expanded everywhere, so `${OBS
 | `footage_dir` | | recordings, voice samples, B-roll (outside the vault and git) |
 | `output_dir` | `<footage_dir>/out`, else `data/video/<profile>` | one folder per video (`<slug>/`) |
 | `films_dir` | `<footage_dir>/films` | HyperFrames film folders; `film` commands take a name from here |
-| `music_dir` | | commercial-library tracks; `--music` takes a file name from here |
+| `music_dir` | | the owner's own licensed tracks; `--music` takes a file name from here (see [Music](#music)) |
 | `whisper_model` | large-v3 on GPU, small on CPU | |
 | `voice` | `{reference, cfg: 0.5, exaggeration: 0.5, seed: 1, pause: 0.25}` | the owner's 8-12 s reference wav and the Chatterbox knobs |
 | `brand_label` | `studio.brand` in capitals | the small label on top of each card |
@@ -136,11 +138,16 @@ python -m viral_scout video <profile> cards <job>                               
 python -m viral_scout video <profile> render <job> [--music FILE]
 python -m viral_scout video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto]   default: video.language, else en; auto = WhisperX detects it
 python -m viral_scout video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--section N] [--cfg 0.5 0.3] [--exaggeration 0.6] [--seed 1]
+python -m viral_scout video <profile> film new <name> --from <reference film>
 python -m viral_scout video <profile> film words <film> <voice.wav> <script.md> [--section N]
 python -m viral_scout video <profile> film check <film>
 python -m viral_scout video <profile> film render <film> [--out FILE] [--quality delivery]
 python -m viral_scout video <profile> still --top a.png --bottom b.png --top-text "DON'T ..." --bottom-text "DO ..." --out still.png [--source "Source: CDC"]
 ```
+
+### Music
+
+No music in the master. Music from a platform's library is added by the owner in the app when posting, where the license covers it. The one exception is `--music`, which is off by default: only for a track the owner made or licensed for this use (mixed −20 dB under the voice), never a download from the web or another creator's post.
 
 `<job>` is a folder in `output_dir` (or any path). `<film>` is a folder in `films_dir` (or any path). `<profile>` can also be a path to a YAML file.
 
@@ -172,11 +179,13 @@ Scripts for an AI voice spell numbers out ("seventeenth", "nine one one"); Whisp
 
 ### Films
 
-A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REVIEW.md` (see the playbook §8 and HyperFrames' own skills in `viral_scout/video/node/node_modules/hyperframes/dist/skills/`).
+A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REVIEW.md` (see the playbook §8 and HyperFrames' own skills in `<node_modules>/hyperframes/dist/skills/`, where `<node_modules>` is `$VIRAL_SCOUT_VIDEO_NODE_MODULES` when set, else `viral_scout/video/node/node_modules`).
+
+- `film new <name> --from <reference>` starts a film from a reference film: it copies the folder into `films_dir/<name>` (or to a path) with its code, fonts, sound effects and their credits, and leaves out `out/`, `work/`, `.hyperframes/`, `assets/voice/` contents, `work-words.json`, `voice-check.md`, `REVIEW.md`, `POST.md` and `still.png`. An existing folder is never overwritten. This is how an unattended job gets binary assets it can't write itself.
 
 - `film words` transcribes the voice, aligns it to the script, writes `work-words.json` (`[{w, s, e, i}]`, `i` = script sentence, `w` exactly as in the script) and `voice-check.md`: missing sentences, extra speech (repeats like "two two"), and words longer than 0.8 s, which can hide a repeat the aligner merged. Exit code 1 when it finds any. A first or last word of a sentence that Whisper heard as another word ("Do" as "so", "Save" as "Tape") is kept with the script's text and listed as `heard differently: so → Do`, not as extra speech; listen to those spots. Spelled numbers keep the script's words ("one eight hundred", not "1-800") with the heard word's time shared among them.
 - `film check` runs `hyperframes check` (lint, runtime, layout, contrast).
-- `film render` renders to `<film>/out/<name>-film.mp4` and reports loudness against about -14 LUFS and -1 dBTP.
+- `film render` renders to `<film>/out/<name>-film.mp4` and reports loudness against about -14 LUFS and -1 dBTP. It changes nothing. A ⚠ line → change the voice and sound effect levels in the composition and render again; as a last resort normalize the audio only (`ffmpeg -i in.mp4 -c:v copy -af loudnorm=I=-14:TP=-1:LRA=11 out.mp4`) and run `check` again.
 
 ## Triggering it from another repo
 
@@ -202,7 +211,7 @@ A project repo that grew its own video scripts (a `tools/video` folder, per-repo
 5. Point `video.films_dir` at the film folders, or move them there (they are brand content, so they stay out of this repo), and run `film check` on one.
 6. Replace the repo's video skills (script, edit, review, week plan, repurpose, compliance) with `/studio-video <profile> ...` triggers. Move their business-only text (program rules, vocabulary, the CTA keyword, carousel and blog paths) into the note named by `studio.instructions`, the compliance note and `video.vocabulary`.
 7. Update any unattended job that called `tools/video` to call `python -m viral_scout video <profile> ...`.
-8. Once a week of videos has gone through the new path, delete `tools/video` from that repo (keep the films and recordings).
+8. Once a week of videos has gone through the new path, delete `tools/video` from that repo (keep the films and recordings). Folders the `VIRAL_SCOUT_*` env vars still point at stay until this repo has its own installs and `video doctor` passes without the env vars.
 
 ## Limits
 
