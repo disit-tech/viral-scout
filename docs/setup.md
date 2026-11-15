@@ -125,6 +125,7 @@ scripts/schedule.ps1 -Profiles northForge -Day Daily     # daily instead (-Day M
 scripts/schedule.ps1 -Remove     # remove them all
 Disable-ScheduledTask -TaskName "viral-scout northForge"  # pause one (Enable-ScheduledTask to resume)
 ```
+Or manage them one by one on the local dashboard's **Schedule** page (`/schedule`): pause, resume, change day and time, run now, add or remove. It calls `scripts/tasks.ps1`, which you can also run directly.
 Keep `-Day` on the ads day of `run-daily.ps1` (`-AdsDay`, Monday), so each weekly run includes the ads snapshot.
 Or by hand:
 `scripts/run-daily.ps1 -Profile <name> [-Analyze]` writes logs to `data/logs/<profile>-<date>.log`. `-Analyze` then runs the `/viral-scout` skill headless through the Claude Code CLI (on your subscription) to write the ideas note.
