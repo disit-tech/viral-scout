@@ -1,9 +1,11 @@
 # Manage the viral-scout tasks in Windows Task Scheduler, one at a time. Backend of the dashboard's Schedule page;
 # scripts/schedule.ps1 is still the one-shot "register them all" command. Only touches tasks named "viral-scout *".
 #   tasks.ps1 list                                     JSON: every viral-scout task, its trigger, state, last result, log tail
-#   tasks.ps1 enable|disable|run|stop|remove -Name "viral-scout northForge"
-#   tasks.ps1 set -Name "viral-scout northForge" -Day Monday -Time 07:30 [-Analyze 1|0]
-#   tasks.ps1 add -Profile northForge -Day Monday -Time 07:30 [-Analyze 1]     (-Profile publish = the export+deploy task)
+#   tasks.ps1 enable|disable|run|stop|remove -Name "viral-scout myhomes"
+#   tasks.ps1 set -Name "viral-scout myhomes" -Day Monday -Time 07:30 [-Analyze 1|0]
+#   tasks.ps1 add -Profile myhomes -Day Monday -Time 07:30 [-Analyze 1]     (-Profile publish = the export+deploy task)
+# Studio jobs ("viral-scout <profile>.<job>", scripts/studio.ps1) are listed too and can be paused, run, stopped or removed;
+# their schedule comes from the profile, so "set" refuses them (change the profile, re-run scripts/schedule-studio.ps1).
 param(
   [Parameter(Position = 0, Mandatory = $true)]
   [ValidateSet("list", "enable", "disable", "run", "stop", "set", "add", "remove")]
@@ -51,7 +53,8 @@ function Describe($t) {
   $info = $t | Get-ScheduledTaskInfo
   $args = ($t.Actions | Select-Object -First 1).Arguments
   $profile = if ($args -match '-Profile\s+([\w.-]+)') { $Matches[1] } else { $null }
-  $kind = if ($args -match 'publish\.ps1') { "publish" } elseif ($profile) { "profile" } else { "other" }
+  $job = if ($args -match '-Job\s+(\w+)') { $Matches[1] } else { $null }
+  $kind = if ($args -match 'studio\.ps1') { "studio" } elseif ($args -match 'publish\.ps1') { "publish" } elseif ($profile) { "profile" } else { "other" }
   $trig = $t.Triggers | Select-Object -First 1
   $day = $null; $time = $null
   if ($trig) {
@@ -63,13 +66,18 @@ function Describe($t) {
     } else { $day = $cls -replace '^MSFT_Task|Trigger$', '' }
   }
   $logTail = @(); $logFile = $null
-  if ($profile) {
+  $repeat = if ($trig -and $trig.Repetition -and $trig.Repetition.Interval) { "$($trig.Repetition.Interval)" } else { $null }
+  if ($kind -eq "studio") {
+    $f = Get-ChildItem (Join-Path $repo "data\logs\studio") -Filter "$profile-$job-*.log" -ErrorAction SilentlyContinue |
+      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($f) { $logFile = "studio/$($f.Name)"; $logTail = [string[]]@(Get-Content $f.FullName -Tail 40 -Encoding utf8 | ForEach-Object { "$_" }) }
+  } elseif ($profile) {
     $f = Get-ChildItem (Join-Path $repo "data\logs") -Filter "$profile-*.log" -ErrorAction SilentlyContinue |
       Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($f) { $logFile = $f.Name; $logTail = [string[]]@(Get-Content $f.FullName -Tail 40 -Encoding utf8 | ForEach-Object { "$_" }) }
   }
   [ordered]@{
-    name = $t.TaskName; kind = $kind; profile = $profile; state = "$($t.State)"
+    name = $t.TaskName; kind = $kind; profile = $profile; job = $job; repeat = $repeat; what = $t.Description; state = "$($t.State)"
     day = $day; time = $time; analyze = [bool]($args -match '-Analyze')
     next_run = Iso $info.NextRunTime; last_run = Iso $info.LastRunTime; last_result = $info.LastTaskResult
     wake = [bool]$t.Settings.WakeToRun; log_file = $logFile; log_tail = $logTail
@@ -92,6 +100,7 @@ switch ($Command) {
   "set" {
     $t = Get-Ours $Name
     $cur = Describe $t
+    if ($cur.kind -eq "studio") { Fail "studio tasks follow the profile: change jobs: in profiles/$($cur.profile).yaml, then run scripts/schedule-studio.ps1 -Profile $($cur.profile)" }
     $d = if ($Day) { $Day } else { $cur.day }
     $tm = if ($Time) { $Time } else { $cur.time }
     if ($d -notin @("Daily") + $days) { Fail "pick one day or Daily (task has '$d')" }

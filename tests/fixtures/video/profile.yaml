@@ -1,0 +1,24 @@
+# Test fixture: a solar-style business with the studio: and video: blocks (no real brand, no real paths).
+name: example-solar-video
+business: "Example Solar Co: backup power explainers for homeowners."
+studio:
+  brand: "Example Solar Co"
+  vault_dir: ${OBSIDIAN_VAULT}/projects/example-solar
+  instructions: ${OBSIDIAN_VAULT}/projects/example-solar/05 Marketing/studio-instructions.md
+  compliance: ${OBSIDIAN_VAULT}/projects/example-solar/07 Jurisdiction/compliance-checklist.md
+  cta: {text: "Free Backup Check", link: "https://example.com/links"}
+video:
+  owner: Alex
+  language: en
+  modes: [REAL, VOICE+CARDS, FILM]
+  script_dir: .
+  footage_dir: ${VIRAL_SCOUT_TEST_FOOTAGE}
+  colors: {bg: "#0b1124", bg_deep: "#070b16", bg_light: "#121a33", accent: "#ffc45c", text: "#fbfaf7", muted: "#9aa3c0"}
+  fonts: {display: "Segoe UI Black", body: "Segoe UI", caption: "Arial"}
+  voice: {reference: voice/ref.wav, cfg: 0.4}
+  vocabulary:
+    '\bcity ?power\b': CityPower
+    '\bstate ?power\b': StatePower
+    '\bkwh\b|\bk w h\b': kWh
+  stat_units: [kwh, kw, "homes?", "outages?"]
+  cta_card: {pill: "Link in bio"}

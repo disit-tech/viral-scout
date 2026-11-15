@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>card</title>
+<style>
+  /* Video card, 1080 × 1920. Content lives in the top ~60%: captions sit at y≈1200–1340, platform buttons cover the
+     bottom 20%. Double-brace placeholders are filled from the profile's video: block by viral_scout/video/cards.py.
+     A profile can point video.card_template at its own copy of this file (keep the placeholders and window.CARD). */
+  {{font_faces}}
+  :root { --bg-deep:{{bg_deep}}; --bg:{{bg}}; --bg-light:{{bg_light}}; --accent:{{accent}}; --accent-rgb:{{accent_rgb}};
+          --text:{{text}}; --muted:{{muted}}; --font-display:{{font_display}}; --font-body:{{font_body}}; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; }
+  body { font-family: var(--font-body), Arial, sans-serif; color: var(--text); overflow: hidden;
+         background: radial-gradient(120% 60% at 50% 18%, var(--bg-light) 0%, var(--bg) 45%, var(--bg-deep) 100%); }
+  .glow { position: absolute; width: 900px; height: 900px; left: 90px; top: 140px; border-radius: 50%;
+          background: radial-gradient(circle, rgba(var(--accent-rgb),.16) 0%, rgba(var(--accent-rgb),0) 65%); }
+  .brand { position: absolute; top: 120px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 16px;
+           font-weight: 800; letter-spacing: .32em; font-size: 30px; color: var(--accent); opacity: .85; }
+  .brand .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
+                box-shadow: 0 0 22px 6px rgba(var(--accent-rgb),.55); }
+  .brand img { height: 64px; width: auto; }
+  .stage { position: absolute; top: 260px; left: 80px; right: 80px; height: 780px; display: flex; flex-direction: column;
+           justify-content: center; align-items: center; text-align: center; gap: 28px; }
+  .kicker { font-size: 40px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .big { font-family: var(--font-display), var(--font-body), Arial, sans-serif; font-weight: 900; line-height: .98; letter-spacing: -.02em; }
+  .stat .big { font-size: 230px; color: var(--accent); text-shadow: 0 0 60px rgba(var(--accent-rgb),.45); }
+  .headline .big { font-size: 150px; }
+  .big em { font-style: normal; color: var(--accent); text-shadow: 0 0 50px rgba(var(--accent-rgb),.4); }
+  .small { font-size: 56px; font-weight: 600; line-height: 1.2; color: var(--text); max-width: 900px; }
+  .list ul { list-style: none; display: flex; flex-direction: column; gap: 34px; align-items: flex-start; }
+  .list li { font-size: 74px; font-weight: 800; display: flex; align-items: center; gap: 30px; }
+  .list li::before { content: ""; width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
+                     box-shadow: 0 0 18px 4px rgba(var(--accent-rgb),.5); flex: none; }
+  .cta .big { font-size: 112px; }
+  .cta .pill { margin-top: 18px; padding: 26px 54px; border-radius: 999px; background: var(--accent); color: var(--bg-deep);
+               font-size: 54px; font-weight: 900; }
+  .cover .big { font-size: 190px; text-transform: uppercase; }
+  .source { position: absolute; top: 1080px; width: 100%; text-align: center; font-size: 28px; color: var(--muted); padding: 0 90px; }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="brand">{{logo_html}}<span>{{brand_label}}</span></div>
+<div class="stage" id="stage"></div>
+<div class="source" id="source"></div>
+<script>
+  // window.CARD = { kind: stat|headline|list|cta|cover, kicker, big, small, items[], pill, source }
+  const c = window.CARD || {};
+  const esc = (s) => String(s ?? "").replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch]);
+  // *word* → highlighted word
+  const hi = (s) => esc(s).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  const stage = document.getElementById("stage");
+  stage.className = "stage " + (c.kind || "headline");
+  let html = c.kicker ? `<div class="kicker">${esc(c.kicker)}</div>` : "";
+  if (c.kind === "list") html += `<ul>${(c.items || []).map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
+  else html += `<div class="big">${hi(c.big)}</div>`;
+  if (c.small) html += `<div class="small">${esc(c.small)}</div>`;
+  if (c.kind === "cta") html += `<div class="pill">${esc(c.pill || "Link in bio")}</div>`;
+  stage.innerHTML = html;
+  document.getElementById("source").textContent = c.source ? `Source: ${c.source}` : "";
+  // shrink long big text to fit
+  const big = stage.querySelector(".big");
+  if (big) { let size = parseFloat(getComputedStyle(big).fontSize);
+    while ((big.scrollWidth > 920 || big.offsetHeight > 560) && size > 60) { size -= 6; big.style.fontSize = size + "px"; } }
+</script>
+</body>
+</html>

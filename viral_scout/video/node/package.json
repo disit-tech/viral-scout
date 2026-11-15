@@ -1,0 +1,12 @@
+{
+  "name": "viral-scout-video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node side of viral_scout.video: Playwright renders the brand cards, HyperFrames renders animated films",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "hyperframes": "0.8.186",
+    "playwright": "1.64.1"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "viral-scout-publish",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One approved vertical video to Instagram Reels, Facebook Page Reels and YouTube Shorts (official APIs, no SDKs, no dependencies)",
+  "type": "module",
+  "scripts": {
+    "publish": "node publish.mjs",
+    "youtube:auth": "node youtube-auth.mjs",
+    "test": "node --test test.mjs"
+  }
+}

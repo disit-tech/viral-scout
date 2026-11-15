@@ -1,0 +1,209 @@
+# Video generation
+
+`python -m viral_scout video <profile> ...` turns a recording and a script into a finished vertical video for one business. It also clones the owner's voice, renders animated films with HyperFrames and makes stills. Every brand value (name, colors, fonts, logo, caption spelling, voice, folders) comes from the profile. The `/studio-video` skill drives it: script, edit, film, week plan, review, repurpose and the compliance step.
+
+It is the generic version of the solar repo's `tools/video`. The method behind it is the vault playbook `shared/playbooks/05 Marketing/video-generation.md`.
+
+## What it does
+
+```
+recording (voice .wav/.m4a/.mp3, or a phone video) + script (.md)
+  → WhisperX word timings (GPU large-v3, CPU small fallback)
+  → rough cut: the best take of every script line; flubs, retakes and "uh" dropped (the last good take wins)
+  → pauses tightened by word timings (> 0.30 s → 0.12 s), so captions stay frame-exact
+  → caption words fixed against the script (spelling, case), then the profile's vocabulary; numbers kept as digits
+  → word-highlight captions (accent color, 1-3 words per screen, above the bottom 20%)
+  → audio: high-pass, FFT denoise, gentle compression, loudnorm -14 LUFS, limiter
+  → picture: camera mode = your footage cropped 9:16; voice mode = brand cards with a slow push-in (+ B-roll)
+  → <slug>.mp4 (1080×1920, 30 fps, H.264 + AAC 48 kHz), <slug>.srt, cover.png, edit.json, report.md
+```
+
+Then `python -m viral_scout check <profile> <slug>.mp4` runs the pre-publish check on the master.
+
+Modes, as the playbook names them:
+
+| Mode | What it is | Command |
+|---|---|---|
+| REAL | the owner on camera | `cut` / `make` with a video file (camera mode) |
+| VOICE+CARDS | voice + static brand cards. A draft or timing check, not a post | `cut` / `make` with an audio file (voice mode) |
+| FILM | an animated HyperFrames film, the voice is the clock | `film words`, `film check`, `film render` |
+| TWIN | a paid avatar service | not run by this tool |
+
+`video.modes` in the profile lists the modes a business allows. The tool refuses the others.
+
+## Install
+
+Research-only users need none of this. Everything below is optional and lives outside the main install.
+
+| Part | For | Install |
+|---|---|---|
+| FFmpeg with libass | everything | `choco install ffmpeg` (Windows), on PATH |
+| `.venv-video` (Python 3.11, WhisperX, CUDA torch 2.8) | `cut`, `make`, `transcribe`, `film words` | `pwsh scripts/setup-video.ps1` |
+| `viral_scout/video/node` (Playwright, HyperFrames, Chromium) | cards, voice-mode `render`, `film check/render` | `pwsh scripts/setup-video.ps1 -Node` (Node.js 22+) |
+| `.venv-voice` (Python 3.11, Chatterbox, CUDA torch 2.6) | `voice` | `pwsh scripts/setup-video.ps1 -Voice` |
+| Pillow | `still` | `pip install pillow` in the Python that runs viral_scout |
+
+`-All` does the three, `-Check` prints the plan and installs nothing, `-Cpu` skips the CUDA builds. The first transcription downloads the Whisper model (about 3 GB for large-v3).
+
+WhisperX and Chatterbox need separate envs: Chatterbox pins torch 2.6 and numpy 1.26, WhisperX needs torch 2.8 and numpy 2. The main CLI calls them through a subprocess, so it keeps running on any Python 3.10+.
+
+Already have the tools elsewhere? Point at them instead of installing again:
+
+```
+VIRAL_SCOUT_VIDEO_PY=D:/repo/solar-site\tools\video\.venv\Scripts\python.exe
+VIRAL_SCOUT_VOICE_PY=D:/repo/solar-site\tools\video\.venv-clone\Scripts\python.exe
+VIRAL_SCOUT_VIDEO_NODE_MODULES=D:/repo/solar-site\tools\video\node_modules
+```
+
+These can go in `.env`. `python -m viral_scout video doctor` lists what is installed (`--deep` also reports CUDA). A command that needs a missing tool exits with code 3 and says how to install it.
+
+## Profile blocks
+
+Two blocks in `profiles/<name>.yaml`. `${ENV}` is expanded everywhere, so `${OBSIDIAN_VAULT}` works in nested paths. Relative paths are read from the profile's folder. Brand files (logo, fonts, voice samples) stay outside git, for example under `D:/Videos/<project>/brand/` or in a git-ignored `brands/` folder.
+
+### `studio:` (shared by every studio skill)
+
+| Field | What |
+|---|---|
+| `brand` | the business name shown on cards and stills |
+| `vault_dir` | the project's root in the vault, e.g. `${OBSIDIAN_VAULT}/projects/mysolar` |
+| `instructions` | a vault note with free text for this business: voice, offer, pillars, CTA keyword, banned words. Overrides the skill's defaults, never its hard rules |
+| `compliance` | the vault note with the industry rules and the disclosure line |
+| `cta` | `{text, link}`: the default call to action |
+
+### `video:`
+
+| Field | Default | What |
+|---|---|---|
+| `owner` | `""` | fills `[NAME]` in scripts and the AI label line |
+| `language` | `en` | Whisper language |
+| `modes` | `[REAL, FILM, VOICE+CARDS]` | allowed modes; add `TWIN` only if the business uses an avatar service |
+| `script_dir` | | where the skill writes scripts; `cut` also looks for a script file name here |
+| `footage_dir` | | recordings, voice samples, B-roll (outside the vault and git) |
+| `output_dir` | `<footage_dir>/out`, else `data/video/<profile>` | one folder per video (`<slug>/`) |
+| `films_dir` | `<footage_dir>/films` | HyperFrames film folders; `film` commands take a name from here |
+| `music_dir` | | commercial-library tracks; `--music` takes a file name from here |
+| `whisper_model` | large-v3 on GPU, small on CPU | |
+| `voice` | `{reference, cfg: 0.5, exaggeration: 0.5, seed: 1, pause: 0.25}` | the owner's 8-12 s reference wav and the Chatterbox knobs |
+| `brand_label` | `studio.brand` in capitals | the small label on top of each card |
+| `logo` | a glowing dot | PNG or SVG next to the label |
+| `card_template` | `viral_scout/video/node/card.html` | your own card page; keep the placeholders and `window.CARD` |
+| `colors` | night blue + warm yellow | `bg`, `bg_deep`, `bg_light`, `accent`, `text`, `muted`, `caption`, `caption_outline` (hex) |
+| `fonts` | Segoe UI | `display`, `body`, `caption` (installed font names), `files` (`[{family, path, weight}]` loaded into the cards), `still_bold`, `still_regular` (.ttf for stills) |
+| `vocabulary` | none | caption fixes: `{regex: text}` (case-insensitive), or a list of words to keep as written |
+| `stat_units` | none | extra units that make a number a stat card (`kwh`, `homes?`) |
+| `cta_card` | `{big: studio.cta.text, pill: "Link in bio", triggers: [link, comment, dm, check]}` | the auto-drafted CTA card; a CTA line with a trigger word gets it |
+| `ai_label` | `AI voice of me, script written by me. -{owner}` | first caption line when the voice or a realistic visual is AI |
+
+Example (solar):
+
+```yaml
+studio:
+  brand: "Bright Solar"
+  vault_dir: ${OBSIDIAN_VAULT}/projects/mysolar
+  instructions: ${OBSIDIAN_VAULT}/projects/mysolar/05 Marketing/studio-instructions.md
+  compliance: ${OBSIDIAN_VAULT}/projects/mysolar/07 Jurisdiction/2026-10-20-compliance-checklist.md
+  cta: {text: "Free Backup Power Check", link: "https://solar.example.com/links"}
+video:
+  owner: Alex
+  modes: [REAL, FILM, VOICE+CARDS]
+  script_dir: ${OBSIDIAN_VAULT}/projects/mysolar/05 Marketing/Video Studio/scripts
+  footage_dir: D:/Videos/bright-solar
+  voice: {reference: D:/Videos/bright-solar/voice/work/refB.wav, cfg: 0.5, exaggeration: 0.6}
+  colors: {bg: "#0b1124", bg_deep: "#070b16", bg_light: "#121a33", accent: "#ffc45c", text: "#fbfaf7", muted: "#9aa3c0"}
+  fonts: {still_bold: D:/Videos/bright-solar/brand/bricolage-800.ttf, still_regular: D:/Videos/bright-solar/brand/bricolage-600.ttf}
+  vocabulary:
+    '\bcity ?power\b': CityPower
+    '\bstate ?power\b': StatePower
+    '\bkwh\b|\bk w h\b': kWh
+    '\bkw\b': kW
+    '\bpowerwall\b': Powerwall
+    '\bgenerac\b': Generac
+    '\benphase\b': Enphase
+  stat_units: [kwh, kw, "homes?", "outages?"]
+```
+
+`python -m viral_scout video <profile> info` prints the resolved settings.
+
+## Commands
+
+```
+python -m viral_scout video doctor [--deep]
+python -m viral_scout video <profile> info
+python -m viral_scout video <profile> cut <media> <script.md> [--section N] [--slug S] [--broll DIR] [--name X] [--mode auto|voice|camera] [--model M] [--out DIR]
+python -m viral_scout video <profile> make <media> <script.md> ... [--music FILE]          cut + render
+python -m viral_scout video <profile> cards <job>                                           preview the card PNGs
+python -m viral_scout video <profile> render <job> [--music FILE]
+python -m viral_scout video <profile> transcribe <media> [--out FILE.txt]
+python -m viral_scout video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--section N] [--cfg 0.5 0.3] [--exaggeration 0.6] [--seed 1]
+python -m viral_scout video <profile> film words <film> <voice.wav> <script.md> [--section N]
+python -m viral_scout video <profile> film check <film>
+python -m viral_scout video <profile> film render <film> [--out FILE] [--quality delivery]
+python -m viral_scout video <profile> still --top a.png --bottom b.png --top-text "DON'T ..." --bottom-text "DO ..." --out still.png [--source "Source: CDC"]
+```
+
+`<job>` is a folder in `output_dir` (or any path). `<film>` is a folder in `films_dir` (or any path). `<profile>` can also be a path to a YAML file.
+
+### The cut, step by step
+
+1. `cut` writes `<output_dir>/<slug>/edit.json` and keeps the auto draft as `edit.draft.json`. Every script line should print ✓. A ✗ line is not in the recording.
+2. Read `dropped` in edit.json (also in report.md). With an AI voice nothing should be dropped.
+3. Edit the cards in edit.json: `visuals[].card` is `{kind: stat|headline|list|cta, kicker, big, small, items[], pill, source}`; `*word*` in `big` is highlighted. Or set `broll: <path>` instead of a card. `cover.big` is the cover text (≤ 4 words). Fix caption typos in `words[].w`, never the times.
+4. `cards` renders only the card PNGs to `work/cards/` for a look. `render` builds the master. A stat card with `source: "ADD SOURCE"` prints a warning and must not be posted.
+
+### Script files
+
+The format the skill writes and `cut` reads (one script per `### N. Title` section):
+
+```markdown
+### 1. Storm night
+**Hook:** "Last year storms left over two million homes in the dark."
+**Body:** "I'm [NAME]. The test is on the seventeenth."
+**CTA:** "Comment BACKUP and I'll send you the link."
+```
+
+The quoted text after **Hook**, **Body**, **CTA** (also `Line N`, `Close`, `Outro`) is spoken. One sentence is one line for the cut and the cards. A file without these labels is plain text: every line that isn't a heading is spoken. `--section 1` picks `### 1. ...`; `--section storm` picks the first heading that contains "storm".
+
+### Number matching
+
+Scripts for an AI voice spell numbers out ("seventeenth", "nine one one"); Whisper writes digits ("17th", "911"). The cut maps both to digits (0-20, 30, 40, 50, 100 and the ordinals to 20th and 30th) and splits "911" into one digit per word. Other spelled-out numbers ("forty eight") still mismatch. Mid-line that is harmless, but at the edge of a line the word can be trimmed off, so check `dropped`. English number words only.
+
+### Films
+
+A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REVIEW.md` (see the playbook §8 and HyperFrames' own skills in `viral_scout/video/node/node_modules/hyperframes/dist/skills/`).
+
+- `film words` transcribes the voice, aligns it to the script, writes `work-words.json` (`[{w, s, e, i}]`, `i` = script sentence, `w` exactly as in the script) and `voice-check.md`: missing sentences, extra speech (repeats like "two two"), and words longer than 0.8 s, which can hide a repeat the aligner merged. Exit code 1 when it finds any.
+- `film check` runs `hyperframes check` (lint, runtime, layout, contrast).
+- `film render` renders to `<film>/out/<name>-film.mp4` and reports loudness against about -14 LUFS and -1 dBTP.
+
+## Triggering it from another repo
+
+Project repos don't copy the tool. They call it:
+
+- **From Claude Code:** `/studio-video <profile> script "<topic>"`, `/studio-video <profile> edit <recording>`, `/studio-video <profile> film <idea>`. The skill lives in this repo at `.claude/skills/studio-video/`; junction it into `~/.claude/skills/` the way `/viral-scout` is (the Obsidian rollout repo owns those junctions) so every repo sees it. A repo can override it with its own `.claude/skills/studio-video/`.
+- **From a script or a scheduled job:**
+  ```powershell
+  $env:PYTHONIOENCODING = "utf-8"
+  python -m viral_scout video <profile> make "D:\Videos\<project>\2026-11-15-rec.m4a" "<script.md>" --section 1
+  ```
+  with the viral-scout repo as the working directory (`Push-Location D:epoiral-scout`). Exit codes: 0 done, 1 a step failed (message on stderr), 2 bad arguments or profile, 3 an optional tool is missing.
+- **Outputs** land in the profile's `output_dir`, never in the calling repo. Read `report.md` and `edit.json` there.
+
+## Migrating the solar repo from tools/video
+
+Not done yet. The steps, in order:
+
+1. Add the `studio:` and `video:` blocks to `profiles/solar.yaml` (the example above; check the voice reference and font paths).
+2. Copy the Bricolage fonts and any logo from `tools/video/assets/` to `D:/Videos/bright-solar/brand/` (outside git) and point `video.fonts` at them. For the cards, add them to `video.fonts.files` and set `display`.
+3. Point viral-scout at the existing installs to avoid a second download: `VIRAL_SCOUT_VIDEO_PY`, `VIRAL_SCOUT_VOICE_PY` and `VIRAL_SCOUT_VIDEO_NODE_MODULES` in viral-scout's `.env` (paths above). Or run `scripts/setup-video.ps1 -All`.
+4. Run `python -m viral_scout video solar doctor`, then one old recording through `make` and compare the master with the old one (same takes, same `dropped`, same captions).
+5. Move the film folders (`tools/video/films/*`) to `video.films_dir` (they are brand content, so they stay out of this repo) and check one with `film check`.
+6. Replace the solar skills `video-script`, `video-edit`, `video-review`, `video-week`, `repurpose` and `compliance-check` with `/studio-video solar ...`. Move their solar-only text (State Shines rules, CityPower/StatePower, the CTA keyword, carousel and blog paths) into the note named by `studio.instructions` and the compliance note.
+7. Update the unattended film job (`site/scripts/jobs/film.md`) to call `python -m viral_scout video solar film ...` instead of `tools/video` paths.
+8. Once a week of videos has gone through the new path, delete `tools/video` from the solar repo (keep the films, moved in step 5).
+
+## Limits
+
+- The cut and the card drafts assume English (number words, stop words). Other languages transcribe and cut, but check `dropped`.
+- Voice clone and WhisperX on CPU work but are slow.
+- The tool never posts, uploads or calls paid services. TWIN mode is a decision for the skill and the owner, not a command here.

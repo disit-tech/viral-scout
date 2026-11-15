@@ -14,8 +14,13 @@
   python -m viral_scout perf <profile> [--no-pull]               own performance (your videos and ads) → report
   python -m viral_scout perf import <profile> <file.csv> --source meta|tiktok|youtube|generic
   python -m viral_scout perf auth youtube                         OAuth for the YouTube Analytics API
+  python -m viral_scout ideas <profile> info | pull | push <file> | tracked <ids> | pack <id> <note.md> ...  (docs/ideas.md)
   python -m viral_scout profiles
   python -m viral_scout profile <name> get | set                 editable fields as JSON / apply JSON from stdin
+  python -m viral_scout publish <profile> plan | today | post <file> --caption <c.md> [--dry-run]   (docs/publish-and-jobs.md)
+  python -m viral_scout jobs <profile> run <job> | list | prompt <job> | install-plan             unattended studio jobs
+  python -m viral_scout notes <profile> [list | pending | done|skip|reply <id> "text" | send <file> "caption"]
+  python -m viral_scout video [<profile>] doctor|cut|make|cards|render|voice|film|still   video generation (docs/video.md)
 """
 import argparse
 import sys
@@ -39,6 +44,15 @@ def main(argv=None):
         cfg = config.load(argv[1])
         with activity.track(cfg["name"], "demand", argv):
             return demand.cli(cfg, force="--force" in argv, quiet="--quiet" in argv)
+    if argv and argv[0] in ("publish", "jobs", "notes"):   # studio: publishing, unattended jobs, owner notes
+        if argv[0] == "notes":
+            from .notes import cli as notes_cli
+            return notes_cli(argv[1:])
+        if argv[0] == "jobs":
+            from .jobs.cli import main as jobs_main
+            return jobs_main(argv[1:])
+        from .publish.cli import main as publish_main
+        return publish_main(argv[1:])
     if argv and argv[0] == "profile":              # edit a profile without losing its comments (dashboard Settings)
         from .profile_edit import cli as profile_cli
         return profile_cli(argv[1:])
@@ -51,6 +65,9 @@ def main(argv=None):
         cfg = config.load(argv[1])
         with activity.track(cfg["name"], f"ad {argv[3]}", argv):
             return extra.cli(cfg, argv[2], argv[3], force="--force" in argv)
+    if argv and argv[0] == "ideas":                # ideas API: pull ratings, push batches, content packs
+        from .ideas import main as ideas_main
+        return ideas_main(argv[1:])
     if argv and argv[0] == "perf":                 # own performance has its own sub-commands
         from .perf.cli import main as perf_main
         if len(argv) > 1 and not argv[1].startswith("-") and argv[1] not in ("import", "auth"):
@@ -123,7 +140,11 @@ def main(argv=None):
     ke.add_argument("rest", nargs="*")
     sub.add_parser("profiles", help="list profiles")
     sub.add_parser("perf", help="own performance: perf <profile> | perf import ... | perf auth youtube")
+    from .video import cli as video_cli
+    video_cli.register(sub)
     args = p.parse_args(argv)
+    if args.cmd == "video":
+        return video_cli.dispatch(args)
 
     if args.cmd == "keys":
         from . import keys

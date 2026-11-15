@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type Task = {
-  name: string; kind: "profile" | "publish" | "other"; profile: string | null; state: string;
+  name: string; kind: "profile" | "publish" | "studio" | "other"; profile: string | null; state: string;
+  job?: string | null; repeat?: string | null; what?: string | null;
   day: string | null; time: string | null; analyze: boolean; next_run: string | null; last_run: string | null;
   last_result: number; wake: boolean; log_file: string | null; log_tail: string[];
 };
@@ -94,7 +95,19 @@ export default function ScheduleManager() {
           <code className="text-text">scripts/schedule.ps1 -Profiles a,b -Analyze -Publish</code>.
         </div>
       ) : (
-        <div className="space-y-3">{tasks.map((t) => <TaskCard key={t.name} t={t} busy={busy} act={act} />)}</div>
+        <div className="space-y-3">{tasks.filter((t) => t.kind !== "studio").map((t) => <TaskCard key={t.name} t={t} busy={busy} act={act} />)}</div>
+      )}
+
+      {tasks.some((t) => t.kind === "studio") && (
+        <section className="space-y-3">
+          <h2 className="font-semibold">Studio jobs</h2>
+          <p className="text-xs text-muted">
+            Unattended Claude jobs per business (ideas, script, notes, film, blog) and the morning post pack. Their times come
+            from the profile&apos;s <code className="text-text">jobs:</code> block; to change them, edit the profile and run{" "}
+            <code className="text-text">scripts/schedule-studio.ps1 -Profile &lt;name&gt;</code> again. None of them posts anything.
+          </p>
+          {tasks.filter((t) => t.kind === "studio").map((t) => <TaskCard key={t.name} t={t} busy={busy} act={act} />)}
+        </section>
       )}
 
       {missing.length > 0 && <AddTask options={missing} busy={busy} act={act} />}
@@ -121,7 +134,8 @@ function TaskCard({ t, busy, act }: { t: Task; busy: string | null; act: (k: str
   const multiDay = !!t.day && t.day.includes(",");
   const res = result(t.last_result, t.last_run);
   const dis = !!busy;
-  const title = t.kind === "publish" ? "Publish dashboard" : t.profile ?? t.name;
+  const studio = t.kind === "studio";
+  const title = t.kind === "publish" ? "Publish dashboard" : studio ? `${t.profile} · ${t.job === "post" ? "morning post pack" : t.job}` : t.profile ?? t.name;
   const btn = "rounded-md border px-2.5 py-1 text-xs disabled:opacity-40";
 
   return (
@@ -150,6 +164,8 @@ function TaskCard({ t, busy, act }: { t: Task; busy: string | null; act: (k: str
             <button disabled={dis} onClick={() => {
               const why = t.kind === "publish"
                 ? "Export the data and deploy the dashboard to Vercel now?"
+                : studio
+                ? (t.job === "post" ? `Send today's post pack for ${t.profile} now (if it was not sent yet)?` : `Run the ${t.job} job for ${t.profile} now? It starts the Claude CLI (your subscription) unless today's run is already done or another job holds the lock.`)
                 : `Run ${t.profile} now? This uses paid sources (Apify TikTok${new Date().toLocaleDateString("en-US", { weekday: "long" }) === ADS_DAY ? ", plus the ads scout and search demand because today is the ads day" : ""})${t.analyze ? " and the Claude CLI for the ideas note" : ""}.`;
               if (confirm(why)) act(t.name, { op: "run", name: t.name });
             }} className={`${btn} border-line hover:bg-panel-2`}>Run now</button>
@@ -159,6 +175,16 @@ function TaskCard({ t, busy, act }: { t: Task; busy: string | null; act: (k: str
         </div>
       </div>
 
+      {studio ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2.5 text-xs text-muted">
+          <span>{t.what?.replace(/^viral-scout studio: /, "") || `${t.day ?? ""} ${t.time ?? ""}`}</span>
+          {t.log_file && (
+            <button onClick={() => setLog(!log)} className="ml-auto text-xs text-muted hover:text-text">
+              {log ? "hide last log ▲" : "last log ▼"}
+            </button>
+          )}
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2.5 text-sm">
         <label className="flex items-center gap-1.5 text-xs text-muted">
           Runs
@@ -197,6 +223,7 @@ function TaskCard({ t, busy, act }: { t: Task; busy: string | null; act: (k: str
           </button>
         )}
       </div>
+      )}
 
       {log && t.log_tail.length > 0 && (
         <div className="border-t border-line px-4 py-3">

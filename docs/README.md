@@ -26,6 +26,18 @@ New here? Read them in this order: **Setup and keys → Profiles → Marketing w
 | [Video quality framework](video-quality-framework.md) | The 5 tests, 20 criteria and the 100-point scorecard, structure, production standards, testing |
 | [Originality and duplicate detection](originality-and-duplicate-detection.md) | How Instagram, TikTok and YouTube detect reposts and copies, and how to stay original |
 
+## Content studio
+
+Optional: the same profile drives ideas, ratings, scripts, videos, publishing and the daily jobs. Other repos only trigger it.
+
+| Doc | For |
+|---|---|
+| [Content studio](studio.md) | Overview: scout → ideas → ratings → script → video → publish → measure, core vs per-profile instructions, what runs where, adding a business |
+| [Ideas](ideas.md) | The `/studio-ideas` skill, the `ideas:` profile block, `python -m viral_scout ideas` commands, daily run, migration |
+| [Video generation](video.md) | Recording + script → captioned 1080×1920 master, brand cards, voice clone, HyperFrames films, stills; the `video:` block and `/studio-video` |
+| [Telegram ideas service](telegram-service.md) | The always-on bot for idea buttons, reasons, comments and content packs (`service/`, Vercel); config and cutover |
+| [Publishing and jobs](publish-and-jobs.md) | Posting plan, morning post pack, opt-in API posting, the unattended Claude jobs and their schedule |
+
 ## Under the hood
 
 | Doc | For |

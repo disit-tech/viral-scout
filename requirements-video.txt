@@ -1,0 +1,9 @@
+# Optional: video generation (python -m viral_scout video ...). Research-only users don't need any of this.
+# scripts/setup-video.ps1 installs these into .venv-video (Python 3.11) and puts the CUDA build of torch on top.
+# The main CLI calls this env through a subprocess; it needs PyYAML so viral_scout imports there too.
+whisperx==3.8.6
+PyYAML>=6.0
+requests>=2.31
+
+# Stills (video still ...) run in the Python that runs viral_scout:  pip install pillow
+# pillow>=10.1

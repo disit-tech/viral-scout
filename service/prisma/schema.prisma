@@ -1,0 +1,118 @@
+// A copy of the models this service reads and writes, taken from the solar site's schema
+// (D:/repo/solar-site/site/prisma/schema.prisma). Same model, table and column names, so it works on the existing
+// Turso database as it is. That schema is the source of truth: change a column there first, then copy it here.
+// This service never migrates. Models of other tables are left out on purpose.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// A video idea from the idea generator, rated in the ideas Telegram bot.
+model VideoIdea {
+  id              Int            @id @default(autoincrement())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  batch           String
+  /// solar | homes | agency (see projects.json)
+  project         String         @default("solar")
+  title           String
+  rubric          String?
+  hookType        String?
+  hook            String
+  angle           String?
+  fact            String?
+  source          String?
+  visual          String?
+  cta             String?
+  score           Int?
+  /// Comma-separated keys from "platforms" in projects.json
+  platforms       String?
+  why             String?
+  /// sent | good | bad | redo | approved | expand | variants | replaced | varied | tracked | deleted
+  status          String         @default("sent")
+  comment         String?
+  /// Reason codes picked under the "why?" question, comma-separated ("reasons" in projects.json)
+  tags            String?
+  askMessageId    Int?
+  askedAt         DateTime?
+  parentId        Int?
+  version         Int            @default(1)
+  tgChatId        String?
+  tgMessageId     Int?
+  /// script | script_ok | making | draft | posted | pack | pack_sent
+  stage           String?
+  stageAt         DateTime?
+  script          String?
+  scriptMessageId Int?
+  draftPath       String?
+  feedback        IdeaFeedback[]
+
+  @@index([status])
+  @@index([tgChatId, tgMessageId])
+}
+
+/// Append-only log of the owner's feedback on ideas.
+model IdeaFeedback {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  ideaId    Int
+  idea      VideoIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  /// rating | tag | untag | comment | undo | delete | system | snapshot | pack
+  kind      String
+  value     String?
+
+  @@index([ideaId])
+}
+
+/// A blog guide draft sent for ✅ Publish / ✏️ Changes.
+model BlogReview {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  slug      String
+  title     String
+  /// waiting | approved | published | replaced
+  status    String    @default("waiting")
+  messageId Int?
+  decidedAt DateTime?
+
+  @@index([status])
+}
+
+/// Notes for Claude from the Telegram group (read on the PC by site/scripts/notes.mjs).
+model ClaudeNote {
+  id               Int       @id @default(autoincrement())
+  createdAt        DateTime  @default(now())
+  /// The bot slug that received it (and answers it): ideas | agency | crm
+  bot              String
+  chatId           String
+  messageId        Int
+  fromName         String?
+  kind             String    @default("text")
+  text             String?
+  fileId           String?
+  replyToMessageId Int?
+  replyToText      String?
+  status           String    @default("new")
+  doneAt           DateTime?
+  result           String?
+
+  @@unique([chatId, messageId])
+  @@index([status])
+}
+
+/// NWS alerts written by the solar site; read only (GET /api/ideas returns the last 72 hours).
+model StormAlert {
+  id        String    @id
+  createdAt DateTime  @default(now())
+  event     String
+  headline  String?
+  areaDesc  String
+  severity  String?
+  onset     DateTime?
+  expires   DateTime?
+}

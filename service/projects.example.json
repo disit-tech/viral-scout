@@ -1,0 +1,106 @@
+{
+  "$comment": "Projects and bots of the ideas service. Secrets are never here: only the names of the env vars that hold them. Reference: docs/telegram-service.md.",
+  "defaultProject": "solar",
+  "defaultBot": "ideas",
+  "chatsEnv": "TELEGRAM_CHAT_ID",
+  "scriptsBot": "ideas",
+  "blog": { "bot": "ideas", "publicUrl": "https://solar.example.com/blog/" },
+  "bots": {
+    "ideas": {
+      "tokenEnv": "TELEGRAM_IDEAS_BOT_TOKEN",
+      "webhookSecretEnv": "TELEGRAM_WEBHOOK_SECRET",
+      "notes": "replies+call"
+    },
+    "agency": {
+      "tokenEnv": "TELEGRAM_AGENCY_IDEAS_BOT_TOKEN",
+      "webhookSecretEnv": "TELEGRAM_WEBHOOK_SECRET",
+      "notes": "replies"
+    },
+    "homes": {
+      "tokenEnv": "TELEGRAM_HOMES_IDEAS_BOT_TOKEN",
+      "forwardSecretEnv": "HOMES_FORWARD_SECRET",
+      "notes": "off"
+    }
+  },
+  "projects": {
+    "solar": { "bot": "ideas", "label": "", "reasonSet": "video", "packs": false },
+    "homes": {
+      "bot": "homes",
+      "label": "🔨 Homeworks · ",
+      "reasonSet": "video",
+      "packs": true,
+      "crmSecretEnv": "HOMES_FORWARD_SECRET"
+    },
+    "agency": { "bot": "agency", "label": "🏢 Acme Agency · ", "reasonSet": "video", "packs": false }
+  },
+  "platforms": {
+    "facebook": "Facebook page",
+    "fb_groups": "Facebook groups",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "youtube": "YouTube Shorts",
+    "nextdoor": "Nextdoor",
+    "google": "Google profile",
+    "linkedin": "LinkedIn",
+    "threads": "Threads",
+    "yelp": "Yelp",
+    "email": "Email list",
+    "print": "Print / door hangers"
+  },
+  "reasons": {
+    "hk": "🪝 Сильний хук",
+    "tp": "💡 Свіжа тема",
+    "ez": "🎥 Легко зняти",
+    "ld": "💰 Веде до заявки",
+    "em": "😄 Емоційно / смішно",
+    "fc": "📊 Сильний факт",
+    "pf": "👤 Особисто / чесно",
+    "il": "📍 Про Іллінойс",
+    "nt": "🥱 Тема не цікава",
+    "au": "🎯 Не наша аудиторія",
+    "dp": "♻️ Вже було / повтор",
+    "rk": "⚠️ Ризиковано (compliance)",
+    "ns": "🎥 Нереально зняти",
+    "sl": "💸 Це просто реклама",
+    "st": "🙅 Не наш стиль",
+    "cl": "🤯 Незрозуміло, про що",
+    "wh": "🪝 Слабкий хук",
+    "bo": "😴 Нудно",
+    "hd": "🎥 Важко зняти",
+    "wf": "📊 Сумнівний факт",
+    "lg": "🐢 Задовго",
+    "hs": "🔥 Сильніший хук",
+    "ex": "🔍 Розширити / більше деталей",
+    "sh": "✂️ Коротше / простіше",
+    "fm": "🎬 Інший формат",
+    "tn": "🗣 Інший тон",
+    "fu": "😄 Смішніше / емоційніше",
+    "nf": "📊 Інший / точніший факт",
+    "na": "🎯 Інша аудиторія",
+    "ls": "💸 Менш продажно",
+    "es": "🎥 Простіше зняти",
+    "mi": "📍 Більше Іллінойсу",
+    "mp": "👤 Більше особисто",
+    "sp": "🎬 План кадрів",
+    "h3": "🪝 3 варіанти хука",
+    "fs": "📝 Повний сценарій",
+    "mf": "📊 Більше фактів",
+    "cq": "💬 Питання для коментарів",
+    "br": "🎞 Ідеї B-roll",
+    "vh": "🪝 Інші хуки",
+    "vf": "🎬 Інші формати",
+    "va": "🎯 Інші аудиторії",
+    "vt": "🗣 Інший тон",
+    "vl": "⏱ Довша / коротша версія"
+  },
+  "reasonSets": {
+    "video": {
+      "good": ["hk", "tp", "ez", "ld", "em", "fc", "pf", "il"],
+      "approved": ["hk", "tp", "ez", "ld", "em", "fc", "pf", "il"],
+      "bad": ["nt", "au", "dp", "rk", "ns", "sl", "st", "cl"],
+      "redo": ["hs", "ex", "sh", "fm", "tn", "fu", "nf", "na", "ls", "es", "mi", "mp"],
+      "expand": ["sp", "h3", "fs", "mf", "cq", "br"],
+      "variants": ["vh", "vf", "va", "vt", "vl"]
+    }
+  }
+}

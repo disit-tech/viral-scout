@@ -6,3 +6,9 @@ __pycache__/
 profiles/*.yaml
 !profiles/_template.yaml
 !profiles/example-*.yaml
+viral_scout/publish/node/out/
+.venv-video/
+.venv-voice/
+node_modules/
+brands/
+tests/video/_*

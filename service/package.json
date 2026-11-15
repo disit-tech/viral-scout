@@ -1,0 +1,30 @@
+{
+  "name": "viral-scout-telegram-service",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Always-on Telegram ideas bot: buttons, reasons, comments, content packs. Same DB as the CRM sites.",
+  "scripts": {
+    "dev": "next dev -p 3220",
+    "build": "next build",
+    "start": "next start -p 3220",
+    "postinstall": "prisma generate",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@prisma/adapter-libsql": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "next": "16.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "prisma": "^7.10.1",
+    "typescript": "^5",
+    "vitest": "^4.1.12"
+  }
+}

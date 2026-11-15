@@ -199,6 +199,19 @@ def get_ideas(profile: str) -> dict:
 
 
 @mcp.tool()
+def ideas_pull(profile: str) -> dict:
+    """Read-only: every idea of the profile's ideas project (ratings, reason tags, comments, feedback history) from the
+    ideas API. The project comes from the profile's ideas: block. Writes (push, tracked, pack) stay in the CLI."""
+    from .ideas.client import Client
+    from .ideas.settings import IdeasError, credentials, ideas_cfg
+    try:
+        ic = ideas_cfg(config.load(profile))
+        return Client(ic["project"], *credentials(ic)).pull()
+    except IdeasError as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
 def save_post(profile: str, ref: str, note: str = "") -> dict:
     """Save a post (id or URL) to the Obsidian swipe file with a 'why it works' note; keeps tracking it."""
     return _cli("save", profile, ref, *(["--note", note] if note else []))

@@ -85,6 +85,102 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 # demand:
 #   terms: []                # services as customers search them, without the city
 #   compare: []              # up to 5 phrasings of the same thing
-#   geo: US                  # US, US-IL, or a metro such as US-IL-602 (Chicago)
+#   geo: US                  # US, US-IL, or a metro such as US-IL-602 (Springfield)
 #   every_days: 7
 #   lead_weeks: 3
+
+# Content studio (shared by every studio step: ideas, ratings, script, video, publish, measure). See docs/ideas.md.
+# studio:
+#   brand: "Mybusiness"
+#   vault_dir: ${OBSIDIAN_VAULT}/projects/mybusiness          # relative note paths below are taken from here
+#   instructions: ${OBSIDIAN_VAULT}/projects/mybusiness/05 Marketing/studio-instructions.md   # per-profile free text; overrides core defaults, never core hard rules
+#   compliance: ${OBSIDIAN_VAULT}/projects/mybusiness/07 Jurisdiction/compliance.md
+#   cta: {text: "Text a photo to (555) 000-0000", link: "https://example.com"}
+
+# Ideas (/studio-ideas skill + python -m viral_scout ideas <profile> ...). See docs/ideas.md.
+# ideas:
+#   project: mybusiness            # slug on the ideas API (solar | homes | agency today); every call is scoped to it
+#   api: {env_file: "D:/repo/solar-site/site/.env.local", url_env: IDEAS_SITE_URL, secret_env: IDEAS_API_SECRET}
+#   header: "🔨 Mybusiness"         # how the bot heads this project's messages
+#   rubrics: [Short video, Before/after post, Offer, Local outreach, Channel, Newsletter / email, Trust]
+#   score: {criteria: [Hook, Clarity, Lead potential, Effort, Fit], threshold: 38}   # 1-10 each, keep ≥ threshold
+#   experiment_share: 0.2          # one in five is a labelled experiment
+#   sources: [README.md, "06 Sales & Partners/offer-menu.md"]   # notes to read every run (relative to studio.vault_dir)
+#   tracker: "05 Marketing/idea-tracker.md"
+#   # taste_note: defaults to the top-level taste_note above
+#   market_data: {min_share: 0.5, max_age_days: 14}   # reports in output_dir; ≥ half the batch builds on fresh ones
+#   packs:                         # content packs: ready-to-post texts per platform for approved ideas
+#     enabled: false
+#     platforms: [facebook, instagram, tiktok, youtube, google, linkedin, threads, email]   # keys ideas may use
+#     limits: {threads: {per_part: 500}, google: {total: 1500}, linkedin: {total: 3000, hashtags: [3, 8]}}
+#     banned_words: [crew, {pattern: '\b(insured|bonded)\b', why: "not true yet"}]   # errors; level: warning to only warn
+#   blog: false                    # blog-review commands (solar site only)
+#   daily: {count: 5, at: "08:15", add_dirs: []}   # scripts/ideas-daily.ps1 -Profile <name>
+
+# Publishing (python -m viral_scout publish <profile> plan|today|post). See docs/publish-and-jobs.md.
+# Nothing is posted automatically unless auto_post is true for that platform (only instagram, facebook, youtube have
+# an API publisher; tiktok and the rest are always posted by hand). Tokens stay in the env file, never here.
+# publish:
+#   platforms: [tiktok, instagram, youtube, facebook]
+#   handles: {instagram: "@mybusiness", tiktok: "@mybusiness", youtube: "@mybusiness"}
+#   timezone: America/Springfield
+#   slots: {tiktok: "18:00", instagram: "18:30", youtube: "18:30", facebook: "19:30"}   # local posting times
+#   utm: {medium: social, campaign: "{slug}", sources: {instagram_story: instagram_story}}
+#   auto_post: {instagram: false, facebook: false, youtube: false}
+#   env_file: D:/repo/mybusiness/.env.local          # where the tokens live
+#   tokens:                                          # standard name: the name in your env file (only if different)
+#     youtube: {YOUTUBE_REFRESH_TOKEN: MYBIZ_YT_REFRESH}
+#   youtube: {category: "27", language: en, privacy: public}
+#   queue: ""                                        # default <vault_dir>/05 Marketing/Video Studio/ready-to-post.md
+#   morning_pack:                                    # today's film + POST.md to you at 9:00, so you post it from the phone
+#     enabled: false
+#     hour: 9
+#     delivery: none                                 # telegram | none (written to data/publish/<profile>/)
+#     env_file: ""
+#     token_env: TELEGRAM_BOT_TOKEN
+#     chat_env: TELEGRAM_CHAT_ID
+
+# Unattended jobs (python -m viral_scout jobs <profile> run|list|prompt|install-plan). Every job is off by default.
+# Install the schedule yourself: scripts/schedule-studio.ps1 -Profile <name> (Claude may not register tasks).
+# Use `enabled:`, not `on:` (YAML reads a bare on as true/false).
+# jobs:
+#   owner: "Alex"                 # who approves
+#   language: English              # language of messages to the owner
+#   delivery: telegram             # telegram (through the ideas API / service) | none (results stay in the vault)
+#   api: {url_env: IDEAS_SITE_URL, secret_env: IDEAS_API_SECRET, env_file: "", project: mybusiness}
+#   notes_command: ""              # or a notes CLI with the same verbs, e.g. "node D:/repo/x/site/scripts/notes.mjs"
+#   cwd: ""                        # where Claude runs (default: this repo); add_dirs: [D:/repo/mybusiness]
+#   ideas:  {enabled: true, at: "08:00", count: 5}
+#   script: {enabled: false, at: "08:30"}
+#   notes:  {enabled: true, every_minutes: 15}
+#   film:   {enabled: false, at: "06:00", retry_until: "22:00", max_tries: 2, buffer: 4}
+#   blog:   {enabled: false, days: Monday, at: "08:45"}
+#   allowed_tools: {all: [], film: ["Bash(npx hyperframes:*)", "Bash(ffmpeg:*)"]}   # extras on top of each job's narrow list
+#   instructions: {film: "Reference film: films/first-film. Never show a ladder on a roof."}
+
+# Video generation (python -m viral_scout video <profile> ...). See docs/video.md. Brand files live outside git.
+# video:
+#   owner: "Alex"                       # fills [NAME] in scripts; name in the AI label line
+#   language: en                        # Whisper language
+#   modes: [REAL, FILM, VOICE+CARDS]    # allowed: REAL (on camera), VOICE+CARDS (draft only), FILM (HyperFrames), TWIN (paid avatar)
+#   script_dir: ${OBSIDIAN_VAULT}/projects/mybusiness/05 Marketing/Video Studio/scripts
+#   footage_dir: D:/Videos/mybusiness   # recordings, voice samples, B-roll (outside the vault and git)
+#   output_dir: D:/Videos/mybusiness/out        # default: <footage_dir>/out
+#   films_dir: D:/Videos/mybusiness/films       # HyperFrames film folders; default: <footage_dir>/films
+#   music_dir: D:/Videos/mybusiness/music       # commercial-library tracks only
+#   voice: {reference: D:/Videos/mybusiness/voice/ref.wav, cfg: 0.5, exaggeration: 0.5}   # 8-12 s of the owner's clean speech
+#   brand_label: "MY BUSINESS"          # label on top of each card; default: studio.brand in capitals
+#   logo: D:/Videos/mybusiness/brand/logo.png
+#   card_template: ""                   # your own card.html (copy viral_scout/video/node/card.html)
+#   colors: {bg: "#0b1124", bg_deep: "#070b16", bg_light: "#121a33", accent: "#ffc45c", text: "#fbfaf7", muted: "#9aa3c0", caption: "#ffffff"}
+#   fonts:
+#     display: "Segoe UI Black"         # card headlines (installed font name)
+#     body: "Segoe UI"
+#     caption: "Segoe UI Black"         # burned-in captions (installed font name)
+#     files: []                         # [{family: Bricolage, path: D:/Videos/mybusiness/brand/bricolage-800.woff2, weight: 800}]
+#     still_bold: ""                    # .ttf for stills; default: a system font
+#     still_regular: ""
+#   vocabulary: {'\bcity ?power\b': CityPower, '\bkwh\b': kWh}   # caption fixes (regex: text), or a list of words to keep spelled as written
+#   stat_units: [kwh, "homes?"]         # extra units that turn a number into a stat card
+#   cta_card: {big: "", pill: "Link in bio"}             # big defaults to studio.cta.text
+#   ai_label: "AI voice of me, script written by me. -{owner}"

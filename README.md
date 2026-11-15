@@ -2,7 +2,9 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
-Docs ([index](docs/README.md)): **get started** [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [marketing workflow](docs/marketing-workflow.md) · **features** [dashboard](docs/dashboard.md) · [ads scout](docs/ads-scout.md) · [search demand](docs/search-demand.md) · [your performance](docs/performance.md) · **better videos** [video quality framework](docs/video-quality-framework.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · **under the hood** [how it works](docs/how-it-works.md) · [similar tools](docs/similar-tools.md) · [references](docs/references.md)
+**Content studio** (optional): the same profile also drives the rest of the loop, from ideas rated in Telegram to scripts, videos, a posting plan and unattended daily jobs. Other repos only trigger it. See [docs/studio.md](docs/studio.md).
+
+Docs ([index](docs/README.md)): **get started** [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [marketing workflow](docs/marketing-workflow.md) · **features** [dashboard](docs/dashboard.md) · [ads scout](docs/ads-scout.md) · [search demand](docs/search-demand.md) · [your performance](docs/performance.md) · **better videos** [video quality framework](docs/video-quality-framework.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · **content studio** [overview](docs/studio.md) · [ideas](docs/ideas.md) · [video](docs/video.md) · [Telegram service](docs/telegram-service.md) · [publishing and jobs](docs/publish-and-jobs.md) · **under the hood** [how it works](docs/how-it-works.md) · [similar tools](docs/similar-tools.md) · [references](docs/references.md)
 
 It answers three questions:
 
