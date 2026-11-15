@@ -8,6 +8,7 @@
   video <profile> render <job dir> [--music FILE]    build the master from <job>/edit.json
   video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto]   plain transcript (+ word times .json)
   video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--cfg 0.5 0.3] [--exaggeration 0.5]
+  video <profile> film new <name> --from <reference film>   a new film folder seeded from a reference film
   video <profile> film words|check|render <film dir> ...
   video <profile> still --top a.png --bottom b.png --top-text ... --bottom-text ... --out still.png [--source ...]
 Missing optional tools exit with code 3 and a message saying how to install them.
@@ -71,6 +72,9 @@ def _parser() -> argparse.ArgumentParser:
     vo.add_argument("--pause", type=float)
     f = sub.add_parser("film")
     fs = f.add_subparsers(dest="film_action", required=True)
+    fn = fs.add_parser("new")
+    fn.add_argument("name", help="new film folder name (in video.films_dir) or a path")
+    fn.add_argument("--from", dest="reference", required=True, help="reference film folder to copy")
     fw = fs.add_parser("words")
     fw.add_argument("dir")
     fw.add_argument("voice")
@@ -165,6 +169,8 @@ def main(argv: list[str]) -> int:
             if not settings.allowed(v, "FILM"):
                 print(f"error: mode FILM is not in this profile's video.modes ({', '.join(v['modes'])})", file=sys.stderr)
                 return 2
+            if a.film_action == "new":
+                return film.new(v, a.name, a.reference)
             if a.film_action == "words":
                 return film.words(v, a.dir, a.voice, a.script, a.section, a.model)
             if a.film_action == "check":

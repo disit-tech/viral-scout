@@ -1,5 +1,6 @@
 """Animated films with HyperFrames (HeyGen, Apache 2.0): HTML/CSS compositions rendered to MP4 locally.
 
+  film new    <name> --from <reference film>                a new film folder seeded from a reference film
   film words  <dir> <voice.wav> <script.md> [--section N]   word times for the scenes + the voice check
   film check  <dir> [hyperframes check options]             lint, runtime, layout and contrast gate (0 errors)
   film render <dir> [--out FILE] [--quality delivery]       MP4, then loudness against −14 LUFS / −1 dBTP
@@ -26,6 +27,35 @@ def resolve_dir(v: dict, d: str) -> Path:
     if not p.is_dir():
         raise SystemExit(f"error: film folder not found: {d}" + (f" (also looked in {v['films_dir']})" if v.get("films_dir") else ""))
     return p.resolve()
+
+
+# Left out when a new film is seeded from a reference: renders, caches, the reference's own voice, word times,
+# review and post pack. Kept: SPEC.md, index.html, compositions/, assets/ (fonts, sfx and their CREDITS.md), scripts.
+SKIP_NAMES = {"out", "work", ".hyperframes", "snapshots", "work-words.json", "voice-check.md", "REVIEW.md",
+              "POST.md", "still.png"}
+SKIP_DIRS_CONTENT = {Path("assets") / "voice"}
+
+
+def new(v: dict, name: str, reference: str) -> int:
+    """Copy a reference film into a new folder, so an unattended job can reuse its structure, fonts and sound
+    effects (binary files Claude can't write). The new folder must not exist yet."""
+    src = resolve_dir(v, reference)
+    p = Path(name)
+    target = (v["films_dir"] / name) if v.get("films_dir") and len(p.parts) == 1 else p
+    target = target.resolve()
+    if target.exists():
+        raise SystemExit(f"error: film folder already exists: {target}")
+
+    def ignore(folder: str, names: list[str]) -> set[str]:
+        rel = Path(folder).resolve().relative_to(src)
+        if rel in SKIP_DIRS_CONTENT:
+            return set(names)
+        return {n for n in names if n in SKIP_NAMES}
+
+    shutil.copytree(src, target, ignore=ignore)
+    print(f"film: {target} (from {src.name}; renders, word times, voice, REVIEW.md and POST.md left out)")
+    print("SPEC.md, index.html and compositions/ are the reference's: rewrite them for the new film.")
+    return 0
 
 
 def _hf(args: list[str], cwd: Path) -> int:

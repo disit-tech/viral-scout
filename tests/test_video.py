@@ -479,6 +479,32 @@ def test_film_words_voice_check_report():
         assert [w["w"] for w in ws][:6] == ["Power", "just", "went", "out.", "Do", "these"]
 
 
+def test_film_new_copies_reference_without_renders_or_voice():
+    from viral_scout.video import film
+    v = vset()
+    with tempfile.TemporaryDirectory() as d:
+        ref = Path(d) / "films" / "ref-film"
+        for f in ("SPEC.md", "index.html", "compositions/scene1.html", "assets/fonts/a.woff2", "assets/sfx/pop.mp3",
+                  "assets/sfx/CREDITS.md", "assets/voice/vo.wav", "out/ref-film-film.mp4", ".hyperframes/state.json",
+                  "work-words.json", "REVIEW.md", "POST.md", "voice-check.md"):
+            (ref / f).parent.mkdir(parents=True, exist_ok=True)
+            (ref / f).write_bytes(bytes([0, 1, 255]) if f.endswith((".woff2", ".mp3", ".wav", ".mp4")) else b"x")
+        v["films_dir"] = Path(d) / "films"
+        assert film.new(v, "new-film", "ref-film") == 0
+        new = Path(d) / "films" / "new-film"
+        for f in ("SPEC.md", "index.html", "compositions/scene1.html", "assets/fonts/a.woff2", "assets/sfx/pop.mp3",
+                  "assets/sfx/CREDITS.md"):
+            assert (new / f).read_bytes() == (ref / f).read_bytes(), f
+        assert (new / "assets" / "voice").is_dir() and not any((new / "assets" / "voice").iterdir())
+        for f in ("out", ".hyperframes", "work-words.json", "REVIEW.md", "POST.md", "voice-check.md"):
+            assert not (new / f).exists(), f
+        try:
+            film.new(v, "new-film", "ref-film")
+            raise AssertionError("an existing folder must not be overwritten")
+        except SystemExit as e:
+            assert "already exists" in str(e)
+
+
 def test_render_reextracts_missing_voice_wav():
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
         skip("ffmpeg not installed")
