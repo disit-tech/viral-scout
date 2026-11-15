@@ -1,6 +1,9 @@
 # Publish the PUBLIC demo (no login, sample data only) to a separate Vercel project "viral-scout-demo".
 # Demo data comes from web/data-demo (sanitized copies: generic profile names, no business strategy, public posts only).
 # The real dashboard (scripts/publish.ps1) stays separate and password-protected.
+#   -Scope   Vercel team that owns the demo (default "disit", the company team; logged in as disit-tech).
+#            A link to a project in another team is dropped and the project is linked again under this one.
+param([string]$Scope = "disit")
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
 $web = Join-Path $repo "web"
@@ -21,9 +24,19 @@ if (Test-Path $tmpLink) { Copy-Item $tmpLink $keepLink -Recurse -Force; Remove-I
 
 Push-Location $out
 try {
-  if (-not (Test-Path ".vercel\project.json")) {
-    & npx --yes vercel@latest link --yes --project viral-scout-demo
-    "1" | & npx --yes vercel@latest env add VIRAL_SCOUT_PUBLIC_DEMO production
+  # Keep the link only if it points at the team we deploy to.
+  $teamId = ((& npx --yes vercel@latest teams ls --format json 2>$null | Out-String | ConvertFrom-Json).teams |
+             Where-Object { $_.slug -eq $Scope }).id
+  if (-not $teamId) { throw "Vercel team '$Scope' not found for this login (npx vercel login with its account)" }
+  if (Test-Path ".vercel\project.json") {
+    $link = Get-Content ".vercel\project.json" | ConvertFrom-Json
+    if ($link.orgId -ne $teamId) { Remove-Item ".vercel" -Recurse -Force }
   }
-  & npx --yes vercel@latest deploy --prod --yes
+  if (-not (Test-Path ".vercel\project.json")) {
+    & npx --yes vercel@latest link --yes --project viral-scout-demo --scope $Scope
+    if ($LASTEXITCODE) { throw "vercel link failed" }
+    "1" | & npx --yes vercel@latest env add VIRAL_SCOUT_PUBLIC_DEMO production --scope $Scope
+  }
+  & npx --yes vercel@latest deploy --prod --yes --scope $Scope
+  if ($LASTEXITCODE) { throw "vercel deploy failed" }
 } finally { Pop-Location }

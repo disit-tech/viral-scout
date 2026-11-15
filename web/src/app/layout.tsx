@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         {isPublicDemo && (
           <div className="border-b border-line bg-panel-2 px-4 py-2 text-center text-xs text-muted">
-            Public demo with sample data: two example businesses, real public YouTube posts. Read-only.{" "}
+            Public demo with sample data: one example business, real public YouTube posts, competitor ads with the advertisers renamed. Read-only.{" "}
             <a href="https://github.com/disit-tech/viral-scout" className="text-rise underline">Source on GitHub</a>
           </div>
         )}

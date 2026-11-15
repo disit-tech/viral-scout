@@ -6,9 +6,13 @@ real profile names. Edit DEMO below to map your profiles to demo names. Then: sc
 """
 import json, re, sys
 from pathlib import Path
-src = Path(sys.argv[1]); out = Path(sys.argv[2]); out.mkdir(parents=True, exist_ok=True)
+import shutil
+src = Path(sys.argv[1]); out = Path(sys.argv[2])
+shutil.rmtree(out, ignore_errors=True)        # start clean: a business dropped from DEMO must not linger in the demo
+out.mkdir(parents=True, exist_ok=True)
+# One business since 2026-11-14 (the one with videos, ads and search demand). The language-school mapping was:
+#   "englishSchool": ("language-school", "Online English school for adult beginners. Short selfie-style lessons filmed on a phone: everyday phrases, pronunciation, plain-vs-native English, with humour."),
 DEMO = {
-  "englishSchool": ("language-school", "Online English school for adult beginners. Short selfie-style lessons filmed on a phone: everyday phrases, pronunciation, plain-vs-native English, with humour."),
   "northForge": ("home-services", "Local home-services company: gutters, holiday lights, handyman repairs. Videos filmed on real jobs: before/after, quick homeowner tips, seasonal reveals."),
 }
 SCRUB = [(r"native-language/native-language", "native-language"), (r"Daisy🇺🇸", "Daisy"),(r"Norridge|Park Ridge|Niles|Des Plaines|Harwood Heights|Chicago|Illinois|\bIL\b|60706", "our area"),
@@ -156,6 +160,10 @@ for real, (name, biz) in DEMO.items():
         (out / "demand").mkdir(exist_ok=True)
         (out / "demand" / f"{name}.json").write_text(json.dumps(dem, ensure_ascii=False), encoding="utf-8")
     d["display_name"] = None
+    if d.get("setup"):                           # counts only, but the area code and linked account are real
+        if d["setup"].get("demand"):
+            d["setup"]["demand"]["geo"] = "local metro"
+        d["setup"].update(perf=False, local=False, own=0)
     d["budget"] = []
     (out / f"{name}.json").write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     live = d["items"]
