@@ -4,6 +4,9 @@ import type { AdsData, IndexEntry, Profile } from "./types";
 
 const DATA = path.join(/*turbopackIgnore: true*/ process.cwd(), process.env.VIRAL_SCOUT_DATA_DIR || "data");
 
+/** JSON files in data/ that are not a business. */
+const NOT_PROFILES = new Set(["index.json", "keys.json"]);
+
 export async function loadIndex(): Promise<{ exported: string | null; profiles: IndexEntry[] }> {
   try {
     return JSON.parse(await readFile(path.join(DATA, "index.json"), "utf-8"));
@@ -13,7 +16,7 @@ export async function loadIndex(): Promise<{ exported: string | null; profiles: 
 }
 
 export async function loadProfile(name: string): Promise<Profile | null> {
-  if (!/^[\w.-]+$/.test(name)) return null;
+  if (!/^[\w.-]+$/.test(name) || NOT_PROFILES.has(`${name}.json`)) return null;
   try {
     return JSON.parse(await readFile(path.join(DATA, `${name}.json`), "utf-8"));
   } catch {
@@ -23,7 +26,7 @@ export async function loadProfile(name: string): Promise<Profile | null> {
 
 export async function profileNames(): Promise<string[]> {
   try {
-    return (await readdir(DATA)).filter((f) => f.endsWith(".json") && f !== "index.json").map((f) => f.slice(0, -5));
+    return (await readdir(DATA)).filter((f) => f.endsWith(".json") && !NOT_PROFILES.has(f)).map((f) => f.slice(0, -5));
   } catch {
     return [];
   }
