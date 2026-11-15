@@ -13,14 +13,27 @@ export async function generateStaticParams() {
   const out: { name: string; key: string }[] = [];
   for (const name of await adsNames()) {
     const d = await loadAds(name);
-    for (const a of d?.ads ?? []) out.push({ name, key: encodeURIComponent(a.key) });
+    // The raw key: Next.js encodes params itself. Pre-encoding here built every page under a double-encoded path
+    // (%253A), so on Vercel the app's own links (%3A) got a 404.
+    for (const a of d?.ads ?? []) out.push({ name, key: a.key });
   }
   return out;
 }
 
+/** The ad for a route key, however many times it was percent-encoded on the way (":" may arrive as %3A or %253A). */
+function findAd(ads: AdItem[] | undefined, key: string): AdItem | undefined {
+  const tries = new Set([key]);
+  let k = key;
+  for (let i = 0; i < 2; i++) {
+    try { k = decodeURIComponent(k); } catch { break; }
+    tries.add(k);
+  }
+  return ads?.find((a) => tries.has(a.key));
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ name: string; key: string }> }) {
   const { name, key } = await params;
-  const ad = (await loadAds(name))?.ads.find((a) => a.key === decodeURIComponent(key));
+  const ad = findAd((await loadAds(name))?.ads, key);
   return { title: ad ? `${advName(ad)} · ad` : "Ad" };
 }
 
@@ -30,7 +43,7 @@ const date = (iso?: string | null) => (iso ? iso.slice(0, 10) : "—");
 export default async function AdPage({ params }: { params: Promise<{ name: string; key: string }> }) {
   const { name, key } = await params;
   const data = await loadAds(name);
-  const ad = data?.ads.find((a) => a.key === decodeURIComponent(key));
+  const ad = findAd(data?.ads, key);
   if (!data || !ad) notFound();
 
   const all = data.ads;
