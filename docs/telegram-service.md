@@ -72,6 +72,41 @@ Webhook and forward routes answer 200 once the request is authorised, even if ha
 
 **A different reason set:** add the codes to `reasons`, add a set under `reasonSets`, point the project at it. The example ships one set (`video`) for all three projects, because that is what the solar site does today.
 
+## Generic bots (one for ideas, one for videos)
+
+Every business can share two bots instead of having one each:
+
+| Bot | Config key | Sends | Receives |
+|---|---|---|---|
+| Ideas bot | `ideasBot` | idea cards of every project (with the project's `label` in front), the "why?" question, content packs | button presses, comments on ideas |
+| Video bot | `videoBot` | scenarios (✅ / ✏️), films and files (`POST /api/notes`), blog reviews | replies for Claude (notes), "Claude, …" messages |
+
+```json
+{
+  "ideasBot": "studio-ideas",
+  "videoBot": "studio-video",
+  "bots": {
+    "studio-ideas": { "tokenEnv": "TELEGRAM_STUDIO_IDEAS_BOT_TOKEN", "webhookSecretEnv": "TELEGRAM_WEBHOOK_SECRET", "notes": "off" },
+    "studio-video": { "tokenEnv": "TELEGRAM_STUDIO_VIDEO_BOT_TOKEN", "webhookSecretEnv": "TELEGRAM_WEBHOOK_SECRET", "notes": "replies+call" }
+  }
+}
+```
+
+How it behaves:
+
+- **Every project needs a `label`** (for example `"☀️ Bright Solar · "`). The label tells projects apart in the shared group, and it decides which project a note belongs to: a reply to a message that starts with a project's label is that project's note. Anything else goes to `defaultProject`.
+- **Old bots keep working.** Keep the old per-project bots in `bots` and keep their webhooks pointed at this service. In a basic group every bot numbers its messages on its own, and only the bot that posted a message can edit it. So the service records which bot posted each idea (`posted by the X bot` in the feedback log) and edits and answers every message through that bot. Old ideas stay on their old bot; new ideas go through the ideas bot. Nothing has to be re-posted. `repost` moves an idea to the ideas bot if you want it there.
+- **Until a generic bot's token is set, nothing changes.** `ideasBot` and `videoBot` only take over once `TELEGRAM_STUDIO_IDEAS_BOT_TOKEN` / `TELEGRAM_STUDIO_VIDEO_BOT_TOKEN` exist. So the config can be deployed before the bots are created.
+- `projects.<p>.bot` becomes optional once `ideasBot` is set. `scriptsBot` and `blog.bot` are only used without a `videoBot`.
+
+### Setting them up
+
+1. In Telegram, @BotFather → `/newbot` twice (for example "Studio Ideas" and "Studio Video"). Keep privacy mode on: bots still get replies to their own messages and button presses.
+2. Add both bots to the ideas group and press `/start` in it once for each.
+3. Put the tokens on the service: `vercel env add TELEGRAM_STUDIO_IDEAS_BOT_TOKEN production` and `vercel env add TELEGRAM_STUDIO_VIDEO_BOT_TOKEN production` (in `service/`), add `ideasBot`, `videoBot`, the two bots and a `label` per project to `STUDIO_CONFIG_JSON`, and redeploy.
+4. Point both webhooks at the service: `/api/telegram/studio-ideas` and `/api/telegram/studio-video`, with `secret_token` = `TELEGRAM_WEBHOOK_SECRET`.
+5. Rate one new idea and reply to one scenario to check both.
+
 ## Cutover plan
 
 One bot at a time, in this order. Each step has its own rollback. Commands are in [service/README.md](../service/README.md).

@@ -46,6 +46,10 @@ With `DATABASE_URL` empty it uses a scratch file `data/local.db`. Don't point a 
 
 Deploying changes nothing in Telegram. Until a webhook points here, the service gets no updates.
 
+## Generic bots
+
+One ideas bot and one video bot for every business: `ideasBot` and `videoBot` in the config. Setup and behaviour: [docs/telegram-service.md](../docs/telegram-service.md#generic-bots-one-for-ideas-one-for-videos).
+
 ## Switch one bot at a time
 
 Each step is reversible on its own. Do one, use the bot for a day, then do the next.

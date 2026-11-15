@@ -62,7 +62,7 @@ export function fakeDb(rows: VideoIdea[] = []) {
     videoIdea: {
       findUnique: vi.fn(async ({ where }: { where: Where }) => { const r = [...ideas.values()].find((x) => matches(x, where)); return r ? { ...r } : null; }),
       findFirst: vi.fn(async ({ where }: { where: Where }) => { const r = [...ideas.values()].find((x) => matches(x, where)); return r ? { ...r } : null; }),
-      findMany: vi.fn(async ({ where }: { where?: Where } = {}) => [...ideas.values()].filter((r) => matches(r, where ?? {}))),
+      findMany: vi.fn(async ({ where }: { where?: Where } = {}) => [...ideas.values()].filter((r) => matches(r, where ?? {})).map((r) => ({ ...r }))),
       update: vi.fn(async ({ where, data }: { where: { id: number }; data: Partial<VideoIdea> }) => {
         const r = ideas.get(where.id);
         if (!r) throw new Error("not found");
@@ -76,7 +76,11 @@ export function fakeDb(rows: VideoIdea[] = []) {
         return { ...r };
       }),
     },
-    ideaFeedback: { create: vi.fn(async ({ data }: { data: (typeof feedback)[number] }) => (feedback.push(data), data)) },
+    ideaFeedback: {
+      create: vi.fn(async ({ data }: { data: (typeof feedback)[number] }) => (feedback.push(data), data)),
+      findMany: vi.fn(async ({ where }: { where: { ideaId: number; kind?: string } }) =>
+        feedback.filter((f) => f.ideaId === where.ideaId && (!where.kind || f.kind === where.kind)).reverse()),
+    },
     claudeNote: { upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => (notes.push(create), create)) },
     blogReview: {
       findUnique: vi.fn(async ({ where }: { where: { id: number } }) => blog.get(where.id) ?? null),
