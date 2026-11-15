@@ -1,12 +1,14 @@
 import { createHmac } from "node:crypto";
-import { apiSecret, allowedChats, config, projectOf, projectSlugs, tokenOf } from "@/lib/config";
+import { apiSecret, allowedChats, config, labelOf, projectOf, projectOfText, projectSlugs, tokenOf, videoBotOf } from "@/lib/config";
 import { prisma } from "@/lib/db";
 import { bearer, safeEqual } from "@/lib/auth";
 import { api } from "@/lib/telegram";
 
 /**
  * Owner notes for the unattended jobs (client: viral-scout's `python -m viral_scout notes`, see viral_scout/notes.py).
- * Notes are ClaudeNote rows, stored per bot; a project reads the notes of its own bot (projects.<slug>.bot).
+ * Notes are ClaudeNote rows, stored per bot. A project reads the notes of the video bot (shared by every project:
+ * a note belongs to the project whose header label starts the message it replies to, else to defaultProject) and of
+ * its own older bot (projects.<slug>.bot). Files go out through the video bot, headed with the project's label.
  * Auth: "Authorization: Bearer <IDEAS_API_SECRET>" (full access only, no CRM keys).
  *   GET   ?project=…&status=new|all[&limit=20]  → {notes: [{id, created_at, from, kind, status, text, about, file_url, result}]}
  *   GET   ?project=…&pending=1                 → {pending: n}: new notes, plus blog guides approved with ✅ for the
@@ -21,7 +23,16 @@ export const dynamic = "force-dynamic";
 
 const full = (req: Request) => safeEqual(bearer(req), apiSecret());
 const json = (body: unknown, status = 200) => Response.json(body, { status });
-const botFor = (project: string | null) => (project && projectOf(project) ? projectOf(project)!.bot : null);
+/** The bots whose notes a project reads: the shared video bot and the project's own older bot. */
+const botsFor = (project: string | null): string[] | null => {
+  if (!project || !projectOf(project)) return null;
+  const own = projectOf(project)!.bot;
+  return [...new Set([videoBotOf(), ...(own ? [own] : [])])];
+};
+/** The project a note belongs to. */
+const noteProject = (n: { bot: string; replyToText: string | null; text: string | null }) =>
+  projectOfText(n.replyToText, n.bot) ?? projectOfText(n.text?.replace(/^\s*(#?claude|клод)\b[\s,:-]*/i, ""), n.bot) ?? (
+    projectSlugs().find((p) => projectOf(p)!.bot === n.bot && n.bot !== videoBotOf()) ?? config().defaultProject);
 const sigOf = (id: number) => createHmac("sha256", apiSecret() ?? "").update(`note-file:${id}`).digest("hex").slice(0, 32);
 
 type Note = {
@@ -46,20 +57,23 @@ export async function GET(req: Request) {
   const fileId = url.searchParams.get("file");
   if (fileId) return file(Number(fileId), url.searchParams.get("sig"));
   if (!full(req)) return json({ error: "unauthorized" }, 401);
-  const bot = botFor(url.searchParams.get("project"));
-  if (!bot) return json({ error: `project must be one of ${projectSlugs().join(", ")}` }, 400);
+  const project = url.searchParams.get("project");
+  const bots = botsFor(project);
+  if (!bots) return json({ error: `project must be one of ${projectSlugs().join(", ")}` }, 400);
+  const mine = (rows: Note[]) => rows.filter((n) => noteProject(n) === project);
   if (url.searchParams.get("pending")) {
-    const notes = await prisma.claudeNote.count({ where: { bot, status: "new" } });
-    const blog = config().blog?.bot === bot ? await prisma.blogReview.count({ where: { status: "approved" } }) : 0;
-    return json({ pending: notes + blog });
+    const fresh = mine((await prisma.claudeNote.findMany({ where: { bot: { in: bots }, status: "new" }, take: 500 })) as Note[]);
+    // Approved blog guides wait for the blog job of the default project (the blog is the solar site's).
+    const blog = project === config().defaultProject && config().blog ? await prisma.blogReview.count({ where: { status: "approved" } }) : 0;
+    return json({ pending: fresh.length + blog });
   }
   const all = url.searchParams.get("status") === "all";
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || (all ? 20 : 100), 1), 200);
-  const notes = (await prisma.claudeNote.findMany({
-    where: all ? { bot } : { bot, status: "new" },
+  const notes = mine((await prisma.claudeNote.findMany({
+    where: all ? { bot: { in: bots } } : { bot: { in: bots }, status: "new" },
     orderBy: { id: all ? "desc" : "asc" },
-    take: limit,
-  })) as Note[];
+    take: 500,
+  })) as Note[]).slice(0, limit);
   return json({ notes: notes.map((n) => shape(n, url.origin)) });
 }
 
@@ -84,12 +98,13 @@ export async function PATCH(req: Request) {
   const b = (await req.json().catch(() => null)) as
     | { id?: number; project?: string; status?: string; result?: string; reply?: string }
     | null;
-  const bot = botFor(b?.project ?? null);
-  if (!b || !bot || !Number.isInteger(b.id) || !["done", "skipped", "open"].includes(b.status ?? "")) {
+  const bots = botsFor(b?.project ?? null);
+  if (!b || !bots || !Number.isInteger(b.id) || !["done", "skipped", "open"].includes(b.status ?? "")) {
     return json({ error: "body: {id, project, status: done|skipped|open, result?, reply?}" }, 400);
   }
   const n = (await prisma.claudeNote.findUnique({ where: { id: b.id } })) as Note | null;
-  if (!n || n.bot !== bot) return json({ error: "no such note for this project" }, 404);
+  if (!n || !bots.includes(n.bot) || noteProject(n) !== b.project) return json({ error: "no such note for this project" }, 404);
+  const bot = n.bot; // answer in the note's thread, through the bot that received it
   const status = b.status === "open" ? "new" : b.status!;
   await prisma.claudeNote.update({
     where: { id: n.id },
@@ -104,16 +119,19 @@ export async function PATCH(req: Request) {
 export async function POST(req: Request) {
   if (!full(req)) return json({ error: "unauthorized" }, 401);
   const form = await req.formData().catch(() => null);
-  const bot = botFor((form?.get("project") as string | null) ?? null);
+  const project = (form?.get("project") as string | null) ?? null;
+  const bots = botsFor(project);
   const f = form?.get("file");
-  if (!form || !bot || !(f instanceof Blob)) return json({ error: "multipart: project, file, caption?, reply_to?" }, 400);
+  if (!form || !bots || !(f instanceof Blob)) return json({ error: "multipart: project, file, caption?, reply_to?" }, 400);
+  const bot = videoBotOf();
   const token = tokenOf(bot);
   const chat = allowedChats(bot)[0];
   if (!token || !chat) return json({ error: `bot ${bot} has no token or chat configured` }, 503);
   const out = new FormData();
   out.set("chat_id", chat);
   out.set("document", f, (f as File).name || "file");
-  const caption = String(form.get("caption") ?? "").slice(0, 1024);
+  // The project's header goes first, so a reply to the file is a note for that project.
+  const caption = `${labelOf(project!)}${String(form.get("caption") ?? "")}`.slice(0, 1024);
   if (caption) out.set("caption", caption);
   const replyTo = Number(form.get("reply_to"));
   if (Number.isInteger(replyTo) && replyTo > 0) {

@@ -162,7 +162,7 @@ export const toggleTag = (tags: string[], code: string) => (tags.includes(code) 
 
 export const scriptText = (i: VideoIdea) =>
   [
-    `📝 <b>Сценарій · ідея #${i.id}</b>: ${esc(i.title)}`,
+    `${labelOf(i.project)}📝 <b>Сценарій · ідея #${i.id}</b>: ${esc(i.title)}`,
     "",
     esc((i.script ?? "").slice(0, 3500)),
     "",

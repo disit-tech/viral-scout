@@ -39,8 +39,12 @@ const Bot = z.object({
 });
 
 const Project = z.object({
-  /** The bot that posts (and so edits) this project's ideas. Falls back to defaultBot while its token is unset. */
-  bot: slug,
+  /**
+   * The project's own bot from before the generic bots (optional). With ideasBot set, new ideas go through ideasBot and
+   * this bot only keeps answering and editing the messages it posted earlier. Without ideasBot it posts the ideas
+   * (falling back to defaultBot while its token is unset).
+   */
+  bot: slug.optional(),
   /** Header in front of every idea message, so brands sharing a group don't mix (e.g. "🔨 Homeworks · "). */
   label: z.string().default(""),
   /** Which entry of reasonSets offers the "why?" chips. */
@@ -61,8 +65,12 @@ export const ConfigSchema = z
     defaultProject: slug,
     defaultBot: slug,
     chatsEnv: envName,
-    /** Bot that sends scenarios (✅ / ✏️). */
-    scriptsBot: slug,
+    /** One bot for the ideas of every project (cards, buttons, "why?", comments, content packs). Wins over projects.<p>.bot. */
+    ideasBot: slug.optional(),
+    /** One bot for the production side of every project: scenarios (✅ / ✏️), films and files, notes for Claude, blog reviews. */
+    videoBot: slug.optional(),
+    /** Bot that sends scenarios (✅ / ✏️) when there is no videoBot. */
+    scriptsBot: slug.optional(),
     blog: z.object({ bot: slug, publicUrl: z.string().url() }).optional(),
     bots: z.record(slug, Bot),
     projects: z.record(slug, Project),
@@ -74,10 +82,12 @@ export const ConfigSchema = z
     const bad = (message: string) => ctx.addIssue({ code: "custom", message });
     if (!c.projects[c.defaultProject]) bad(`defaultProject "${c.defaultProject}" is not in projects`);
     if (!c.bots[c.defaultBot]) bad(`defaultBot "${c.defaultBot}" is not in bots`);
-    if (!c.bots[c.scriptsBot]) bad(`scriptsBot "${c.scriptsBot}" is not in bots`);
+    for (const k of ["ideasBot", "videoBot", "scriptsBot"] as const) if (c[k] && !c.bots[c[k]!]) bad(`${k} "${c[k]}" is not in bots`);
+    if (!c.videoBot && !c.scriptsBot) bad("set videoBot (or the older scriptsBot)");
     if (c.blog && !c.bots[c.blog.bot]) bad(`blog.bot "${c.blog.bot}" is not in bots`);
     for (const [p, v] of Object.entries(c.projects)) {
-      if (!c.bots[v.bot]) bad(`project ${p}: bot "${v.bot}" is not in bots`);
+      if (v.bot && !c.bots[v.bot]) bad(`project ${p}: bot "${v.bot}" is not in bots`);
+      if (!v.bot && !c.ideasBot) bad(`project ${p}: set its bot, or a top-level ideasBot`);
       if (!c.reasonSets[v.reasonSet]) bad(`project ${p}: reasonSet "${v.reasonSet}" is not in reasonSets`);
       for (const k of v.platforms ?? []) if (!c.platforms[k]) bad(`project ${p}: platform "${k}" is not in platforms`);
     }
@@ -135,13 +145,46 @@ export const allowedChats = (bot?: string) =>
  * Unknown projects use the default bot.
  */
 export const botOf = (i: { project: string }): string => {
+  const shared = config().ideasBot;
+  return shared && tokenOf(shared) ? shared : legacyBotOf(i);
+};
+
+/** The bot a project used before the generic ideas bot: its own bot once its token is set, else the default bot. */
+export const legacyBotOf = (i: { project: string }): string => {
   const own = projectOf(i.project)?.bot;
   return own && tokenOf(own) ? own : config().defaultBot;
 };
 
+/** The production bot: scenarios, films and files, notes for Claude. */
+export const videoBotOf = (): string => {
+  const v = config().videoBot;
+  return v && tokenOf(v) ? v : (config().scriptsBot ?? config().defaultBot);
+};
+/** The bot that sends blog reviews: the video bot once its token is set, else blog.bot. */
+export const blogBotOf = (): string => {
+  const v = config().videoBot;
+  return v && tokenOf(v) ? v : (config().blog?.bot ?? config().defaultBot);
+};
+
+/** The project a message of a bot belongs to, from its header label (bots shared by several projects). */
+export function projectOfText(text: string | null | undefined, bot?: string): string | undefined {
+  const t = (text ?? "").trimStart();
+  const c = config();
+  const candidates = projectSlugs().filter((p) => c.projects[p].label.trim());
+  const hit = candidates.find((p) => t.startsWith(c.projects[p].label.trim()));
+  if (hit) return hit;
+  // A bot used by one project only: that project.
+  if (bot) {
+    const own = projectSlugs().filter((p) => c.projects[p].bot === bot);
+    if (own.length === 1 && bot !== c.ideasBot && bot !== c.videoBot) return own[0];
+  }
+  return undefined;
+}
+
 /** Which ideas a bot may look up by message id: in a basic group every bot numbers its messages on its own. */
 export function ideaScopeOf(bot: string): { project?: string | { in: string[] } | { notIn: string[] } } {
   const c = config();
+  if (bot === c.ideasBot) return {};
   if (bot !== c.defaultBot) return { project: { in: projectSlugs().filter((p) => c.projects[p].bot === bot) } };
   const own = projectSlugs().filter((p) => c.projects[p].bot !== c.defaultBot && botOf({ project: p }) !== c.defaultBot);
   return own.length ? { project: { notIn: own } } : {};

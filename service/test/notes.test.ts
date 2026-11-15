@@ -20,8 +20,8 @@ beforeEach(() => {
   state.db = {
     blogReview: { count: vi.fn(async () => 2) },
     claudeNote: {
-      findMany: vi.fn(async ({ where }: { where: { bot: string; status?: string } }) =>
-        rows.filter((r) => r.bot === where.bot && (!where.status || r.status === where.status))),
+      findMany: vi.fn(async ({ where }: { where: { bot: { in: string[] }; status?: string } }) =>
+        rows.filter((r) => where.bot.in.includes(r.bot) && (!where.status || r.status === where.status))),
       count: vi.fn(async ({ where }: { where: { bot: string; status: string } }) =>
         rows.filter((r) => r.bot === where.bot && r.status === where.status).length),
       findUnique: vi.fn(async ({ where }: { where: { id: number } }) => rows.find((r) => r.id === where.id) ?? null),

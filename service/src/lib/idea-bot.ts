@@ -1,4 +1,4 @@
-import { allowedChats, botOf, botSlugs, config, hasPacks, ideaScopeOf, REASONS, tokenOf } from "./config";
+import { allowedChats, blogBotOf, botConfig, botOf, botSlugs, config, hasPacks, ideaScopeOf, legacyBotOf, REASONS, tokenOf, videoBotOf } from "./config";
 import { prisma, type BlogReview, type VideoIdea } from "./db";
 import { captureNote, type Msg } from "./notes";
 import { api } from "./telegram";
@@ -48,6 +48,21 @@ export async function requestPack(idea: VideoIdea): Promise<"queued" | "already"
   return "queued";
 }
 
+const POSTED = /^(?:re)?posted by the (\S+) bot/;
+
+/**
+ * The bot that posted the idea's current message (so the only one that can edit it). Read from the feedback log
+ * ("posted by the X bot"); ideas posted before that log existed belong to their project's old bot.
+ */
+export async function posterOf(i: VideoIdea): Promise<string> {
+  const rows = await prisma.ideaFeedback.findMany({ where: { ideaId: i.id, kind: "system" }, orderBy: { id: "desc" }, take: 20 });
+  for (const r of rows) {
+    const m = POSTED.exec(r.value ?? "");
+    if (m && botConfig(m[1])) return m[1];
+  }
+  return legacyBotOf(i);
+}
+
 /**
  * Sends a content pack as replies under the idea and stores it (feedback kind "pack").
  * send = false only stores it (backfill of a pack that already went to Telegram); the stage is left as it is.
@@ -55,7 +70,8 @@ export async function requestPack(idea: VideoIdea): Promise<"queued" | "already"
 export async function postPack(i: VideoIdea, sections: PackSection[], notePath?: string, send = true) {
   await logFeedback(i.id, PACK_KIND, JSON.stringify({ sections, note: notePath ?? null }));
   if (!send) return { idea: i, messages: [] as string[], dryRun: true };
-  const bot = botOf(i);
+  // Replies go under the idea, so they come from the bot that posted it (message ids are per bot in a basic group).
+  const bot = i.tgMessageId ? await posterOf(i) : botOf(i);
   const chat_id = i.tgChatId ?? firstChat(bot);
   const messages = packMessages(i, sections, notePath);
   const dryRun = !tokenOf(bot) || !chat_id;
@@ -96,6 +112,7 @@ export async function postIdea(i: VideoIdea) {
     const message_id = res?.result?.message_id;
     if (message_id && !i.tgMessageId) {
       i = await prisma.videoIdea.update({ where: { id: i.id }, data: { tgChatId: String(chat_id), tgMessageId: message_id } });
+      await logFeedback(i.id, "system", `posted by the ${bot} bot`);
     }
   }
 }
@@ -104,8 +121,9 @@ export async function postIdea(i: VideoIdea) {
 export async function repostIdea(i: VideoIdea) {
   if (i.tgChatId && i.tgMessageId) {
     const target = { chat_id: i.tgChatId, message_id: i.tgMessageId };
-    // The default bot first (as before), then the others in config order.
-    const order = [config().defaultBot, ...botSlugs().filter((b) => b !== config().defaultBot)];
+    // The bot that posted it first, then the others in config order.
+    const first = await posterOf(i);
+    const order = [first, ...botSlugs().filter((b) => b !== first)];
     for (const bot of order) {
       if (!tokenOf(bot)) continue;
       const del = await api("deleteMessage", target, bot);
@@ -119,7 +137,7 @@ export async function repostIdea(i: VideoIdea) {
 
 /** Sends a (new version of the) scenario for an approved idea to the group, with ✅ / ✏️ buttons. */
 export async function postScript(i: VideoIdea, script: string) {
-  const bot = config().scriptsBot;
+  const bot = videoBotOf();
   const chat_id = firstChat(bot);
   if (!tokenOf(bot) || !chat_id) return i;
   if (i.scriptMessageId) {
@@ -141,7 +159,7 @@ export async function setStage(i: VideoIdea, stage: string, draftPath?: string) 
   await logFeedback(i.id, "system", `stage ${stage}`);
   await refreshIdeaMessage(i);
   if (i.scriptMessageId) {
-    const bot = config().scriptsBot;
+    const bot = videoBotOf();
     await api("editMessageText", {
       chat_id: firstChat(bot),
       message_id: i.scriptMessageId,
@@ -163,12 +181,12 @@ export async function refreshIdeaMessage(i: VideoIdea) {
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     reply_markup: keyboard(i),
-  }, botOf(i));
+  }, await posterOf(i));
 }
 
 // ───────────── Blog guides: ✅ Publish / ✏️ Changes ─────────────
 
-const blogBot = () => config().blog?.bot ?? config().defaultBot;
+const blogBot = () => blogBotOf();
 
 /** Sends a blog draft for review; an older waiting version of the same guide loses its buttons. */
 export async function postBlogReview(slug: string, title: string, summary: string) {
@@ -222,14 +240,14 @@ const answer = (bot: string, q: Query, text?: string, show_alert?: boolean) =>
 
 /** 📝 Пости: queue a content pack for the next Claude run (the texts are written on the PC, not here). */
 async function handlePack(q: Query, idea: VideoIdea) {
-  const bot = botOf(idea);
+  const bot = await posterOf(idea);
   if (!hasPacks(idea) || idea.status === "deleted" || idea.status === "replaced") return answer(bot, q, "Для цієї ідеї пости не робимо");
   if ((await requestPack(idea)) === "already") return answer(bot, q, "📝 Вже в черзі");
   await answer(bot, q, "📝 Claude напише пости при наступному запуску (щодня о 8:15, коли ПК увімкнений) і надішле їх відповідями під ідеєю.", true);
 }
 
 async function handleScript(q: Query, idea: VideoIdea, a: "ok" | "edit") {
-  const bot = config().scriptsBot;
+  const bot = videoBotOf();
   if (idea.stage !== "script") return answer(bot, q, STAGE[idea.stage ?? ""] ?? "Сценарій вже не активний");
   if (a === "edit")
     return answer(bot, q, "Відповідай (reply) на сценарій: що змінити (текстом або голосом). Claude перепише й надішле нову версію.", true);
@@ -250,7 +268,7 @@ async function handleBlog(q: Query, id: number, a: "ok" | "edit") {
 
 /** After a rating or request: ask "why?" with reason buttons; the previous question for this idea is removed. */
 async function askWhy(i: VideoIdea, chat_id: number) {
-  const bot = botOf(i);
+  const bot = await posterOf(i);
   if (i.askMessageId) await api("deleteMessage", { chat_id, message_id: i.askMessageId }, bot);
   const res = await api("sendMessage", { chat_id, text: askText(i), parse_mode: "HTML", reply_markup: askKeyboard(i) }, bot);
   const message_id = res?.result?.message_id;
@@ -258,7 +276,7 @@ async function askWhy(i: VideoIdea, chat_id: number) {
 }
 
 async function handleTag(q: Query, idea: VideoIdea, code: string) {
-  const bot = botOf(idea);
+  const bot = await posterOf(idea);
   const id = idea.id;
   const target = { chat_id: q.message!.chat.id, message_id: q.message!.message_id, parse_mode: "HTML" };
   if (code === "undo") {
@@ -304,7 +322,7 @@ async function handleTag(q: Query, idea: VideoIdea, code: string) {
 }
 
 async function handleMenu(q: Query, idea: VideoIdea, action: "more" | "back" | "del" | "delyes") {
-  const bot = botOf(idea);
+  const bot = await posterOf(idea);
   const target = { chat_id: q.message!.chat.id, message_id: q.message!.message_id };
   if (action === "delyes") {
     const updated = await prisma.videoIdea.update({ where: { id: idea.id }, data: { status: "deleted", askedAt: null } });
@@ -363,13 +381,14 @@ export async function handleIdeasUpdate(update: Update, bot: string) {
   }
   // Which idea: a reply to the idea or to its "why?" question; otherwise the idea asked about in the last hour.
   // Only this bot's ideas: in a basic group every bot numbers messages on its own, so message ids repeat across bots.
+  // The candidates are narrowed to the ideas whose current message this bot posted (posterOf).
   const mine = ideaScopeOf(bot);
   const replyTo = m.reply_to_message?.message_id;
-  const idea = replyTo
-    ? await prisma.videoIdea.findFirst({ where: { ...mine, OR: [{ tgChatId: String(m.chat.id), tgMessageId: replyTo }, { askMessageId: replyTo }] } })
-    : await prisma.videoIdea.findFirst({ where: { ...mine, askedAt: { gte: new Date(Date.now() - ASK_WINDOW_MS) } }, orderBy: { askedAt: "desc" } });
-  // Both bots may see the message: only the bot that owns the idea records the comment.
-  if (idea && botOf(idea) !== bot) return;
+  const candidates = replyTo
+    ? await prisma.videoIdea.findMany({ where: { ...mine, OR: [{ tgChatId: String(m.chat.id), tgMessageId: replyTo }, { askMessageId: replyTo }] }, orderBy: { id: "desc" }, take: 10 })
+    : await prisma.videoIdea.findMany({ where: { ...mine, askedAt: { gte: new Date(Date.now() - ASK_WINDOW_MS) } }, orderBy: { askedAt: "desc" }, take: 10 });
+  let idea: VideoIdea | null = null;
+  for (const c of candidates) if ((await posterOf(c)) === bot) { idea = c; break; }
   // Not about an idea: a reply to another message of this bot (e.g. a video) or "Claude, …" → a note for Claude.
   // Anything else in the group is people talking: stay quiet.
   if (!idea || idea.status === "deleted" || (!replyTo && /^\s*(#?claude|клод)\b/i.test(m.text))) {
