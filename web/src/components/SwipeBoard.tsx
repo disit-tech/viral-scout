@@ -52,13 +52,21 @@ export default function SwipeBoard({ notes, profile, local }: { notes: SwipeNote
                     )}
                     <div className="space-y-1.5 p-2.5">
                       {n.post_id ? (
-                        <Link href={`/p/${profile}/v/${encodeURIComponent(n.post_id)}`} className="line-clamp-2 text-sm font-medium hover:text-accent">
+                        <Link href={`/p/${profile}/${n.kind === "ad" ? "a" : "v"}/${encodeURIComponent(n.post_id)}`}
+                          className="line-clamp-2 text-sm font-medium hover:text-accent">
                           {titleOf(n)}
                         </Link>
                       ) : (
                         <a href={n.url} target="_blank" rel="noreferrer" className="line-clamp-2 text-sm font-medium hover:text-accent">{titleOf(n)}</a>
                       )}
-                      <p className="text-xs text-muted">{n.creator} · {num(toNum(n.views) ?? n.likes)} · {times(n.outlier)} usual</p>
+                      {n.kind === "ad" ? (
+                        <p className="text-xs text-muted">
+                          📢 {n.creator} · {toNum(n.days_running) !== null ? `${Math.round(toNum(n.days_running)!)} days running` : "start unknown"}
+                          {toNum(n.variants) ? ` · ${toNum(n.variants)} variants` : ""}{toNum(n.ad_score) !== null ? ` · score ${Math.round(toNum(n.ad_score)!)}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted">{n.creator} · {num(toNum(n.views) ?? n.likes)} · {times(n.outlier)} usual</p>
+                      )}
                       {n.format && <span className="inline-block rounded-full bg-panel-2 px-2 py-0.5 text-[11px]">{n.format}</span>}
                       {n.hook && <p className="line-clamp-3 text-xs italic text-text/80">“{n.hook}”</p>}
                       {why(n.body) && <p className="line-clamp-3 text-xs text-muted">{why(n.body)}</p>}
