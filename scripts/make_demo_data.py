@@ -173,5 +173,7 @@ for real, (name, biz) in DEMO.items():
       "new": 0, "saved": len(d["swipe"]), "ideas": len(d["ideas"]),
       "ads": len(ads["ads"]) if ads else None, "demand": bool(dem),
       "top": [{"title": i["title"], "thumbnail": i.get("thumbnail"), "outlier": i.get("outlier"), "channel": i["channel"], "url": i["url"]} for i in top]})
+if (src / "keys.json").exists():                 # key catalog (names and help text only) for the Setup page
+    shutil.copy(src / "keys.json", out / "keys.json")
 (out / "index.json").write_text(json.dumps({"exported": json.loads((src / "index.json").read_text(encoding="utf-8"))["exported"], "profiles": index}, ensure_ascii=False), encoding="utf-8")
 print("demo:", [p["name"] for p in index], [p["posts"] for p in index])
