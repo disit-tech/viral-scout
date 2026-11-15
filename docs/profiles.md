@@ -28,7 +28,7 @@ Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy f
 | `filters.max_age_days` | ignore older discoveries | 30–60 |
 | `filters.must_match` | regex the title (hashtags removed) + channel must match | your topic words, in every language |
 | `filters.exclude` | regex on title + channel | competitors' niches you don't serve, kids' content, news, live streams |
-| `enrich_top` | YouTube videos opened per run for full stats | 60–90 |
+| `enrich_top` | YouTube videos opened per run for full stats when there is no `YOUTUBE_API_KEY` (with a key, the Data API fills all of them) | 60–90 |
 | `recheck` | re-measure recent posts | `{max_age_days: 30, limit: 60}` |
 | `report` | `top` rows per section, `hooks` shown, `transcripts` fetched | `{top: 25, hooks: 20, transcripts: 40}` |
 | `alerts` | Telegram thresholds | see below |

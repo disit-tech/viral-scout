@@ -2,6 +2,8 @@
 
   YOUTUBE_API_KEY  a free key from Google Cloud (APIs & Services → enable "YouTube Data API v3" → Credentials).
 Quota: 10,000 units/day free. One keyword = 100 (search) + 1 (video stats) + 1 (channel stats) ≈ 102 units.
+Enrichment (stats, titles, subscribers for every YouTube find, e.g. from hashtag feeds) = 1 unit per 50 videos
++ 1 per 50 channels, and it replaces opening each video page, which YouTube throttles with a bot check.
 """
 import os
 from datetime import datetime, timedelta, timezone
@@ -67,6 +69,49 @@ def discover(keywords, window="week", shorts=True, per_query=30, languages=None,
             if vid:
                 found.setdefault(vid, []).append(f"youtube api: {kw}")
     return _videos(found, errors)
+
+
+def enrich(items, errors=None):
+    """Fill likes, comments, views, length, date, title, channel, description and subscribers for YouTube items in place,
+    50 videos per call (1 unit) plus 50 channels per call (1 unit). No page loads, so no bot check.
+    Returns the ids the API answered for (deleted or private videos are left to the caller)."""
+    errors = errors if errors is not None else []
+    by_id = {}
+    for it in items:
+        by_id.setdefault(it.id, []).append(it)
+    done, ids = set(), list(by_id)
+    for i in range(0, len(ids), 50):
+        data = _get("videos", {"part": "snippet,statistics,contentDetails", "id": ",".join(ids[i:i + 50])},
+                    errors, "youtube api videos (enrich)")
+        for v in data.get("items") or []:
+            sn, st = v.get("snippet") or {}, v.get("statistics") or {}
+            dur = _seconds((v.get("contentDetails") or {}).get("duration"))
+            pub = datetime.fromisoformat(sn["publishedAt"].replace("Z", "+00:00")) if sn.get("publishedAt") else None
+            for it in by_id.get(v["id"], []):
+                it.views = int(st["viewCount"]) if "viewCount" in st else it.views
+                it.likes = int(st["likeCount"]) if "likeCount" in st else None
+                it.comments = int(st["commentCount"]) if "commentCount" in st else None
+                it.duration = dur or it.duration
+                it.published = pub or it.published
+                it.title = sn.get("title") or it.title
+                it.channel = sn.get("channelTitle") or it.channel
+                it.channel_id = sn.get("channelId") or it.channel_id
+                if it.channel_id:
+                    it.channel_url = it.channel_url or f"https://www.youtube.com/channel/{it.channel_id}"
+                it.description = (sn.get("description") or it.description or "")[:2000]
+            done.add(v["id"])
+    chans = list({it.channel_id for v in done for it in by_id[v] if it.channel_id})
+    subs = {}
+    for i in range(0, len(chans), 50):
+        data = _get("channels", {"part": "statistics", "id": ",".join(chans[i:i + 50])}, errors, "youtube api channels (enrich)")
+        for c in data.get("items") or []:
+            sc = (c.get("statistics") or {}).get("subscriberCount")
+            if sc is not None:
+                subs[c["id"]] = int(sc)
+    for v in done:
+        for it in by_id[v]:
+            it.followers = subs.get(it.channel_id, it.followers)
+    return done
 
 
 def _videos(found, errors):

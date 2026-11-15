@@ -127,8 +127,8 @@ def _clean(path, kind, v):
             raise ValueError(f"{path}: expected true/false")
         return v
     if kind == "window":
-        if v not in ("day", "week", "month", "year"):
-            raise ValueError(f"{path}: day, week, month or year")
+        if v not in ("hour", "today", "week", "month", "year"):          # YouTube's upload-date filter values
+            raise ValueError(f"{path}: hour, today, week, month or year")
         return v
     if kind == "geo":
         v = s(v, 30)
