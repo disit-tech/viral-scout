@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { SwipeNote } from "@/lib/types";
-import { num, times } from "@/lib/format";
+import { num, times, toNum } from "@/lib/format";
 import { cli, runAction } from "./actions";
 
 const COLUMNS = ["idea", "scripted", "filmed", "posted", "skip"] as const;
@@ -58,7 +58,7 @@ export default function SwipeBoard({ notes, profile, local }: { notes: SwipeNote
                       ) : (
                         <a href={n.url} target="_blank" rel="noreferrer" className="line-clamp-2 text-sm font-medium hover:text-accent">{titleOf(n)}</a>
                       )}
-                      <p className="text-xs text-muted">{n.creator} · {num(n.views ?? n.likes)} · {times(n.outlier)} usual</p>
+                      <p className="text-xs text-muted">{n.creator} · {num(toNum(n.views) ?? n.likes)} · {times(n.outlier)} usual</p>
                       {n.format && <span className="inline-block rounded-full bg-panel-2 px-2 py-0.5 text-[11px]">{n.format}</span>}
                       {n.hook && <p className="line-clamp-3 text-xs italic text-text/80">“{n.hook}”</p>}
                       {why(n.body) && <p className="line-clamp-3 text-xs text-muted">{why(n.body)}</p>}

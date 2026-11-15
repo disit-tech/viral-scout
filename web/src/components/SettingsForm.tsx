@@ -29,7 +29,8 @@ const SECTIONS: Section[] = [
     fields: [
       { path: "discover.youtube.keywords", label: "YouTube keywords", kind: "list", help: "Searched with the YouTube Data API (Shorts need the key)." },
       { path: "discover.youtube.hashtags", label: "YouTube hashtags", kind: "tags", help: "Hashtag feeds, without the #." },
-      { path: "discover.youtube.window", label: "Look back", kind: "window" },
+      { path: "discover.youtube.window", label: "Keyword search: uploaded in", kind: "window",
+        help: "Only for YouTube keyword search. Hashtag feeds and watch lists ignore it; Max age (below) drops older posts from everything." },
       { path: "discover.youtube.shorts", label: "Shorts only", kind: "bool" },
       { path: "discover.youtube.per_query", label: "Results per query", kind: "int", advanced: true },
       { path: "discover.tiktok.keywords", label: "TikTok keywords", kind: "list", paid: true },
@@ -41,7 +42,7 @@ const SECTIONS: Section[] = [
       { path: "own.youtube", label: "Your YouTube channels", kind: "list", help: "Your own posts, against your own usual (the “Your posts” tab)." },
       { path: "own.urls", label: "Your post links", kind: "list" },
       { path: "filters.min_views", label: "Minimum views", kind: "int" },
-      { path: "filters.max_age_days", label: "Max age (days)", kind: "int" },
+      { path: "filters.max_age_days", label: "Max age (days)", kind: "int", help: "Posts older than this are dropped, whatever found them." },
       { path: "filters.must_match", label: "Must mention (topic words)", kind: "regex", help: "Words separated by | . A post must match one, or it is dropped as off-topic." },
       { path: "filters.exclude", label: "Exclude patterns", kind: "regex_list", help: "Posts matching any of these are dropped (gaming, recipes, live streams…)." },
     ],
@@ -202,6 +203,9 @@ function Row({ f, value, dirty, onChange }: { f: Field; value: unknown; dirty: b
   );
 }
 
+// YouTube's own upload-date filter (viral_scout/sources/youtube.py _UPLOAD, youtube_api.py WINDOW_DAYS)
+const WINDOWS: [string, string][] = [["hour", "the last hour"], ["today", "today"], ["week", "the last 7 days"], ["month", "the last 30 days"], ["year", "the last year"]];
+
 const inputCls = "w-full rounded-lg border border-line bg-panel-2 px-3 py-1.5 text-sm outline-none focus:border-accent";
 
 function Input({ f, value, onChange }: { f: Field; value: unknown; onChange: (v: unknown) => void }) {
@@ -215,8 +219,8 @@ function Input({ f, value, onChange }: { f: Field; value: unknown; onChange: (v:
       return <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} /> {value ? "On" : "Off"}</label>;
     case "window":
       return (
-        <select value={String(value ?? "month")} onChange={(e) => onChange(e.target.value)} className={`${inputCls} max-w-40`}>
-          {["day", "week", "month", "year"].map((w) => <option key={w} value={w}>{w}</option>)}
+        <select value={String(value ?? "month")} onChange={(e) => onChange(e.target.value)} className={`${inputCls} max-w-48`}>
+          {WINDOWS.map(([w, l]) => <option key={w} value={w}>{l}</option>)}
         </select>
       );
     case "regex":

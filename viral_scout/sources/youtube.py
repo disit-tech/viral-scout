@@ -17,7 +17,7 @@ _UPLOAD = {"hour": 1, "today": 2, "week": 3, "month": 4, "year": 5}
 
 
 def _sp(window="week", short=True):
-    filt = bytes([0x08, _UPLOAD[window]]) + (bytes([0x18, 0x01]) if short else b"")
+    filt = bytes([0x08, _UPLOAD.get(window, _UPLOAD["week"])]) + (bytes([0x18, 0x01]) if short else b"")
     raw = bytes([0x08, 0x03, 0x12, len(filt)]) + filt     # 08 03 = sort by view count
     return base64.urlsafe_b64encode(raw).decode()
 

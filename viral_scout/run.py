@@ -157,11 +157,17 @@ def scout(cfg, quiet=False, recheck=True, discover=True, free=False):
     for key in [k for k in pool if drop(k, final=False)]:
         del pool[key]
 
-    # 6. Enrich the best YouTube finds with likes, comments, date, subscribers (and titles for hashtag feeds).
-    yt = sorted([i for i in pool.values() if i.platform == "youtube" and i.likes is None],
-                key=lambda i: i.views or 0, reverse=True)[: cfg["enrich_top"]]
+    # 6. Enrich YouTube finds with likes, comments, date, subscribers (and titles for hashtag feeds).
+    #    With a key: the Data API, all of them, ~1 unit per 50 videos and no bot check. Without one (or for videos
+    #    the API didn't return): the public video page, best finds first, which YouTube throttles after a while.
+    todo = [i for i in pool.values() if i.platform == "youtube" and i.likes is None]
+    if todo and youtube_api.available():
+        answered = youtube_api.enrich(todo, errors)
+        _log(f"enrich: {len(answered)} of {len(todo)} YouTube videos via the Data API", quiet)
+        todo = [i for i in todo if i.id not in answered]
+    yt = sorted(todo, key=lambda i: i.views or 0, reverse=True)[: cfg["enrich_top"]]
     if yt:
-        _log(f"enrich: {len(yt)} YouTube videos", quiet)
+        _log(f"enrich: {len(yt)} YouTube videos from their pages", quiet)
     for it in yt:
         youtube.enrich(it, errors)
         if youtube.BLOCKED["hit"]:

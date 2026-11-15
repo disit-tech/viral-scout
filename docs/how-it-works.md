@@ -14,7 +14,7 @@ One `run` goes through these steps (`viral_scout/run.py`):
 3. Seeds     ── tracked URLs (any platform yt-dlp supports), re-measured every run              [free]
 4. Re-check  ── recent posts from earlier runs, re-measured for growth                          [free]
 5. Filter    ── dismissed, exclude regex, topic check (must_match), min views
-6. Enrich    ── top YouTube finds: likes, comments, date, subscribers, caption link; re-filter
+6. Enrich    ── YouTube finds: likes, comments, date, subscribers (Data API, all finds, ~1 unit per 50; else the video pages of the top finds); re-filter
               ── creator baseline (median of the channel's recent posts) for the top 15
 7. Score     ── per day, × usual, label, weighted rank, rise/day (vs the previous snapshot)
 8. Hooks     ── transcripts + hooks for the posts that make the report (cached)
@@ -107,7 +107,7 @@ Report sections:
 | `places.py` | local competitors (Google Places API) and their social links |
 | `ads/` | the ads scout: Meta/TikTok APIs and Apify routes, hook/offer extraction, ad_score, report ([ads-scout.md](ads-scout.md)) |
 | `ytdlp.py` | loads yt-dlp (the clone in `$VIRAL_SCOUT_YTDLP`, or the pip package) |
-| `sources/youtube.py` | hashtag feeds, channel lists, enrichment, caption link (yt-dlp) |
+| `sources/youtube.py` | hashtag feeds, channel lists, enrichment without a key, caption link (yt-dlp) |
 | `sources/youtube_api.py` | YouTube Data API search |
 | `sources/instagram.py` | Graph API Business Discovery |
 | `sources/tiktok.py` | Apify |

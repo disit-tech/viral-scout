@@ -42,7 +42,7 @@ KEYS = [
      "get": "Confirm your identity and location at facebook.com/ID → Meta for Developers app → Graph API Explorer → "
             "user access token (exchange it for a long-lived one).",
      "docs": "https://developers.facebook.com/docs/graph-api/reference/ads_archive/"},
-    {"name": "TIKTOK_RESEARCH_CLIENT_KEY", "group": "Ads: TikTok Commercial Content API", "cost": "free (application)",
+    {"name": "TIKTOK_RESEARCH_CLIENT_KEY", "group": "Ads: TikTok Commercial Content API", "cost": "free, once TikTok approves your application",
      "unlocks": "Ads scout: TikTok ads shown in the EEA (first/last shown, reach, video/images; no ad copy).",
      "get": "TikTok for Developers → apply for the Commercial Content API → after approval, copy the research "
             "client key from the portal's research section.",
@@ -81,7 +81,7 @@ KEYS = [
                 "server after changing it.",
      "get": "1 to allow, empty or 0 to block.",
      "docs": "https://modelcontextprotocol.io/specification"},
-    {"name": "GOOGLE_PLACES_API_KEY", "group": "Google Places API (New)", "cost": "free monthly credit, then paid",
+    {"name": "GOOGLE_PLACES_API_KEY", "group": "Google Places API (New)", "cost": "free: a monthly allowance per API, billed above it",
      "unlocks": "Local competitors: nearby businesses in your niche and their public social channels.",
      "get": "Google Cloud console → enable Places API (New) → Credentials → API key (restrict it).",
      "docs": "https://developers.google.com/maps/documentation/places/web-service/text-search"},
@@ -132,6 +132,55 @@ KEYS = [
      "get": "git clone https://github.com/yt-dlp/yt-dlp",
      "docs": "https://github.com/yt-dlp/yt-dlp"},
 ]
+
+# How much each key matters (the Setup pages group by this, most important first) and what it costs.
+#   essential    videos, ads and search demand run on these
+#   recommended  your own numbers, alerts
+#   optional     specific cases: local competitors, TikTok ads, EU-only ad libraries
+#   advanced     settings you rarely change
+TIER = {
+    "YOUTUBE_API_KEY": "essential", "APIFY_TOKEN": "essential", "APIFY_ADS_ACTOR": "essential",
+    "APIFY_GOOGLE_ADS_ACTOR": "essential", "APIFY_TIKTOK_ADS_ACTOR": "essential",
+    "APIFY_GOOGLE_TRENDS_ACTOR": "essential", "APIFY_MAX_USD_PER_RUN": "essential",
+    "IG_GRAPH_TOKEN": "recommended", "IG_GRAPH_USER_ID": "recommended", "META_ADS_TOKEN": "recommended",
+    "META_AD_ACCOUNT_ID": "recommended", "TELEGRAM_BOT_TOKEN": "recommended", "TELEGRAM_CHAT_ID": "recommended",
+    "YT_OAUTH_CLIENT_ID": "recommended", "YT_OAUTH_CLIENT_SECRET": "recommended", "YT_OAUTH_REFRESH_TOKEN": "recommended",
+    "GOOGLE_PLACES_API_KEY": "optional", "TIKTOK_ADS_TOKEN": "optional", "TIKTOK_ADVERTISER_ID": "optional",
+    "META_AD_LIBRARY_TOKEN": "optional", "TIKTOK_RESEARCH_CLIENT_KEY": "optional",
+    "TIKTOK_RESEARCH_CLIENT_SECRET": "optional", "APIFY_TRENDS_ACTOR": "optional",
+    "VIRAL_SCOUT_MCP_PAID": "advanced", "VIRAL_SCOUT_YTDLP": "advanced",
+}
+#   free        no charge (some need an account or an application)
+#   free_tier   a free monthly allowance, then paid
+#   paid        every run costs money (Apify bills per result; the actor ids pick what gets billed)
+#   control     a spending setting, not a source
+PRICE = {
+    "APIFY_TOKEN": "paid", "APIFY_ADS_ACTOR": "paid", "APIFY_GOOGLE_ADS_ACTOR": "paid", "APIFY_TIKTOK_ADS_ACTOR": "paid",
+    "APIFY_GOOGLE_TRENDS_ACTOR": "paid", "APIFY_TRENDS_ACTOR": "paid",
+    "GOOGLE_PLACES_API_KEY": "free_tier",
+    "APIFY_MAX_USD_PER_RUN": "control", "VIRAL_SCOUT_MCP_PAID": "control",
+}
+# Settings that work unset (the code has a default): the Setup pages count them as done.
+HAS_DEFAULT = {"APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID"}
+# What each key is for (tags and filters on the Setup pages).
+USES = {
+    "YOUTUBE_API_KEY": ["videos"], "IG_GRAPH_TOKEN": ["videos", "performance"], "IG_GRAPH_USER_ID": ["videos", "performance"],
+    "APIFY_TOKEN": ["videos", "ads", "demand"], "APIFY_TRENDS_ACTOR": ["videos"],
+    "META_AD_LIBRARY_TOKEN": ["ads"], "TIKTOK_RESEARCH_CLIENT_KEY": ["ads"], "TIKTOK_RESEARCH_CLIENT_SECRET": ["ads"],
+    "APIFY_ADS_ACTOR": ["ads"], "APIFY_TIKTOK_ADS_ACTOR": ["ads"], "APIFY_GOOGLE_ADS_ACTOR": ["ads"],
+    "APIFY_GOOGLE_TRENDS_ACTOR": ["demand"], "APIFY_MAX_USD_PER_RUN": ["videos", "ads", "demand"],
+    "VIRAL_SCOUT_MCP_PAID": ["tools"], "GOOGLE_PLACES_API_KEY": ["local"],
+    "TELEGRAM_BOT_TOKEN": ["alerts"], "TELEGRAM_CHAT_ID": ["alerts"],
+    "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
+    "META_ADS_TOKEN": ["performance"], "META_AD_ACCOUNT_ID": ["performance"],
+    "TIKTOK_ADS_TOKEN": ["performance"], "TIKTOK_ADVERTISER_ID": ["performance"], "VIRAL_SCOUT_YTDLP": ["videos"],
+}
+for _k in KEYS:
+    _k.setdefault("tier", TIER.get(_k["name"], "optional"))
+    _k.setdefault("price", PRICE.get(_k["name"], "free"))
+    _k.setdefault("has_default", _k["name"] in HAS_DEFAULT)
+    _k.setdefault("uses", USES.get(_k["name"], []))
+
 NAMES = {k["name"] for k in KEYS}
 ENV = config.ROOT / ".env"
 
