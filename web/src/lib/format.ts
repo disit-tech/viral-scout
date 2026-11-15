@@ -1,5 +1,16 @@
-export function num(v: number | null | undefined): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+/** A number from data that may hold "" or "12.5" (note front matter, CSV imports): null when there's no number. */
+export function toNum(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v.trim().replace(/[,×x]$/i, "").replace(/,/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+export function num(raw: number | string | null | undefined): string {
+  const v = toNum(raw);
+  if (v === null) return "—";
   const a = Math.abs(v);
   if (a >= 1e9) return `${(v / 1e9).toFixed(1).replace(/\.0$/, "")}B`;
   if (a >= 1e6) return `${(v / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
@@ -7,8 +18,9 @@ export function num(v: number | null | undefined): string {
   return `${Math.round(v)}`;
 }
 
-export function times(v: number | null | undefined): string {
-  return v === null || v === undefined ? "—" : `${v >= 10 ? Math.round(v) : v.toFixed(1)}×`;
+export function times(raw: number | string | null | undefined): string {
+  const v = toNum(raw);
+  return v === null ? "—" : `${v >= 10 ? Math.round(v) : v.toFixed(1)}×`;
 }
 
 export function age(iso: string | null): string {

@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PRICE, USES, byTier, costDetail, priceOf, useLabel } from "@/lib/keys-ui";
 
-type Key = { name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string; secret?: boolean };
+type Key = {
+  name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string;
+  secret?: boolean; tier?: string; price?: string; has_default?: boolean; uses?: string[];
+};
 
 export default function SetupKeys() {
   const [keys, setKeys] = useState<Key[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [use, setUse] = useState("all");
 
   async function load() {
     const r = await fetch("/api/keys").then((x) => x.json()).catch(() => null);
@@ -18,15 +23,50 @@ export default function SetupKeys() {
   if (error) return <p className="mt-6 text-mega">{error}</p>;
   if (!keys) return <p className="mt-6 text-muted">Loading…</p>;
 
-  const groups = Array.from(new Set(keys.map((k) => k.group)));
+  const tiers = byTier(keys);
+  const shown = byTier(use === "all" ? keys : keys.filter((k) => k.uses?.includes(use)));
   return (
-    <div className="mt-6 space-y-5">
-      {groups.map((g) => (
-        <section key={g} className="rounded-2xl border border-line bg-panel p-4">
-          <h2 className="mb-3 font-semibold">{g}</h2>
-          <div className="space-y-4">
-            {keys.filter((k) => k.group === g).map((k) => <KeyRow key={k.name} k={k} onSaved={load} />)}
+    <div className="mt-6 space-y-8">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-line bg-panel px-4 py-3 text-sm">
+        {tiers.map((t) => {
+          const done = t.keys.filter((k) => k.set || k.has_default).length;   // some settings work on their defaults
+          return (
+            <a key={t.id} href={`#tier-${t.id}`} className="hover:text-accent">
+              {t.title} <b className={done === t.keys.length ? "text-above" : "text-text"}>{done}/{t.keys.length}</b> <span className="text-muted">set</span>
+            </a>
+          );
+        })}
+        <span className="ml-auto flex flex-wrap gap-1.5">
+          {Object.values(PRICE).map((p) => <span key={p.label} title={p.title} className={`rounded-full border px-2 py-0.5 text-[11px] ${p.cls}`}>{p.label}</span>)}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+        <span className="mr-1 text-muted">Show keys for</span>
+        {[{ id: "all", label: "everything" }, ...USES].map((u) => {
+          const n = u.id === "all" ? keys.length : keys.filter((k) => k.uses?.includes(u.id)).length;
+          if (!n) return null;
+          return (
+            <button key={u.id} onClick={() => setUse(u.id)}
+              className={`rounded-full border px-3 py-1 text-xs ${use === u.id ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:text-text"}`}>
+              {u.label} <span className="opacity-70">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+      {shown.map((t) => (
+        <section key={t.id} id={`tier-${t.id}`} className="scroll-mt-20 space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">{t.title}</h2>
+            <p className="text-sm text-muted">{t.text}</p>
           </div>
+          {t.groups.map(({ group, keys: ks }) => (
+            <div key={group} className="rounded-2xl border border-line bg-panel p-4">
+              <h3 className="mb-3 font-semibold">{group}</h3>
+              <div className="space-y-4">
+                {ks.map((k) => <KeyRow key={k.name} k={k} onSaved={load} />)}
+              </div>
+            </div>
+          ))}
         </section>
       ))}
     </div>
@@ -51,12 +91,17 @@ function KeyRow({ k, onSaved }: { k: Key; onSaved: () => void }) {
   return (
     <div className="grid gap-2 md:grid-cols-[1fr_1.2fr]">
       <div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <code className="text-sm text-text">{k.name}</code>
-          <span className={`rounded-full px-2 py-0.5 text-[11px] ${k.set ? "bg-above text-ink" : "bg-panel-2 text-muted"}`}>
-            {k.set ? (k.secret === false ? k.masked : `set ${k.masked}`) : k.secret === false ? "default" : "not set"}
+          <span className={`max-w-full truncate rounded-full px-2 py-0.5 text-[11px] ${k.set ? "bg-above text-ink" : "bg-panel-2 text-muted"}`}
+            title={k.set && k.secret === false ? k.masked : undefined}>
+            {k.set ? (k.secret === false ? k.masked : `set ${k.masked}`) : k.has_default ? "default" : "not set"}
           </span>
-          {k.cost && <span className="text-[11px] text-muted">{k.cost}</span>}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <PriceBadge k={k} />
+          {k.uses?.map((u) => <span key={u} className="whitespace-nowrap rounded-full bg-panel-2 px-2 py-0.5 text-[11px] text-muted">{useLabel(u)}</span>)}
+          {costDetail(k) && <span className="text-[11px] text-muted">{costDetail(k)}</span>}
         </div>
         <p className="mt-1 text-xs text-muted">{k.unlocks}</p>
         <p className="mt-1 text-xs text-muted">How: {k.get} <a href={k.docs} target="_blank" rel="noreferrer" className="text-rise hover:underline">docs ↗</a></p>
@@ -79,4 +124,10 @@ function KeyRow({ k, onSaved }: { k: Key; onSaved: () => void }) {
       </div>
     </div>
   );
+}
+
+function PriceBadge({ k }: { k: { price?: string } }) {
+  const p = priceOf(k);
+  if (!p) return null;
+  return <span title={p.title} className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] ${p.cls}`}>{p.label}</span>;
 }

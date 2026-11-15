@@ -1,4 +1,5 @@
 import type { KeyInfo } from "@/lib/data";
+import { PRICE, byTier, costDetail, priceOf, useLabel } from "@/lib/keys-ui";
 
 // What each part of the app needs. Names match viral_scout/keys.py; a key missing here still shows in its group below.
 const NEEDS: { what: string; free: string; keys: string[]; note: string }[] = [
@@ -20,7 +21,7 @@ const NEEDS: { what: string; free: string; keys: string[]; note: string }[] = [
 /** Read-only key catalog for the published site: what each key unlocks, its cost and how to get it. Never values. */
 export default function KeyCatalog({ keys }: { keys: KeyInfo[] }) {
   const byName = new Map(keys.map((k) => [k.name, k]));
-  const groups = Array.from(new Set(keys.map((k) => k.group)));
+  const tiers = byTier(keys);
   return (
     <div className="mt-6 space-y-6">
       <div className="rounded-xl border border-line bg-panel-2 px-4 py-3 text-sm text-muted">
@@ -36,9 +37,12 @@ export default function KeyCatalog({ keys }: { keys: KeyInfo[] }) {
               <div className="text-sm font-medium">{n.what}</div>
               <div className="space-y-1.5 text-sm">
                 <div className="flex flex-wrap gap-1.5">
-                  {n.keys.filter((k) => byName.has(k)).map((k) => (
-                    <a key={k} href={`#${k}`} className="rounded-md bg-panel-2 px-2 py-0.5 font-mono text-[12px] text-text hover:text-accent">{k}</a>
-                  ))}
+                  {n.keys.filter((k) => byName.has(k)).map((k) => {
+                    const p = priceOf(byName.get(k)!);
+                    return (
+                      <a key={k} href={`#${k}`} title={p?.label} className={`rounded-md border px-2 py-0.5 font-mono text-[12px] hover:text-accent ${p?.cls ?? "border-line bg-panel-2 text-text"}`}>{k}</a>
+                    );
+                  })}
                 </div>
                 <p className="text-muted">{n.note}</p>
                 {n.free && <p className="text-xs text-above">Without a key: {n.free}</p>}
@@ -48,24 +52,39 @@ export default function KeyCatalog({ keys }: { keys: KeyInfo[] }) {
         </div>
       </section>
 
-      {groups.map((g) => (
-        <section key={g} className="rounded-2xl border border-line bg-panel p-4">
-          <h2 className="mb-3 font-semibold">{g}</h2>
-          <div className="space-y-4">
-            {keys.filter((k) => k.group === g).map((k) => (
-              <div key={k.name} id={k.name} className="scroll-mt-20">
-                <div className="flex flex-wrap items-center gap-2">
-                  <code className="text-sm text-text">{k.name}</code>
-                  {k.secret === false && <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[11px] text-muted">setting</span>}
-                  {k.cost && <span className={`text-[11px] ${/paid/i.test(k.cost) ? "text-viral" : "text-muted"}`}>{k.cost}</span>}
-                </div>
-                <p className="mt-1 text-xs text-muted">{k.unlocks}</p>
-                <p className="mt-1 text-xs text-muted">
-                  How: {k.get} {k.docs && <a href={k.docs} target="_blank" rel="noreferrer" className="text-rise hover:underline">docs ↗</a>}
-                </p>
-              </div>
-            ))}
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+        Cost:
+        {Object.values(PRICE).map((p) => <span key={p.label} title={p.title} className={`rounded-full border px-2 py-0.5 text-[11px] ${p.cls}`}>{p.label}</span>)}
+      </div>
+
+      {tiers.map((t) => (
+        <section key={t.id} className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">{t.title}</h2>
+            <p className="text-sm text-muted">{t.text}</p>
           </div>
+          {t.groups.map(({ group, keys: ks }) => (
+            <div key={group} className="rounded-2xl border border-line bg-panel p-4">
+              <h3 className="mb-3 font-semibold">{group}</h3>
+              <div className="space-y-4">
+                {ks.map((k) => (
+                  <div key={k.name} id={k.name} className="scroll-mt-20">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <code className="text-sm text-text">{k.name}</code>
+                      {priceOf(k) && <span title={priceOf(k)!.title} className={`rounded-full border px-2 py-0.5 text-[11px] ${priceOf(k)!.cls}`}>{priceOf(k)!.label}</span>}
+                      {k.uses?.map((u) => <span key={u} className="whitespace-nowrap rounded-full bg-panel-2 px-2 py-0.5 text-[11px] text-muted">{useLabel(u)}</span>)}
+                      {k.secret === false && <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[11px] text-muted">setting</span>}
+                      {costDetail(k) && <span className="text-[11px] text-muted">{costDetail(k)}</span>}
+                    </div>
+                    <p className="mt-1 text-xs text-muted">{k.unlocks}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      How: {k.get} {k.docs && <a href={k.docs} target="_blank" rel="noreferrer" className="text-rise hover:underline">docs ↗</a>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
       ))}
     </div>

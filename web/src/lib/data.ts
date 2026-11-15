@@ -54,7 +54,9 @@ export async function adsNames(): Promise<string[]> {
 export const isLocal = !process.env.VERCEL && process.env.VIRAL_SCOUT_READONLY !== "1";
 
 /** One API key in the catalog (viral_scout/keys.py): names and help text only, never a value. */
-export type KeyInfo = { name: string; group: string; cost: string; unlocks: string; get: string; docs: string; secret?: boolean };
+export type KeyInfo = {
+  name: string; group: string; cost: string; unlocks: string; get: string; docs: string; secret?: boolean; tier?: string; price?: string; uses?: string[];
+};
 
 /** The key catalog exported with the data (keys.json), for the Setup page on the published site. */
 export async function loadKeyCatalog(): Promise<KeyInfo[]> {
