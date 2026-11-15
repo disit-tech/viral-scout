@@ -99,7 +99,9 @@ function Describe($t) {
   $day = $null; $time = $null
   if ($trig) {
     $cls = $trig.CimClass.CimClassName
-    if ($trig.StartBoundary) { $time = ([datetime]$trig.StartBoundary).ToString("HH:mm") }
+    # The clock time as written (Task Scheduler runs at that local time); converting the offset would apply the
+    # daylight-saving rule of the day the task was created and show it an hour off.
+    if ($trig.StartBoundary -match 'T(\d{2}:\d{2})') { $time = $Matches[1] }
     if ($cls -eq "MSFT_TaskDailyTrigger") { $day = "Daily" }
     elseif ($cls -eq "MSFT_TaskWeeklyTrigger") {
       $day = (0..6 | Where-Object { $trig.DaysOfWeek -band (1 -shl $_) } | ForEach-Object { $days[$_] }) -join ","
