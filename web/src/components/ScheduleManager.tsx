@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 type Task = {
   name: string; kind: "profile" | "publish" | "studio" | "legacy" | "other"; profile: string | null; state: string;
   job?: string | null; repeat?: string | null; what?: string | null; script?: string | null; posts_only?: boolean;
+  execute?: string | null; arguments?: string | null; working_dir?: string | null; author?: string | null; time_limit?: string | null;
+  script_about?: string[]; instructions?: string | null; instructions_about?: string[];
   day: string | null; time: string | null; analyze: boolean; next_run: string | null; last_run: string | null;
   last_result: number; wake: boolean; log_file: string | null; log_tail: string[];
 };
@@ -353,6 +355,7 @@ function TaskCard({ t, busy, act }: { t: Task; busy: string | null; act: (k: str
           <pre className="max-h-72 overflow-auto rounded-lg bg-ink p-3 font-mono text-[11px] leading-relaxed text-muted">{t.log_tail.join("\n")}</pre>
         </div>
       )}
+      <About t={t} />
     </div>
   );
 }
@@ -507,6 +510,11 @@ function IdeaCard({ p, task, busy, act }: { p: IdeaProfile; task?: Task; busy: s
           <pre className="max-h-72 overflow-auto rounded-lg bg-ink p-3 font-mono text-[11px] leading-relaxed text-muted">{task.log_tail.join("\n")}</pre>
         </div>
       )}
+      <About t={task} fallback={{
+        what: JOB_TEXT.ideas.what,
+        cost: CLAUDE_COST,
+        output: `${JOB_TEXT.ideas.output} Set up registers the task "viral-scout ${p.profile}.ideas", which runs scripts/studio.ps1 -Profile ${p.profile} -Job ideas in the viral-scout folder, with the instructions in viral_scout/jobs/prompts/ideas.md.`,
+      }} />
     </div>
   );
 }
@@ -541,6 +549,116 @@ function LegacyCard({ t, busy, act }: { t: Task; busy: string | null; act: (k: s
           className={`${btn} border-line text-muted hover:border-mega/40 hover:text-mega`}>Remove</button>
       </div>
       <span className="w-full truncate font-mono text-[11px] text-muted" title={t.script ?? ""}>{t.script}</span>
+      <div className="-mx-4 -mb-2.5 w-[calc(100%+2rem)]"><About t={t} /></div>
     </div>
+  );
+}
+
+/** What each job does, what it costs and where its results go, in plain words. */
+const JOB_TEXT: Record<string, { what: string; output: string }> = {
+  ideas: {
+    what: "Idea generator. Claude reads your past ratings, the business's notes in the vault and viral-scout's latest data (viral videos, competitors' ads, search demand, swipe file), then writes new scored ideas and sends them for you to rate.",
+    output: "New ideas go to the ideas API and its Telegram bot (or into the vault when delivery is off); a daily note in the vault says what was done.",
+  },
+  script: {
+    what: "Writes one video scenario (the script: hook, lines, cards) for an idea you approved, and sends it to you for ✅ approve or ✏️ changes.",
+    output: "The scenario in the vault and as a Telegram message.",
+  },
+  notes: {
+    what: "Looks every 15 minutes for notes you sent (in Telegram) and scenarios you approved. Claude only starts when something is waiting, e.g. to turn an approved scenario into a video draft.",
+    output: "Replies in Telegram; drafts in the vault.",
+  },
+  film: {
+    what: "Makes one finished animated film for tomorrow's post. If the PC was asleep it retries hourly; once today's film is done it skips.",
+    output: "The video file and its captions in the business's video folder; a message when it's ready.",
+  },
+  blog: {
+    what: "Writes one blog guide draft a week and sends it for ✅ Publish or ✏️ Changes.",
+    output: "The draft in the vault and a Telegram message; nothing is published without your ✅.",
+  },
+  post: {
+    what: "Morning post pack: today's planned posts with their captions, sent to you to post. No Claude.",
+    output: "A Telegram message (or a note in the vault). Nothing is posted automatically.",
+  },
+};
+const CLAUDE_COST = "The Claude CLI on your subscription (no API key, no Apify).";
+
+function explain(t: Task): { what: string; cost: string; output: string } {
+  if (t.kind === "profile") {
+    return {
+      what: `Weekly scouting run for ${t.profile}: finds what's trending on its topic (YouTube; Instagram and TikTok when their keys are set), re-measures the posts it tracks to see what's growing, and writes the report. On Mondays it also runs the ads scout (competitors' long-running ads) and search demand (Google Trends).`
+        + (t.analyze ? " Then Claude reads the results and writes the AI ideas note." : ""),
+      cost: "Apify per result (TikTok, ads, Google Trends), capped by APIFY_MAX_USD_PER_RUN; YouTube API quota (free)" + (t.analyze ? "; and the Claude CLI on your subscription for the ideas note." : "."),
+      output: `The report (and ideas note) in the profile's reports folder in the vault; the dashboard data; log in data/logs/${t.profile}-<date>.log.`,
+    };
+  }
+  if (t.kind === "publish") {
+    return {
+      what: "Exports every business's latest results and deploys the private, password-protected copy of this dashboard to Vercel (project viral-scout). It does not touch the public demo.",
+      cost: "Free (Vercel Hobby plan).",
+      output: "The private dashboard is updated. Nothing is posted anywhere.",
+    };
+  }
+  const job = t.job ?? (t.posts_only ? "post" : t.kind === "legacy" ? "ideas" : "");
+  const base = JOB_TEXT[job];
+  const from = t.kind === "legacy" ? " Registered by another repo; its own description is below." : "";
+  if (t.kind === "legacy" && !t.job) {
+    return {
+      what: (t.posts_only
+        ? "Older post-pack run: makes the content packs (posts per platform) for ideas you marked ✅ or 📝."
+        : "Older daily idea run.") + from + " Some of these now only hand over to viral-scout's idea generator.",
+      cost: CLAUDE_COST,
+      output: "See the script description below (most write to the ideas API / Telegram and log under data/logs/ideas-<profile>-<date>.log).",
+    };
+  }
+  return {
+    what: (base?.what ?? `Studio job "${job}".`) + from,
+    cost: job === "post" ? "Free." : CLAUDE_COST,
+    output: base?.output ?? "See the instructions below.",
+  };
+}
+
+/** "What is this?": plain explanation, then exactly what Task Scheduler runs and the script's own description. */
+function About({ t, fallback }: { t?: Task; fallback?: { what: string; cost: string; output: string } }) {
+  const e = t ? explain(t) : fallback;
+  if (!e) return null;
+  const row = "grid gap-0.5 sm:grid-cols-[8rem_1fr] sm:gap-3";
+  const label = "text-muted";
+  const mono = "break-all font-mono text-[11px] text-text";
+  return (
+    <details className="group border-t border-line px-4 py-2 text-xs">
+      <summary className="cursor-pointer select-none text-muted hover:text-text">
+        <span className="group-open:hidden">What is this? ▼</span><span className="hidden group-open:inline">What is this? ▲</span>
+      </summary>
+      <div className="mt-2 space-y-2 pb-1">
+        <div className={row}><span className={label}>What it does</span><span className="text-text">{e.what}</span></div>
+        <div className={row}><span className={label}>Costs</span><span>{e.cost}</span></div>
+        <div className={row}><span className={label}>Results go to</span><span>{e.output}</span></div>
+        {t && (
+          <>
+            <div className={row}><span className={label}>Task Scheduler</span><span className={mono}>{t.name}{t.author ? ` (by ${t.author})` : ""}</span></div>
+            {t.script && <div className={row}><span className={label}>Script</span><span className={mono}>{t.script}</span></div>}
+            <div className={row}><span className={label}>Runs</span><span className={mono}>{t.execute} {t.arguments}</span></div>
+            {t.working_dir && <div className={row}><span className={label}>In folder</span><span className={mono}>{t.working_dir}</span></div>}
+            {t.time_limit && t.time_limit !== "PT0S" && <div className={row}><span className={label}>Time limit</span><span>{t.time_limit.replace(/^PT/, "").toLowerCase()}</span></div>}
+            {t.instructions && (
+              <div className={row}><span className={label}>Claude&apos;s instructions</span><span className={mono}>{t.instructions}</span></div>
+            )}
+            {(t.script_about?.length ?? 0) > 0 && (
+              <div className={row}>
+                <span className={label}>The script says</span>
+                <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-ink p-2 font-mono text-[11px] leading-relaxed text-muted">{t.script_about!.join("\n")}</pre>
+              </div>
+            )}
+            {(t.instructions_about?.length ?? 0) > 0 && (
+              <div className={row}>
+                <span className={label}>Instructions start</span>
+                <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-ink p-2 font-mono text-[11px] leading-relaxed text-muted">{t.instructions_about!.join("\n")}</pre>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </details>
   );
 }

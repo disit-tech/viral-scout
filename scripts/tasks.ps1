@@ -23,6 +23,9 @@ param(
   [string]$Analyze = ""
 )
 $ErrorActionPreference = "Stop"
+# The dashboard reads stdout as UTF-8: script headers and notes contain → ✅ and the like.
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
 $repo = Split-Path $PSScriptRoot -Parent
 $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
 if (-not $pwsh) { $pwsh = (Get-Command powershell).Source }
@@ -72,9 +75,23 @@ function New-Action([string]$p, [bool]$analyze) {
   New-ScheduledTaskAction -Execute $pwsh -Argument $a -WorkingDirectory $repo
 }
 
+function Get-About([string]$path, [int]$max = 12) {
+  # The comment block at the top of a script (# lines) or the first lines of an instructions note: what it says it does.
+  if (-not $path -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { return @() }
+  $out = @()
+  foreach ($l in (Get-Content -LiteralPath $path -TotalCount 40 -Encoding utf8)) {
+    if ($path -like "*.ps1") {
+      if ($l -match '^\s*#\s?(.*)$') { $out += $Matches[1] } elseif ($out.Count -or $l.Trim()) { break }
+    } elseif ($l.Trim() -and $l -notmatch '^---') { $out += $l }
+    if ($out.Count -ge $max) { break }
+  }
+  [string[]]$out
+}
+
 function Describe($t) {
   $info = $t | Get-ScheduledTaskInfo
-  $args = ($t.Actions | Select-Object -First 1).Arguments
+  $act = $t.Actions | Select-Object -First 1
+  $args = $act.Arguments
   $profile = if ($args -match '-Profile\s+([\w.-]+)') { $Matches[1] } else { $null }
   $job = if ($args -match '-Job\s+(\w+)') { $Matches[1] } else { $null }
   $kind = if (Test-Legacy $t) { "legacy" } elseif ($args -match 'studio\.ps1') { "studio" } elseif ($args -match 'publish\.ps1') { "publish" } elseif ($profile) { "profile" } else { "other" }
@@ -89,7 +106,12 @@ function Describe($t) {
     } else { $day = $cls -replace '^MSFT_Task|Trigger$', '' }
   }
   $logTail = @(); $logFile = $null
-  $script = if ($kind -eq "legacy" -and $args -match '-File\s+"?([^"]+?\.ps1)') { $Matches[1] } else { $null }
+  $script = if ($args -match '-File\s+"?([^"]+?\.ps1)') { $Matches[1] } else { $null }
+  # Claude's instructions for a job: viral-scout's own prompts, or the jobs\<job>.md next to an older site's run.ps1.
+  $instr = $null
+  if ($kind -eq "studio" -and $job) { $instr = Join-Path $repo "viral_scout\jobs\prompts\$job.md" }
+  elseif ($kind -eq "legacy" -and $job -and $script) { $instr = Join-Path (Split-Path $script -Parent) "$job.md" }
+  if ($instr -and -not (Test-Path -LiteralPath $instr)) { $instr = $null }
   $repeat = if ($trig -and $trig.Repetition -and $trig.Repetition.Interval) { "$($trig.Repetition.Interval)" } else { $null }
   if ($kind -eq "studio") {
     $f = Get-ChildItem (Join-Path $repo "data\logs\studio") -Filter "$profile-$job-*.log" -ErrorAction SilentlyContinue |
@@ -106,6 +128,9 @@ function Describe($t) {
     next_run = Iso $info.NextRunTime; last_run = Iso $info.LastRunTime; last_result = $info.LastTaskResult
     wake = [bool]$t.Settings.WakeToRun; log_file = $logFile; log_tail = $logTail
     script = $script; posts_only = [bool]($args -match '-PostsOnly')
+    execute = $act.Execute; arguments = $args; working_dir = $act.WorkingDirectory; author = $t.Author
+    script_about = Get-About $script; instructions = $instr; instructions_about = Get-About $instr 8
+    time_limit = "$($t.Settings.ExecutionTimeLimit)"
   }
 }
 

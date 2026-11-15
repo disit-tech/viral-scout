@@ -7,11 +7,17 @@ export type ActionBody =
   | { profile: string; action: "status"; ref: string; status: string };
 
 export async function runAction(body: ActionBody): Promise<{ ok: boolean; output: string }> {
-  const res = await fetch("/api/action", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/action", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // Network failure (dev server restarting, request cut off by a reload): report it, don't throw.
+    return { ok: false, output: "request failed (is the dashboard server running?)" };
+  }
   const data = await res.json().catch(() => ({ ok: false, output: `HTTP ${res.status}` }));
   return { ok: res.ok && data.ok, output: data.output ?? "" };
 }
