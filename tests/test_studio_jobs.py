@@ -208,6 +208,8 @@ class PromptTest(Base):
         film = prompts.allowed_tools(cfg, "film")
         self.assertIn("Bash(npx hyperframes:*)", film)
         self.assertIn("Bash(python -m viral_scout publish demo plan:*)", film)
+        self.assertIn("Bash(python -m viral_scout check demo:*)", film)
+        self.assertIn("Bash(python -m viral_scout check demo:*)", prompts.allowed_tools(cfg, "notes"))
         self.assertFalse([t for t in film if "publish" in t and not t.endswith(" plan:*)")])
         self.assertNotIn("Bash(npx hyperframes:*)", prompts.allowed_tools(cfg, "ideas"))
         self.assertNotIn("Bash", " ".join(t for t in prompts.allowed_tools(cfg, "script") if "ideas" not in t))

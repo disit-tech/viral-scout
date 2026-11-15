@@ -27,7 +27,7 @@ def values(cfg, job, now=None, done_file=""):
         "compliance": f"`{st['compliance']}`" if st["compliance"] else "(no compliance note set: be conservative, no claims without a source)",
         "delivery": "Telegram, through the ideas API / service (commands below)" if s["delivery"] == "telegram"
                     else "none: leave results in the vault and the daily note; skip the send steps",
-        "ideas": f"{PY} ideas {p}", "notes": f"{PY} notes {p}", "video": f"{PY} video {p}", "publish": f"{PY} publish {p}",
+        "ideas": f"{PY} ideas {p}", "notes": f"{PY} notes {p}", "video": f"{PY} video {p}", "publish": f"{PY} publish {p}", "check": f"{PY} check {p}",
         "queue": ps["queue"] or "(no queue: set studio.vault_dir)", "platforms": ", ".join(ps["platforms"]),
         "done_file": done_file, "max_tries": str(j.get("max_tries", 2)), "count": str(j.get("count", 5)), "buffer": str(j.get("buffer", 4)),
     }
@@ -74,9 +74,9 @@ def allowed_tools(cfg, job):
     tools = {
         "ideas": BASE + WEB + [cmd("ideas"), f"Bash({PY} search:*)"],
         "script": BASE + WEB + [cmd("ideas")],
-        "notes": BASE + WEB + [cmd("notes"), cmd("ideas"), cmd("video")],
+        "notes": BASE + WEB + [cmd("notes"), cmd("ideas"), cmd("video"), cmd("check")],
         "blog": BASE + WEB + [cmd("ideas"), cmd("notes")],
-        "film": BASE + WEB + [cmd("ideas"), cmd("notes"), cmd("video"), f"Bash({PY} publish {p} plan:*)"],
+        "film": BASE + WEB + [cmd("ideas"), cmd("notes"), cmd("video"), cmd("check"), f"Bash({PY} publish {p} plan:*)"],
     }[job]
     extra = s.get("allowed_tools") or {}
     for t in list(extra.get("all") or []) + list(extra.get(job) or []):
