@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/search" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text" title="Search every post already collected">Search posts</Link>
               <Link href="/check" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Check a video</Link>
               {isLocal && <NavActivity local={isLocal} />}
+              {isLocal && <Link href="/schedule" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text" title="Weekly tasks in Task Scheduler">Schedule</Link>}
               <Link href="/setup" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Setup</Link>
               <Link href="/docs" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Docs</Link>
             </nav>
