@@ -53,8 +53,8 @@ Business rules (`studio.instructions`) override these notes where they differ; t
 2. **Never copy.** No other creators' or competitors' footage, audio, music, words, creatives, logos or trademarks. Borrow formats and angles only. Never imply affiliation with a brand, utility or agency.
 3. **AI disclosure.** AI voice, AI avatar or a realistic AI scene: platform AI label ON and the first caption line is `video.ai_label`. Never AI customers, reviews, "our work", or a person somewhere they weren't. Clone only the consenting owner's voice, for videos only, never calls or voicemails.
 4. **Compliance check before approval.** A script or caption is not ready until the compliance step (below) says PASS.
-5. **A human approves and posts.** Never post, upload, schedule, send, or spend money (no paid APIs, no Apify runs, no paid avatar service) from this skill.
-6. Music only from the platform's commercial library, added in the app. Never in the master.
+5. **A human approves and posts.** Never post, upload or schedule anything public, never message customers, never spend money (no paid APIs, no Apify runs, no paid avatar service). Sending a draft to the owner's own review group (`notes send`, the ideas bot) is fine: that is how the owner reviews it.
+6. No music in the master. Platform-library music is added by the owner in the app when posting. The one exception is `--music`, off by default: only a track the owner made or licensed for this use, never a download from the web or another creator's post.
 7. People and homes: written consent for faces, house numbers and plates.
 
 ## Production modes (`video.modes` lists the ones this business allows)
@@ -70,7 +70,7 @@ A mode not in `video.modes` is not offered. Trust videos (who we are, prices, co
 
 ## script
 
-1. Pick the topic: the argument, a swipe note, a tracker row, or the latest viral-scout ideas note (`/viral-scout <profile> analyze` output) for a proven format and hook type. Search past hits: `python -m viral_scout search "<words>"`.
+1. Pick the topic: the argument, a swipe note, a tracker row, or the latest viral-scout ideas note (`/viral-scout <profile> analyze` output) for a proven format and hook type. Search past hits: `python -m viral_scout search "<words>"`. From a reference, decide per part what carries over: hook type, structure and editing can be adapted, the topic is swapped for ours, the words and delivery are never copied.
 2. Facts: 1-3 primary sources (agency .gov pages, the utility, the manufacturer). WebSearch if needed. Unverifiable → cut it.
 3. Write `<script_dir>/YYYY-MM-DD-<slug>.md` in this format (the cut reads it directly):
    ```markdown
@@ -89,6 +89,7 @@ A mode not in `video.modes` is not offered. Trust videos (who we are, prices, co
 
    ### 1. <Title>
    **Alternative hooks:** (a) ... (b) ... (c) ...      ← 3 different hook types
+   **Headline (frame 0):** "<≤6 words on screen, static>"
    **Hook:** "<spoken, ≤15 words>"
    **Body:** "<spoken, ≤110 words, one idea, short sentences>"
    **CTA:** "<spoken: comment keyword first, link in bio as fallback>"
@@ -99,9 +100,11 @@ A mode not in `video.modes` is not offered. Trust videos (who we are, prices, co
    **AI label:** required / not needed
    > [!check] Compliance YYYY-MM-DD: PASS / FIX / BLOCK
    ```
-   - Hooks: 3 types from the hook bank (stakes, counterintuitive fact, number, unfinished sentence, myth-buster, relatable situation). Never "In this video…". Hook in the first 2 s; cover text and first frame are hook decisions.
+   - Hooks: 3 types from the hook bank (stakes, counterintuitive fact, number, unfinished sentence, myth-buster, relatable situation). Once the tracker has 10+ posted videos, put first the hook types that won for this business (best watch % in "What worked"), then the generic list. Never "In this video…". Hook in the first 2 s; cover text and first frame are hook decisions.
+   - The hook lands three ways at once: the frame-0 headline, the picture and the spoken line. They carry one message in different words. The spoken line adds to the headline; it never just reads it out.
    - Plain spoken sentences, one idea, 30-60 s. **For an AI voice spell numbers out** ("forty eight", "seventeenth"); the captions turn them back into digits.
-   - Every caption carries the source line and `studio`'s disclosure line; the CTA uses `studio.cta`.
+   - Rhythm: mix line lengths (very short lines of 1-3 words between medium and long ones). Three lines of about the same length in a row → shorten one. Step lists are the exception.
+   - Every caption carries the source line and the disclosure line from `studio.instructions` (or `studio.compliance`); the CTA uses `studio.cta`.
 4. Compliance step (below). Fix FIX items; rewrite anything BLOCK.
 5. Tracker row: ✍️ scripted with a link (add the row if new). In chat: the hook, the 3 alternatives, the path. Stop: the owner approves.
 
@@ -116,9 +119,9 @@ A mode not in `video.modes` is not offered. Trust videos (who we are, prices, co
    - `source` on every number card, never invented; no source → a headline without the number.
    - `cover.big` ≤ 4 words. Caption typos: change `words[].w` only, never the times.
 4. Preview the cards: `video <profile> cards <slug>`, Read the PNGs. Then `video <profile> render <slug>`. A "cards without a real source" warning → back to step 3.
-5. Look at it: 4-6 frames (`ffmpeg -ss <t> -i <slug>.mp4 -frames:v 1 f.png`), Read them: cards readable, captions not covered, nothing in the bottom 20%, no ADD SOURCE, hook text at frame 0.
+5. Look at it: 4-6 frames (`ffmpeg -ss <t> -i <slug>.mp4 -frames:v 1 f.png`), Read them: cards readable, captions not covered, readable text and faces inside the safe area (about 5% margin at the sides and top, nothing in the bottom 20%), no ADD SOURCE, hook text at frame 0.
 6. `python -m viral_scout check <profile> "<master.mp4>"` and fix what fails (loudness, silence in the hook, length).
-7. Tracker row 🎬 edited with the output path; "AI label ON" if the voice or a realistic visual is AI. In chat: the folder, flubs cut, anything missing. Stop.
+7. Tracker row ✂️ edited with the output path (🎬 means shot, or "🎬 film rendered" for a film); "AI label ON" if the voice or a realistic visual is AI. In chat: the folder, flubs cut, anything missing. Stop.
 
 ## voice
 
@@ -126,37 +129,39 @@ A mode not in `video.modes` is not offered. Trust videos (who we are, prices, co
 
 ## film (FILM)
 
-Follow the method in the playbook §8 and the HyperFrames skills in `viral_scout/video/node/node_modules/hyperframes/dist/skills/` (hyperframes, hyperframes-cli). A business's first film is built live with the owner and becomes its quality bar; reuse its structure and code, design new scenes each time.
+Follow the method in the playbook §8 and the HyperFrames skills (hyperframes, hyperframes-cli). They ship inside the HyperFrames package: `$VIRAL_SCOUT_VIDEO_NODE_MODULES/hyperframes/dist/skills/` when that env var is set (the tools then run from a business's existing install), else `viral_scout/video/node/node_modules/hyperframes/dist/skills/`. A business's first film is built live with the owner and becomes its quality bar; reuse its structure and code, design new scenes each time.
 1. Script as above, mode FILM; compliance PASS.
 2. Voice: the owner's memo, or `voice` above.
-3. Film folder `<video.films_dir>/<slug>/` with `SPEC.md`: GOAL · OUTPUT · TIME · STORY · LOOK (the profile's colors and fonts) · OBJECTS · MOTION · SHOTS (second by second, keyed to words) · SOUND · BANNED · QA frames.
+3. Film folder: `python -m viral_scout video <profile> film new <slug> --from <reference film>` copies the reference's SPEC, code, fonts and sound effects into `<video.films_dir>/<slug>/` (renders, word times, its voice, REVIEW.md and POST.md are left out). No reference yet → create the folder. Rewrite `SPEC.md` for this film: GOAL · OUTPUT · TIME · STORY · LOOK (the profile's colors and fonts) · OBJECTS · MOTION · SHOTS (second by second, keyed to words) · SOUND · BANNED · QA frames.
 4. `python -m viral_scout video <profile> film words <slug> <voice.wav> <script.md> --section N`: writes `work-words.json` (the voice is the clock) and `voice-check.md`. Missing or extra speech, or a word over 0.8 s (a hidden repeat), → regenerate that line or mute it, then run `words` again. A `heard differently: so → Do` line is Whisper mishearing the first or last word of a sentence: the script's word is kept, just listen to that spot.
-5. Build `index.html` + `compositions/`; captions from `work-words.json` on dark plates, out of the bottom 20%.
-6. `video <profile> film check <slug>` until 0 errors. Snapshots at the SPEC's QA frames; review like a viewer, 2+ rounds, each written in `REVIEW.md` (nothing still for > 2 s, empty thirds, unreadable text, captions over the action, a number without a source tag, an ending that isn't the CTA).
-7. `video <profile> film render <slug>`: it reports loudness against about -14 LUFS / -1 dBTP. Transcribe the final audio once more (`film words` on the master) to confirm it says exactly the script.
+5. Build `index.html` + `compositions/`; captions from `work-words.json` on dark plates, inside the safe area (about 5% margin at the sides and top, out of the bottom 20%). Frame 0 already shows the headline at full opacity and the main object: animate after the first frame, never into it.
+6. `video <profile> film check <slug>` until 0 errors. Snapshots at the SPEC's QA frames; review like a viewer, 2+ rounds, each written in `REVIEW.md` (frame 0 empty or still fading in, nothing still for > 2 s, empty thirds, unreadable text, text outside the safe area, captions over the action, a number without a source tag, an ending that isn't the CTA).
+7. `video <profile> film render <slug>`: it reports loudness against about -14 LUFS / -1 dBTP. A ⚠ line → change the voice and sound effect levels in the composition and render again. Last resort, the audio only: `ffmpeg -i <in.mp4> -c:v copy -af loudnorm=I=-14:TP=-1:LRA=11 <out.mp4>`, then `python -m viral_scout check <profile> <out.mp4>`. Transcribe the final audio once more (`film words` on the master) to confirm it says exactly the script.
 8. Sound effects: CC0 or CC BY with credit in `assets/sfx/CREDITS.md`, never NonCommercial. No music in the master.
-9. `POST.md` in the film folder: how to post, AI label, every platform's caption, pinned comment. Stop.
+9. The "Don't / Do" still, only when the topic has an honest pair: take a ❌ frame and a ✅ frame from the render (`ffmpeg -ss <t> -i <mp4> -frames:v 1 x.png`), then `video <profile> still --top … --bottom … --top-text "DON'T …" --bottom-text "DO …" --source "<short source>" --out <film>/still.png`. Crop between the film's own heading and its captions (`--top-y` / `--bottom-y` about 0.3-0.45). Labels of 3-5 words that match each picture. Read the PNG: nothing cut off, no film text behind the labels, the source and brand tags don't overlap. No honest pair → no still.
+10. `POST.md` in the film folder: how to post, AI label, every platform's caption, pinned comment. Tracker row 🎬 film rendered with the mp4 path and the post date. Stop.
 
 ## week
 
 1. Read the tracker (statuses, "What worked"), the content plan if any, the latest viral-scout ideas note and demand calendar (`data/<profile>-demand.json`: what is in season, `start_by` dates).
-2. Pick 5 videos: ✍️ scripted first, then 💡 ideas, then new topics. No topic posted in the last 4 weeks. Month 1 after the first post: variety. From month 2: 1-2 slots are 🔁 re-cuts of the winners (new hook first).
-3. Add new rows as 💡 and "week of YYYY-MM-DD" in Notes. In chat: a 5-row table (day · title · mode · status · the fact and source it rests on) and one line on batching the filming. Stop.
+2. Pick 5 videos: ✍️ scripted first, then 💡 ideas, then new topics. No topic posted in the last 4 weeks. Never two videos of the same format on neighbouring days. Give each slot one goal: saves, trust, reach, expertise or leads. Month 1 after the first post: variety. From month 2: 1-2 slots are 🔁 re-cuts of the winners (new hook first).
+3. Add new rows as 💡 and "week of YYYY-MM-DD" in Notes. In chat: a 5-row table (day · title · rubric · mode · goal · status · the fact and source it rests on) and one line on batching the filming. Stop.
 
 ## review
 
 1. Tracker rows 📤 posted in the last 7 days and their numbers at 48 h and 7 d (views, watch %, drop-off second, saves, shares, comments, leads). If the profile has own-performance data: `python -m viral_scout perf <profile> --no-pull` or the MCP `perf_results`.
-2. Write "## What worked" in the tracker (newest first, dated): top video and why, weakest and what happens at its drop-off second, 3 things to repeat, 1 to stop. Mark rows 📈. From month 2 add the top 20% as 🔁 re-cut rows. Never invent numbers: list the empty cells for the owner to fill. Checklist content is judged by saves and shares.
-3. In chat: 5 lines and the path. Stop.
+2. Read each video's retention curve by its shape and apply that shape's fix (table in docs/performance.md, "Curve shapes"): an early cliff points at the hook, a slow slide through the middle at the body, a late drop at the payoff. Mark every rise in the curve too (people rewound) and write what was on screen there: rises are what to repeat. Judge each video by its format's own metric (docs/video-quality-framework.md, "One metric per format"); a hook type is judged after 3 posts, not 1.
+3. Write "## What worked" in the tracker (newest first, dated): top video and why, weakest with its curve shape and what happens at its drop-off second, 3 things to repeat, 1 to stop. Change one thing per re-cut. Mark rows 📈. From month 2 add the top 20% as 🔁 re-cut rows. Never invent numbers: list the empty cells for the owner to fill.
+4. In chat: 5 lines and the path. Stop.
 
 ## repurpose
 
-Output folder `<studio.vault_dir>/05 Marketing/repurpose/YYYY-MM-DD-<slug>/`.
+Slug: `--slug`, else 3 to 5 words of the main topic, lowercase with hyphens. Output folder `<studio.vault_dir>/05 Marketing/repurpose/YYYY-MM-DD-<slug>/`.
 1. Text: copy a transcript or notes file as is to `transcript.txt`. Audio or video: `python -m viral_scout video <profile> transcribe "<recording>" --out "<folder>/transcript.txt"` (WhisperX; exit code 3 means it isn't installed: say so and stop).
 2. `00-brief.md`: the one idea, audience, takeaways in order, every fact with its source ("Dropped: no source" list), the personal parts worth keeping.
-3. Drafts, each with frontmatter `type: draft`, `status: draft`, `sources`: `01-short-video.md` (the script format above), `02-carousel.md` (6-8 slides: hook, points, sources, CTA), `03-blog-outline.md` (only if the topic carries a 900+ word guide; else one line why not), `04-newsletter.md` (120-200 words, one UTM link), `05-linkedin.md` (B2B or behind-the-scenes angle, ≤ 3 hashtags), `06-stories.md` (3 frames). Formats per channel may be set in `studio.instructions`.
-4. Compliance step on every draft; result in `00-brief.md` under `## Compliance`.
-5. One line in today's daily note; in chat the idea, the folder, the 3 hooks, dropped facts. Stop.
+3. Drafts, each with frontmatter `type: draft`, `status: draft`, `source: transcript.txt`, `sources: [...]`: `01-short-video.md` (the script format above), `02-carousel.md` (6-8 slides: hook, points, sources, CTA), `03-blog-outline.md` (only if the topic carries a 900+ word guide; else one line why not), `04-newsletter.md` (120-200 words, one UTM link), `05-linkedin.md` (B2B or behind-the-scenes angle, ≤ 3 hashtags), `06-stories.md` (3 frames, each ≤ 12 words on screen with a background idea and a sticker: (1) the hook plus a question sticker or poll, (2) the one useful fact with its source on screen, (3) the CTA; no realistic AI people). Formats per channel may be set in `studio.instructions`.
+4. Compliance step on every draft. These are our own drafts, so fix FIX items yourself and rewrite BLOCK items in the draft, then write the verdicts in `00-brief.md` under `## Compliance`. A draft is not called ready until its verdict is PASS.
+5. One line in today's daily note; in chat the idea, the folder, the 3 hooks, dropped facts, and each customer-facing draft that is not PASS yet (at least the video captions, the carousel caption and the newsletter). Stop.
 
 ## Compliance step (also `check <file>`)
 
@@ -173,5 +178,6 @@ Output folder `<studio.vault_dir>/05 Marketing/repurpose/YYYY-MM-DD-<slug>/`.
 ## Before anything is called ready
 
 - Script: compliance PASS, sources in the frontmatter, AI label decided.
+- Repurpose drafts: each one PASS in `00-brief.md` under `## Compliance`.
 - Master: `python -m viral_scout check <profile> <master.mp4>` run and read; frames looked at; `report.md` has no missing lines and no ADD SOURCE.
-- Nothing posted, scheduled or paid for. The owner watches it with sound and posts it.
+- Nothing posted, scheduled or paid for. Sent only to the owner for review. The owner watches it with sound and posts it.

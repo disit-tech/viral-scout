@@ -51,6 +51,7 @@ How to use it: put the most-searched wording into hooks and titles, time ideas t
 ## 4. Generate N new ideas
 - Use the profile's `rubrics` (and the tracks and split from the instructions note). Mix at least 3 rubrics and 3 hook types per batch. A focus argument overrides the mix.
 - Each idea must be doable by the people the instructions note names, this week or this season, within the budget it gives. It should lead to a call, a message, a form or a measurable number, not just likes.
+- Reach: give each idea one of core (our offer), near (the problem space around it) or wide (stories the same people care about), and start `why` with it (`reach: near · …`; the API has no field for it). At least half of a batch is core or near; a wide idea needs a clear bridge back to the offer. A small local market can stay mostly core.
 - Fit the date and the season. About `experiment_share` of the batch (1 in 5 by default) is a deliberate experiment: say so in `why`.
 - No repeats of the tracker, of past ideas or of anything 👎 (check titles and hooks against `pull`).
 - Facts only with a source (a vault note or a WebSearch). No source → no number, and `fact`: "needs a fact".

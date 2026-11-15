@@ -16,7 +16,7 @@ Args: `<profile> [analyze | ads] [urls...]`. `ads` = only the Ads step below. No
 - `python -m viral_scout run <profile>` (3–8 min; run in background). It prints the report path; `data/<profile>-latest.json` has every post with hook, transcript, scores.
 
 ## 2. Analyze (the part that makes it useful)
-Read the profile (`business:`, `taste_note:` if set) and the latest JSON. Take the strongest 8–10 posts: Rising now first, then Outliers (🔥/⚡), then Fastest. Skip off-topic ones the filters missed (and offer `dismiss`).
+Read the profile (`business:`, `taste_note:` if set) and the latest JSON. Take the strongest 8–10 posts: Rising now first, then Outliers (🔥/⚡), then Fastest. Skip off-topic ones the filters missed (and offer `dismiss`). When follower counts are known, prefer outliers from creators under about 1M followers: their formats travel to a small account. Mark each post as a trend (posted in the last 30 days) or evergreen (an older post that still wins).
 
 For each, from title + hook + CTA + transcript (+ description), **and look at its `frame` image** (Read the local path in the JSON): many Shorts/reels carry the hook as on-screen text ("CRISPS vs FRIES vs CHIPS") or show the format visually (split screen, before/after, text cards). Note the on-screen text and visual format. Use `wpm` (pace), `creator_pct`, `vs_pace` (age-matched), `vs_topic` (× the niche) and `emerging` when they explain why it worked. Read `questions` / `top_comments`: viewer questions are ready-made ideas, objections show what to address.
 - **Format** (one of: talking head tip, skit/POV, A-vs-B contrast, list/phrase pack, myth-buster, reaction, story, tutorial, question-to-comments, other)
@@ -35,7 +35,7 @@ For the top 5–8 posts (and any post the user names: `/viral-scout <profile> sc
 Run `python -m viral_scout check <profile> <file>` (or use an existing check id). Read the check JSON in data/checks/<profile>/<id>/ and Read its frame images (first, 1s, 3s, middle, last): judge first-frame impact, on-screen text, captions (readable, high contrast, inside safe zones), branding, visual quality. Score it with the scorecard (`score set <profile> check:<id>`). Then give the 3 most important fixes in order, mixing technical results (format, loudness, pacing, silence in the hook, CTA) and creative ones.
 
 ## 3. Save and clean up
-- Save the 2–3 best references: `python -m viral_scout save <profile> <ID> --note "<format>: <why it works>"`; then set `format:` in each saved note's frontmatter.
+- Save the 2–3 best references: `python -m viral_scout save <profile> <ID> --note "<format>: <why it works>. transfer: hook=adapt, structure=keep, topic=swap, editing=adapt, words=never"`; then set `format:` in each saved note's frontmatter. The transfer line says per part what we may take (keep / adapt / swap); the words, footage and delivery are never copied.
 - Off-topic posts: `python -m viral_scout dismiss <profile> <ID> ...`.
 - Creators who keep showing up / suggested hashtags: propose profile edits; apply only if the user agrees (or in a scheduled run: list them in the ideas note only).
 
