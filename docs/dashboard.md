@@ -26,6 +26,8 @@ scripts/publish.ps1                      → export + vercel deploy --prod (uplo
 
 ## Publish to Vercel
 
+> Optional. The maintainer's own setup publishes only the public demo with sample data (`viral-scout-demo`, built from GitHub); the real dashboard runs locally. Use `publish.ps1` only if you want your own password-protected copy online, and note that `vercel link` creates a new Vercel project (connected to GitHub) when the name doesn't exist yet.
+
 One-time setup:
 ```powershell
 npx vercel login                       # once per PC

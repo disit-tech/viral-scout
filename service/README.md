@@ -46,6 +46,8 @@ With `DATABASE_URL` empty it uses a scratch file `data/local.db`. Don't point a 
 
 Deploying changes nothing in Telegram. Until a webhook points here, the service gets no updates.
 
+Once live: keep **Root Directory = `service`** (from the repo root every build fails with "Couldn't find any pages or app directory"). Every push to `main` redeploys the service, so a broken `service/` on `main` goes live. A change to `STUDIO_CONFIG_JSON` only applies after a redeploy. This project is the live bot backend: never delete it, and don't confuse it with the dashboard project (same repo, `web/` folder).
+
 ## Generic bots
 
 One ideas bot and one video bot for every business: `ideasBot` and `videoBot` in the config. Setup and behaviour: [docs/telegram-service.md](../docs/telegram-service.md#generic-bots-one-for-ideas-one-for-videos).
