@@ -17,14 +17,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased">
         <header className="sticky top-0 z-20 border-b border-line bg-ink/85 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-tight">
               <svg viewBox="0 0 64 64" className="h-6 w-6" aria-hidden>
                 <path d="M12 46 L26 30 L35 38 L52 16" fill="none" stroke="#ffb020" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
                 <circle cx="52" cy="16" r="6" fill="#ff5d3a" />
               </svg>
               Viral Scout
             </Link>
-            <nav className="ml-4 flex gap-1 text-sm">
+            <nav className="flex min-w-0 gap-1 overflow-x-auto whitespace-nowrap text-sm sm:ml-4">
               <Link href="/" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Businesses</Link>
               <Link href="/search" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text" title="Search every post already collected">Search posts</Link>
               <Link href="/check" className="rounded-md px-2 py-1 text-muted hover:bg-panel hover:text-text">Check a video</Link>

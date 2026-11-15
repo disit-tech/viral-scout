@@ -296,7 +296,7 @@ function AdvInput({ items, onChange }: { items: Adv[]; onChange: (v: Adv[]) => v
         return (
           <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
             <input value={r.name} onChange={(e) => upd(i, "name", e.target.value)} className={inputCls} />
-            <input value={r.match} onChange={(e) => upd(i, "match", e.target.value)} placeholder="e.g. ^LeafFilter"
+            <input value={r.match} onChange={(e) => upd(i, "match", e.target.value)} placeholder="e.g. ^Acme Roofing"
               className={`${inputCls} font-mono text-xs ${err ? "border-mega" : ""}`} title={err ?? ""} />
             <button onClick={() => emit(rows.filter((_, j) => j !== i))} className="px-2 text-muted hover:text-mega" aria-label="Remove">✕</button>
           </div>
