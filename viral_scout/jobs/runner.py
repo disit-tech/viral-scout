@@ -4,10 +4,12 @@ Order: job on? → already done this day/week? → lock free (one Claude job on 
 work waiting (notes only) → tries left (max_tries per day/week) → `claude -p` with the assembled prompt on stdin,
 --permission-mode acceptEdits, a narrow --allowedTools, --add-dir <vault> → log → .done on success (done_by: runner).
 """
+import os
 import shutil
 import subprocess
 from datetime import datetime
 
+from .. import config
 from . import prompts
 from . import settings as S
 from .state import Lock, Markers, period_key
@@ -23,9 +25,19 @@ def claude_command(cfg, job, claude="claude"):
     return cmd
 
 
+def _env():
+    """The job's environment: viral_scout importable from any cwd (a business repo), UTF-8 output."""
+    env = dict(os.environ)
+    paths = [str(config.ROOT)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else [])
+    env["PYTHONPATH"] = os.pathsep.join(paths)
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
+
 def _execute(cmd, prompt, log, cwd):
     with open(log, "a", encoding="utf-8") as fh:
-        p = subprocess.run(cmd, input=prompt, stdout=fh, stderr=subprocess.STDOUT, text=True, encoding="utf-8", cwd=cwd)
+        p = subprocess.run(cmd, input=prompt, stdout=fh, stderr=subprocess.STDOUT, text=True, encoding="utf-8", cwd=cwd,
+                           env=_env())
     return p.returncode
 
 

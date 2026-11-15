@@ -311,3 +311,13 @@ def test_jobs_api_reads_the_ideas_api_block():
            "api": {"env_file": "D:/x/.env.local", "url_env": "MY_URL", "secret_env": "MY_SECRET"}}}
     api = js.settings(cfg)["api"]
     assert api == {"url_env": "MY_URL", "secret_env": "MY_SECRET", "env_file": "D:/x/.env.local", "project": "homes"}
+
+
+def test_job_env_makes_viral_scout_importable_from_any_cwd(monkeypatch):
+    from viral_scout import config
+    from viral_scout.jobs import runner
+    monkeypatch.setenv("PYTHONPATH", "X:/other")
+    env = runner._env()
+    assert env["PYTHONPATH"].split(os.pathsep)[0] == str(config.ROOT)
+    assert "X:/other" in env["PYTHONPATH"]
+    assert env["PYTHONIOENCODING"] == "utf-8"

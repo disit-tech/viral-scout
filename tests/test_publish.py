@@ -202,3 +202,14 @@ class NotesClientTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_queue_keeps_wikilink_alias_pipes(tmp_path):
+    """An Obsidian alias inside a table cell escapes its pipe; the status column must still be read."""
+    from viral_scout.publish import core
+    q = tmp_path / "ready-to-post.md"
+    q.write_text("| Date | Title | Video | Script | Status |\n|---|---|---|---|---|\n"
+                 "| 2026-11-16 | Grid truth | `D:/v/a.mp4` | [[scripts/a\|script]] | approved |\n", encoding="utf-8")
+    rows = core.read_queue(q)
+    assert rows[0]["script"] == "[[scripts/a\|script]]"
+    assert rows[0]["status"] == "approved"
