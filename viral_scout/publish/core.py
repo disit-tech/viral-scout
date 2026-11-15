@@ -140,8 +140,10 @@ def read_queue(path):
     for line in p.read_text(encoding="utf-8").splitlines():
         if not re.match(r"^\|\s*\d{4}-\d{2}-\d{2}\s*\|", line):
             continue
-        # Split on unescaped pipes only: Obsidian table cells escape the pipe of a link alias as `[[note\\|label]]`.
-        c = [x.strip() for x in re.split(r"(?<!\\)\|", line)]
+        # Split on unescaped pipes outside wiki links only: Obsidian writes a link alias in a table as
+        # `[[note\\|label]]`, but a hand-written `[[note|label]]` must not split the cell either.
+        line = re.sub(r"\[\[[^\]]*\]\]", lambda m: m.group(0).replace("|", "\x1f"), line)
+        c = [x.strip().replace("\x1f", "|") for x in re.split(r"(?<!\\)\|", line)]
         m = re.search(r"`([^`]+)`", c[3] if len(c) > 3 else "")
         rows.append({"date": c[1], "title": c[2] if len(c) > 2 else "", "video": m.group(1) if m else "",
                      "script": c[4] if len(c) > 4 else "", "status": c[5] if len(c) > 5 else ""})

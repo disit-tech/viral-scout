@@ -213,3 +213,13 @@ def test_queue_keeps_wikilink_alias_pipes(tmp_path):
     rows = core.read_queue(q)
     assert rows[0]["script"] == "[[scripts/a\|script]]"
     assert rows[0]["status"] == "approved"
+
+
+def test_queue_keeps_unescaped_wikilink_alias(tmp_path):
+    """A hand-written `[[note|label]]` in the script cell must not shift the status column."""
+    from viral_scout.publish import core
+    q = tmp_path / "ready-to-post.md"
+    q.write_text("| 2026-11-16 | Grid truth | `D:/v/a.mp4` | [[scripts/a|script]] | ✅ approved |\n", encoding="utf-8")
+    rows = core.read_queue(q)
+    assert rows[0]["script"] == "[[scripts/a|script]]"
+    assert core.approved(rows[0])
