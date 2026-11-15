@@ -10,6 +10,11 @@ export const SOURCE: Record<string, string> = {
   meta_api: "Meta API", tiktok_api: "TikTok API", apify_meta: "Facebook / Instagram",
   apify_tiktok_top: "TikTok Top Ads", apify_google: "Google",
 };
+/** Where an ad's url opens: the public page of the ad in its own library. */
+export const LIBRARY: Record<string, string> = {
+  meta_api: "Meta Ad Library", apify_meta: "Meta Ad Library", apify_google: "Google Ads Transparency",
+  tiktok_api: "TikTok Ad Library", apify_tiktok_top: "TikTok Creative Center",
+};
 export const SOURCE_SHORT: Record<string, string> = { meta_api: "FB", tiktok_api: "TT", apify_meta: "FB", apify_tiktok_top: "TT", apify_google: "G" };
 
 export const advName = (a: AdItem) => a.advertiser || "Unknown advertiser";

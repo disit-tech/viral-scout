@@ -4,7 +4,7 @@ import { adsNames, isLocal, loadAds } from "@/lib/data";
 import { num, when } from "@/lib/format";
 import type { AdAI, AdItem } from "@/lib/types";
 import {
-  OFFER, SOURCE, STUDY_RULE, adHref, advName, competitorSearch, copyBreakdown, median, queryLabel, similarAds, studyPicks,
+  LIBRARY, OFFER, SOURCE, STUDY_RULE, adHref, advName, competitorSearch, copyBreakdown, median, queryLabel, similarAds, studyPicks,
 } from "@/lib/ads";
 import AdTimeline from "@/components/AdTimeline";
 import AdActions from "@/components/AdActions";
@@ -79,6 +79,13 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
           {picked && <span className="rounded-full border border-viral/60 px-2 py-0.5 text-xs text-viral" title={STUDY_RULE}>★ worth studying</span>}
           {ad.new && <span className="rounded-full border border-rise bg-rise px-2 py-0.5 text-xs font-semibold text-ink">new since last run</span>}
           <span className="text-sm text-muted">{SOURCE[ad.source] ?? ad.source} · {ad.format}{ad.platforms.length ? ` · ${ad.platforms.join(", ")}` : ""}</span>
+          {ad.url && (
+            <a href={ad.url} target="_blank" rel="noreferrer"
+              className="ml-auto rounded-lg border border-accent/60 px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/10"
+              title="The ad's public page in its library: the creative as it runs, its dates and where it shows">
+              View in {LIBRARY[ad.source] ?? "the ad library"} ↗
+            </a>
+          )}
         </div>
         {ad.labels.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{ad.labels.map((l) => <span key={l} className="rounded-full bg-panel-2 px-2 py-0.5 text-[11px]">{l}</span>)}</div>}
       </div>
@@ -228,7 +235,7 @@ export default async function AdPage({ params }: { params: Promise<{ name: strin
         </Section>
         <Section title="Links">
           <ul className="space-y-1.5">
-            {ad.url && <li><a href={ad.url} target="_blank" rel="noreferrer" className="text-rise underline">Open in the ad library ↗</a></li>}
+            {ad.url && <li><a href={ad.url} target="_blank" rel="noreferrer" className="text-rise underline">View in {LIBRARY[ad.source] ?? "the ad library"} ↗</a></li>}
             {ad.link_url && <li><a href={ad.link_url} target="_blank" rel="noreferrer nofollow" className="text-rise underline">Landing page ↗</a> <span className="text-xs text-muted">({ad.landing_domain})</span></li>}
             {lookup && Object.entries(lookup.links).map(([k, v]) => <li key={k}><a href={v} target="_blank" rel="noreferrer" className="text-rise underline">{k}: {lookup.label} ↗</a></li>)}
           </ul>
