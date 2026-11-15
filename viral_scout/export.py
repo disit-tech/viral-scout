@@ -260,6 +260,8 @@ def export_all(names=None, out=WEB_DATA):
         if p["name"] in perf_done:
             p["perf"] = True
     index.sort(key=lambda p: p["name"])
+    from .keys import KEYS                 # the key catalog for the published Setup page: names and help, never values
+    (out / "keys.json").write_text(json.dumps(KEYS, ensure_ascii=False), encoding="utf-8")
     (out / "index.json").write_text(json.dumps({"exported": datetime.now().isoformat(), "profiles": index},
                                                ensure_ascii=False), encoding="utf-8")
     return out, done

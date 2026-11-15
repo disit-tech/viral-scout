@@ -1,10 +1,12 @@
-import { isLocal } from "@/lib/data";
+import { isLocal, loadKeyCatalog } from "@/lib/data";
 import SetupKeys from "@/components/SetupKeys";
+import KeyCatalog from "@/components/KeyCatalog";
 
 export const metadata = { title: "Setup" };
 export const dynamic = "force-dynamic";
 
-export default function Setup() {
+export default async function Setup() {
+  const catalog = isLocal ? [] : await loadKeyCatalog();
   return (
     <div className="max-w-4xl">
       <h1 className="text-2xl font-bold tracking-tight">Setup</h1>
@@ -16,6 +18,8 @@ export default function Setup() {
       </p>
       {isLocal ? (
         <SetupKeys />
+      ) : catalog.length ? (
+        <KeyCatalog keys={catalog} />
       ) : (
         <div className="mt-6 rounded-xl border border-dashed border-line p-8 text-center text-muted">
           Keys can only be managed on the local dashboard (<code className="text-text">cd web &amp;&amp; npm run dev</code>), never on the published site.
