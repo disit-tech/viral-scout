@@ -1,5 +1,7 @@
 # How it works
 
+What one run does step by step, how every number is computed, where the data lives and which file does what. For using it, start with [setup](setup.md) and the [marketing workflow](marketing-workflow.md).
+
 ## Pipeline
 
 One `run` goes through these steps (`viral_scout/run.py`):

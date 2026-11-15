@@ -2,7 +2,7 @@
 
 Each business has one YAML file in `profiles/`. Business profiles are **git-ignored**: only `_template.yaml` and `example-*.yaml` are committed, so your keywords, watch lists and business description stay on your machine.
 
-Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy for `${OBSIDIAN_VAULT}`.
+Start from `profiles/_template.yaml`, or copy `profiles/example-language-school.yaml` (a working profile for an online English school). `${ENV_VAR}` is expanded, which is handy for `${OBSIDIAN_VAULT}` ([set it up first](setup.md#obsidian-vault); unset, the run warns and writes to `reports/<profile>/`).
 
 ## Fields
 
@@ -32,10 +32,16 @@ Start from `profiles/_template.yaml`. `${ENV_VAR}` is expanded, which is handy f
 | `enrich_top` | YouTube videos opened per run for full stats when there is no `YOUTUBE_API_KEY` (with a key, the Data API fills all of them) | 60–90 |
 | `recheck` | re-measure recent posts | `{max_age_days: 30, limit: 60}` |
 | `report` | `top` rows per section, `hooks` shown, `transcripts` fetched | `{top: 25, hooks: 20, transcripts: 40}` |
-| `alerts` | Telegram thresholds | see below |
+| `alerts` | Telegram thresholds | see [below](#alerts) |
+| `ads` | ads scout: competitors, keywords, countries, sources | see [below](#ads-block) |
+| `demand` | search demand terms and area | see [below](#search-demand-block) |
 | `economics`, `perf` | unit economics and own-performance settings | see [below](#own-performance-economics-and-perf) |
 
-### Optional blocks
+## Optional blocks
+
+Everything below is optional; leave a block out and its feature stays off.
+
+### Other options
 
 ```yaml
 own:                      # your own posts, scored against your own usual ("Your posts" tab)
@@ -82,6 +88,20 @@ Tips:
 - **Names match loosely.** A name search also returns other advertisers who mention the brand (dealers, affiliates, reviewers), so only pages whose name matches are kept. Set `match:` (a regex) when the page name differs from the brand, or use the numeric page id.
 - **Keywords are the category:** they keep every advertiser, which is how you find competitors you didn't know about. Move the ones that keep showing up into `advertisers`.
 - **US businesses:** the official Meta API has EU ads only. Use `apify_meta` for US ads, and optionally `meta_countries` to see the European versions of the same angles.
+
+### Search demand block
+
+For `python -m viral_scout demand <profile>`, see [search-demand.md](search-demand.md).
+
+```yaml
+demand:
+  terms: [gutter cleaning, christmas light installation]    # one seasonal curve each, as customers type them
+  compare: [permanent lights, christmas light installation]  # up to 5 phrasings on one scale
+  geo: US-IL-602        # US, a state (US-IL) or a metro DMA (US-IL-602 = Chicago)
+  time: today 5-y
+  every_days: 7         # refetch at most this often
+  lead_weeks: 3         # start posting this many weeks before a season starts
+```
 
 ### Own performance: `economics` and `perf`
 
@@ -132,21 +152,3 @@ Start strict and loosen it later. Each post alerts only once.
    - Add the hashtags listed under **Suggested hashtags**.
    - Widen `window`, or lower `min_views`.
 4. **Dismiss** the leftovers: `python -m viral_scout dismiss <name> <ID> ...`.
-
-## Example
-
-`profiles/example-language-school.yaml` is a working profile for an online English school. Copy it as a starting point.
-
-## Search demand (`demand:`)
-
-```yaml
-demand:
-  terms: [gutter cleaning, christmas light installation]    # one seasonal curve each, as customers type them
-  compare: [permanent lights, christmas light installation]  # up to 5 phrasings on one scale
-  geo: US-IL-602        # US, a state (US-IL) or a metro DMA (US-IL-602 = Chicago)
-  time: today 5-y
-  every_days: 7         # refetch at most this often
-  lead_weeks: 3         # start posting this many weeks before a season starts
-```
-
-See [search-demand.md](search-demand.md).

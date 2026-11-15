@@ -2,8 +2,7 @@
 
 Finds what's going viral on a topic right now, for any business. One YAML profile per business; one Markdown report per run (Obsidian-friendly) plus JSON for other tools.
 
-Docs: [ads scout](docs/ads-scout.md) · [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
-Docs: [your performance](docs/performance.md) · [references](docs/references.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · [marketing workflow](docs/marketing-workflow.md) · [dashboard](docs/dashboard.md) · [how it works](docs/how-it-works.md) · [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [similar tools](docs/similar-tools.md)
+Docs ([index](docs/README.md)): **get started** [setup and keys](docs/setup.md) · [profiles](docs/profiles.md) · [marketing workflow](docs/marketing-workflow.md) · **features** [dashboard](docs/dashboard.md) · [ads scout](docs/ads-scout.md) · [search demand](docs/search-demand.md) · [your performance](docs/performance.md) · **better videos** [video quality framework](docs/video-quality-framework.md) · [originality and duplicate detection](docs/originality-and-duplicate-detection.md) · **under the hood** [how it works](docs/how-it-works.md) · [similar tools](docs/similar-tools.md) · [references](docs/references.md)
 
 It answers three questions:
 
@@ -92,7 +91,7 @@ python -m viral_scout perf auth youtube                                # one-tim
 
 Requirements: Python 3.10+, `pip install -r requirements.txt`. Set `VIRAL_SCOUT_YTDLP` to a yt-dlp clone to use newer extractors than the pip package (recommended).
 
-Scheduled run on Windows: `scripts/run-daily.ps1 -Profile <name> [-Analyze]` (logs in `data/logs/`). `-Analyze` then runs the skill headless to write the ideas note. `scripts/schedule.ps1 -Profiles a,b,c -Analyze -Publish` registers **weekly** Monday tasks (`-Day Daily` for daily): one Monday snapshot of trending posts and competitor ads, then a week of content made from it. See [setup](docs/setup.md#scheduling).
+Scheduled run on Windows: `scripts/run-daily.ps1 -Profile <name> [-Analyze]` (logs in `data/logs/`). `-Analyze` then runs the skill headless to write the ideas note. `scripts/schedule.ps1 -Profiles a,b,c -Analyze -Publish` registers **weekly** Monday tasks (`-Day Daily` for daily): one Monday snapshot of trending posts and competitor ads, then a week of content made from it. Pause, move or run them on the dashboard's **Schedule** page. See [setup](docs/setup.md#scheduling).
 
 **Getting the results elsewhere:** other repos and agents read them through the `viral-scout` MCP server (user scope, so every Claude Code session on this PC has it), the Markdown reports in the Obsidian vault, or the JSON in `data/` and `web/data/`. People without access to this PC use the dashboard published on Vercel. See [setup](docs/setup.md#mcp-server-optional).
 
@@ -117,7 +116,7 @@ Filters matter: hashtag feeds are full of spam (`#english` on gaming clips). `mu
 
 ## How it compares
 
-Built after looking at the open-source [viral-shorts MCP](https://github.com/Xeron2000/shorts), [viral_short_research_tool](https://github.com/wisnuhid7/viral_short_research_tool) and [ViralMint](https://github.com/openclaw-easy/ViralMint), and the paid 1of10, vidIQ Outliers, TubeLab, Virlo, Sandcastles and Apify hook scrapers. Same core (outliers vs the creator's median, hooks, transcripts, swipe file, alerts), but free on YouTube, multi-platform through official APIs or Apify, per-business profiles, growth tracking between runs, and output straight into Obsidian. Not yet: on-screen text (OCR) for silent videos, trending sounds, local Whisper transcription for Instagram/TikTok audio.
+Built after looking at the open-source [viral-shorts MCP](https://github.com/Xeron2000/shorts), [viral_short_research_tool](https://github.com/wisnuhid7/viral_short_research_tool) and [ViralMint](https://github.com/openclaw-easy/ViralMint), and the paid 1of10, vidIQ Outliers, TubeLab, Virlo, Sandcastles and Apify hook scrapers. Same core (outliers vs the creator's median, hooks, transcripts, swipe file, alerts), but free on YouTube, multi-platform through official APIs or Apify, per-business profiles, growth tracking between runs, and output straight into Obsidian. Not yet: on-screen text (OCR) for silent videos, trending sounds. The rest of the backlog: [similar tools](docs/similar-tools.md#still-not-built-ranked).
 
 ## Layout
 
@@ -127,6 +126,8 @@ tests/              tests (python tests/test_perf.py runs without pytest)
 profiles/           one YAML per business
 data/               SQLite history + latest JSON (git-ignored)
 reports/            default report folder when a profile has no output_dir (git-ignored)
-scripts/            run-daily.ps1
+scripts/            run-daily.ps1 (one weekly run), schedule.ps1 / tasks.ps1 (Task Scheduler), publish.ps1 (Vercel), mcp_server.py
+web/                the dashboard (Next.js)
+docs/               the docs (also at /docs on the dashboard)
 .claude/skills/     the /viral-scout skill for Claude Code
 ```

@@ -1,6 +1,7 @@
 """Profiles: one YAML per business in profiles/. ${ENV_VARS} are expanded in strings."""
 import os
 import re
+import sys
 from pathlib import Path
 
 import yaml
@@ -56,6 +57,13 @@ def load(name_or_path):
     cfg = _expand(_merge(DEFAULTS, cfg))
     cfg.setdefault("name", p.stem)
     cfg["_path"] = str(p)
+    # A path whose ${VAR} isn't set would become a folder literally named "${OBSIDIAN_VAULT}": use the default instead.
+    for k in ("output_dir", "swipe_dir", "taste_note"):
+        miss = re.findall(r"\$\{(\w+)\}", str(cfg.get(k) or ""))
+        if miss:
+            print(f"warning: {k} uses ${{{miss[0]}}}, which is not set (see docs/setup.md#obsidian-vault); "
+                  f"using the default for {k}", file=sys.stderr)
+            cfg.pop(k)
     data = ROOT / "data"
     data.mkdir(exist_ok=True)
     cfg.setdefault("db", str(data / f"{cfg['name']}.sqlite"))

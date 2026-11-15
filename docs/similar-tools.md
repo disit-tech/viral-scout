@@ -123,8 +123,7 @@ Full list with links: [references.md](references.md).
 1. **Semantic (embedding) search.** BM25 covers keyword search. Embeddings would need a local model.
 2. **Scene-by-scene breakdown** (several frames per video). We read one thumbnail. Downloading whole videos is limited by platform terms, so this should stay with your own or licensed posts.
 3. **YouTube WebSub push** for watched channels. Free, but needs a public callback URL, for example a Vercel route.
-4. **Instagram own-post insights** through the Graph API Media Insights (own business account only).
-5. **X / Threads coverage.** Low value for short-form video.
+4. **X / Threads coverage.** Low value for short-form video.
 
 ## Earlier backlog (now done)
 

@@ -131,6 +131,14 @@ KEYS = [
      "unlocks": "Path to a yt-dlp clone with newer extractors than the pip package.",
      "get": "git clone https://github.com/yt-dlp/yt-dlp",
      "docs": "https://github.com/yt-dlp/yt-dlp"},
+    {"name": "OBSIDIAN_VAULT", "group": "Tools", "cost": "free", "secret": False,
+     "unlocks": "Your Obsidian vault folder. Profiles write reports, ideas notes and the swipe file to "
+                "${OBSIDIAN_VAULT}/projects/<project>/…; New business lists the vault's projects. Unset, they go to "
+                "reports/<profile>/ in the repo.",
+     "get": "The folder that holds your vault's .obsidian folder. Best as a user environment variable "
+            "(PowerShell: [Environment]::SetEnvironmentVariable('OBSIDIAN_VAULT','D:\\Obsidian\\vault','User')), "
+            "then restart the terminal and the dashboard. Saved here it goes into .env, which only the Python CLI reads.",
+     "docs": "https://help.obsidian.md/Files+and+folders/Manage+vaults"},
 ]
 
 # How much each key matters (the Setup pages group by this, most important first) and what it costs.
@@ -148,7 +156,7 @@ TIER = {
     "GOOGLE_PLACES_API_KEY": "optional", "TIKTOK_ADS_TOKEN": "optional", "TIKTOK_ADVERTISER_ID": "optional",
     "META_AD_LIBRARY_TOKEN": "optional", "TIKTOK_RESEARCH_CLIENT_KEY": "optional",
     "TIKTOK_RESEARCH_CLIENT_SECRET": "optional", "APIFY_TRENDS_ACTOR": "optional",
-    "VIRAL_SCOUT_MCP_PAID": "advanced", "VIRAL_SCOUT_YTDLP": "advanced",
+    "VIRAL_SCOUT_MCP_PAID": "advanced", "VIRAL_SCOUT_YTDLP": "advanced", "OBSIDIAN_VAULT": "recommended",
 }
 #   free        no charge (some need an account or an application)
 #   free_tier   a free monthly allowance, then paid
@@ -174,6 +182,7 @@ USES = {
     "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
     "META_ADS_TOKEN": ["performance"], "META_AD_ACCOUNT_ID": ["performance"],
     "TIKTOK_ADS_TOKEN": ["performance"], "TIKTOK_ADVERTISER_ID": ["performance"], "VIRAL_SCOUT_YTDLP": ["videos"],
+    "OBSIDIAN_VAULT": ["tools"],
 }
 for _k in KEYS:
     _k.setdefault("tier", TIER.get(_k["name"], "optional"))
@@ -325,6 +334,13 @@ def test(name):
             return True, "ok: MCP clients may start paid runs" if on else "ok: paid MCP tools are off"
         if name == "VIRAL_SCOUT_YTDLP":
             return os.path.isdir(os.path.join(v, "yt_dlp")), "ok" if os.path.isdir(os.path.join(v, "yt_dlp")) else "no yt_dlp folder there"
+        if name == "OBSIDIAN_VAULT":
+            if not os.path.isdir(v):
+                return False, "no such folder"
+            if not os.path.isdir(os.path.join(v, ".obsidian")):
+                return False, "folder exists but has no .obsidian folder (not a vault root?)"
+            n = len([d for d in os.listdir(os.path.join(v, "projects"))]) if os.path.isdir(os.path.join(v, "projects")) else 0
+            return True, f"ok: vault with {n} project folder{'s' if n != 1 else ''}" if n else "ok: vault (no projects/ folder yet)"
         return True, "set (no live test for this one)"
     except (requests.RequestException, ValueError, KeyError) as err:
         return False, str(err)[:160]
