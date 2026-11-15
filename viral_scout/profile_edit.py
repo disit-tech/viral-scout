@@ -32,7 +32,7 @@ FIELDS = {
     "watch.youtube": "list", "watch.instagram": "list", "watch.tiktok": "list",
     "seeds": "list", "own.youtube": "list", "own.urls": "list",
     "filters.min_views": "int", "filters.max_age_days": "int", "filters.must_match": "regex",
-    "filters.exclude": "regex_list",
+    "filters.exclude": "regex_list", "filters.languages": "langs", "discover.youtube.region": "region",
     "ads.advertisers": "adv", "ads.keywords": "list", "ads.domains": "list", "ads.countries": "list",
     "ads.topic": "list", "ads.exclude_advertisers": "regex_list", "ads.days": "int", "ads.per_query": "int",
     "ads.top": "int",
@@ -129,6 +129,17 @@ def _clean(path, kind, v):
     if kind == "window":
         if v not in ("hour", "today", "week", "month", "year"):          # YouTube's upload-date filter values
             raise ValueError(f"{path}: hour, today, week, month or year")
+        return v
+    if kind == "langs":                       # ISO 639-1 codes, first = the main one (asked for in keyword search)
+        out = lst(v, lambda x: s(x, 40).lower())
+        bad = [x for x in out if not re.fullmatch(r"[a-z]{2}", x)]
+        if bad:
+            raise ValueError(f"{path}: two-letter language codes like en, pl, uk ({', '.join(bad)})")
+        return list(dict.fromkeys(out))
+    if kind == "region":
+        v = s(v, 5).upper()
+        if v and not re.fullmatch(r"[A-Z]{2}", v):
+            raise ValueError(f"{path}: a two-letter country code like US")
         return v
     if kind == "geo":
         v = s(v, 30)

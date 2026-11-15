@@ -45,7 +45,8 @@ def scout(cfg, quiet=False, recheck=True, discover=True, free=False):
         if kws and youtube_api.available():
             _log(f"discover: YouTube Data API, {len(kws)} keywords ({d_yt['window']})", quiet)
             add(youtube_api.discover(kws, d_yt["window"], d_yt["shorts"], d_yt["per_query"],
-                                     d_yt.get("languages"), d_yt.get("region"), errors))
+                                     d_yt.get("languages"), d_yt.get("region"), errors,
+                                     default_language=(cfg["filters"].get("languages") or [None])[0]))
             kws = []
         elif kws and d_yt["shorts"]:
             # yt-dlp can't read YouTube's Shorts search results, only hashtag feeds.
@@ -177,6 +178,25 @@ def scout(cfg, quiet=False, recheck=True, discover=True, free=False):
         time.sleep(1.0)
     for key in [k for k in pool if drop(k, final=True) or (not pool[k].title and k not in tracked)]:
         del pool[key]
+
+    # Language: drop found posts in none of the business's languages (filters.languages). Read from the post's own
+    # text, since platforms mislabel it (a Hindi Short can declare itself English). Tracked and watched posts stay.
+    keep_langs = cfg["filters"].get("languages") or []
+    if keep_langs:
+        from . import language
+        dropped = Counter()
+        for key in list(pool):
+            if key in tracked or key in watched:
+                continue
+            it = pool[key]
+            found = language.outside(" ".join([it.title or "", it.hook or "", (it.description or "")[:400]]), keep_langs)
+            if found:
+                dropped[sorted(found)[0]] += 1
+                del pool[key]
+        if dropped:
+            _log(f"language filter: dropped {sum(dropped.values())} posts ({', '.join(f'{k} {v}' for k, v in dropped.most_common())})", quiet)
+            skipped.append(f"Language filter: {sum(dropped.values())} posts in other languages dropped "
+                           f"({', '.join(f'{k} {v}' for k, v in dropped.most_common())}); keeping {', '.join(keep_langs)}.")
 
     # Creator baseline for the strongest discoveries (one channel listing each).
     top = sorted([i for i in pool.values() if i.platform == "youtube" and not i.channel_median and i.channel_url],
