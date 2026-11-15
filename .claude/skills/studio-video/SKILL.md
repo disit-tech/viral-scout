@@ -27,7 +27,25 @@ No profile → `python -m viral_scout profiles` and pick the one matching `$OBSI
 4. `studio.compliance`: the industry rules and the disclosure line. Missing → say so and use only the hard rules; never invent legal rules.
 5. The video folder: `<studio.vault_dir>/05 Marketing/Video Studio/` (or the parent of `video.script_dir`): `video-tracker.md`, `hook-bank.md`, `scripts/`. Missing files are created from the formats below only when the mode writes to them.
 
-Method reference (read the section a mode names): `$OBSIDIAN_VAULT/shared/playbooks/05 Marketing/video-generation.md`.
+6. The shared method notes for your mode (table below).
+
+## Shared method notes (read the ones your mode needs)
+
+The method behind this skill lives in the owner's vault under `$OBSIDIAN_VAULT/shared/`. This skill is the short form; when a mode below lists a note, read it (the sections named) before you start. Missing note → say so and go on with this skill.
+
+| Note | What it holds | Read it for |
+|---|---|---|
+| `shared/playbooks/05 Marketing/video-generation.md` | the full system: modes (§2), accordion method and hooks (§3), the script file (§4), voice (§5), filming (§6), editing (§7), films (§8), one recording → every channel (§9), publishing (§10), measuring (§11), rules for every business (§13) | every mode: the section that matches it |
+| `shared/reference/video-craft-lessons.md` | the 12 craft rules (packaging, the first seconds, retention, story, sound, one change per video) and how they map to our videos | `script`, `film`, `week`, `review` |
+| `shared/playbooks/05 Marketing/daily-animated-film-pipeline.md` | how one finished film a day is made unattended: topic choice, the build, the review, the post pack, lessons | `film` (and the film job) |
+| `shared/playbooks/05 Marketing/platform-approaches.md` | one idea, a different post per platform: what changes on TikTok, Reels, Shorts, Facebook, Threads, LinkedIn | `script` (captions), `repurpose` |
+| `shared/playbooks/07 Jurisdiction/compliance-check-routine.md` | the fixed check before anything reaches customers: what to check, PASS / FIX / BLOCK | the compliance step, `check` |
+| `shared/playbooks/07 Jurisdiction/marketing-compliance-checklist.md` | the generic marketing rules (endorsements and disclosures, claims, testimonials, experts) under the business's own compliance note | the compliance step, `check` |
+| `shared/playbooks/07 Jurisdiction/photo-video-release-template.md` | the consent form for faces, homes, stories and testimonials | `edit` and `script` with REAL footage of people or their homes |
+| `shared/playbooks/05 Marketing/social-profiles-kit.md` | bios, disclosure line in every video description, upload defaults per platform | `repurpose`, captions |
+| `shared/playbooks/05 Marketing/idea-generator-telegram.md` | how ideas are rated in Telegram and how a ✅ idea becomes a script | `script` from an idea, `week` |
+
+Business rules (`studio.instructions`) override these notes where they differ; the hard rules below override everything.
 
 ## Hard rules (no profile or instruction note can change these)
 

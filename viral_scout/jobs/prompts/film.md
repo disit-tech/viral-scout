@@ -16,7 +16,7 @@ Read the queue `{{queue}}` (`{{publish}} plan --days 14` prints it with the free
 - Compliance check; fix everything it flags. Save the script note `<vault>/05 Marketing/Video Studio/scripts/{{today}}-<slug>.md` with a verified-facts block (fact, URL, date checked) and a compliance block.
 
 ### 3. Build the film
-Follow the `/studio-video` skill. Start with `{{video}} doctor` (tools, voice, GPU), then the voice, the film and the render with `{{video}} …`.
+Follow the `/studio-video` skill, mode `film`, and read the shared notes it lists for films first (the film pipeline playbook and the craft lessons). Start with `{{video}} doctor` (tools, voice, GPU), then the voice, the film and the render with `{{video}} …`.
 1. **Voice check:** a cloned voice can repeat a word, and captions hide it. Transcribe the voice, compare word by word with the script, and flag any single word longer than about 0.8 s. Regenerate that line or mute the extra word; transcribe again until it matches.
 2. Captions from the script text, timed to the words, readable on a phone.
 3. Loudness about −14 LUFS, true peak ≤ −1 dBTP, background under the voice.
