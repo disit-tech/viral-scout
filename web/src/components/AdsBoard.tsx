@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { AdItem, AdsData } from "@/lib/types";
 import { ago, num, when } from "@/lib/format";
-import { OFFER, SOURCE, SOURCE_SHORT, STUDY_RULE, adHref, competitorSearch, queryLabel, studyPicks } from "@/lib/ads";
+import { LIBRARY, OFFER, SOURCE, SOURCE_SHORT, STUDY_RULE, adHref, competitorSearch, queryLabel, studyPicks } from "@/lib/ads";
 import Link from "next/link";
 import { More, Seg, Select, Stat } from "./FilterControls";
 
@@ -468,7 +468,7 @@ function AdsTable({ ads, sort, dir, onSort, profile, picks }: { ads: AdItem[]; s
                       {a.labels.length > 0 && <span>Labels: {a.labels.join(" ")}</span>}
                       {a.offer_text && a.offer_text.length > 0 && <span>Offer text: {a.offer_text.slice(0, 4).join("; ")}</span>}
                       <Link href={adHref(profile, a)} className="text-rise underline">Full analysis →</Link>
-                      {a.url && <a href={a.url} target="_blank" rel="noreferrer" className="text-rise underline">Open in the ad library ↗</a>}
+                      {a.url && <a href={a.url} target="_blank" rel="noreferrer" className="text-rise underline">View in {LIBRARY[a.source] ?? "the ad library"} ↗</a>}
                     </div>
                     {a.body && <p className="mt-2 max-w-4xl whitespace-pre-line text-text">{a.body}</p>}
                   </td>
@@ -587,7 +587,7 @@ function AdCard({ ad, profile, worth = false }: { ad: AdItem; profile: string; w
       <div className="flex flex-1 flex-col gap-2.5 p-3.5">
         <div className="flex items-start gap-2">
           <p className="line-clamp-3 flex-1 font-medium leading-snug">{ad.hook || ad.title || <span className="text-muted">No ad copy from this source</span>}</p>
-          {ad.url && <a href={ad.url} target="_blank" rel="noreferrer" className="text-muted hover:text-text" title="Open in the ad library">↗</a>}
+          {ad.url && <a href={ad.url} target="_blank" rel="noreferrer" className="text-muted hover:text-text" title={`View in ${LIBRARY[ad.source] ?? "the ad library"}`}>↗</a>}
         </div>
         <p className="truncate text-sm text-muted">{ad.advertiser || "Unknown advertiser"}{ad.landing_domain ? ` · ${ad.landing_domain}` : ""}</p>
         <dl className="grid grid-cols-3 gap-1.5 text-center">
@@ -620,7 +620,15 @@ function AdCard({ ad, profile, worth = false }: { ad: AdItem; profile: string; w
           </button>
         )}
         {open && <p className="whitespace-pre-line text-xs text-muted">{ad.body}</p>}
-        <Link href={adHref(profile, ad)} className={`${ad.body && ad.body !== ad.hook ? "" : "mt-auto "}text-xs font-medium text-accent hover:underline`}>Full analysis →</Link>
+        <div className={`${ad.body && ad.body !== ad.hook ? "" : "mt-auto "}flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2.5 text-xs`}>
+          <Link href={adHref(profile, ad)} className="font-medium text-accent hover:underline">Full analysis →</Link>
+          {ad.url && (
+            <a href={ad.url} target="_blank" rel="noreferrer" className="text-rise hover:underline"
+              title="The ad's public page in its library: the creative as it runs, its dates and where it shows">
+              View in {LIBRARY[ad.source] ?? "the ad library"} ↗
+            </a>
+          )}
+        </div>
       </div>
     </article>
   );
