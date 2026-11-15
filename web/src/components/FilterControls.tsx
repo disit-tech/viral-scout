@@ -61,8 +61,9 @@ export function readUrl<F extends Record<string, unknown>>(defaults: F): Partial
   return out as Partial<F>;
 }
 
-export function writeUrl<F extends Record<string, unknown>>(f: F, defaults: F) {
+export function writeUrl<F extends Record<string, unknown>>(f: F, defaults: F, drop: string[] = []) {
   const p = new URLSearchParams(window.location.search);
+  drop.forEach((k) => p.delete(k));
   for (const k of Object.keys(defaults)) {
     const v = f[k], d = defaults[k];
     if (JSON.stringify(v) === JSON.stringify(d)) { p.delete(k); continue; }

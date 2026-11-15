@@ -8,23 +8,46 @@ import { PLATFORM, creatorName, firstSeen, foundLabel, lastScanned, reach } from
 import PostCard from "./PostCard";
 import { More, Seg, Select, Stat, downloadCsv, readUrl, writeUrl } from "./FilterControls";
 
-// ---------- filter state (kept in the URL, shared by the Outliers / Fastest / Rising / Tracked / Your posts tabs) ----------
+// ---------- filter state (kept in the URL) ----------
 
 type View = "cards" | "table" | "groups";
+type Show = "all" | "outliers" | "fastest" | "rising" | "tracked" | "own";
 type Sort = "rank" | "outlier" | "views" | "per_day" | "rise" | "engagement" | "comments" | "followers"
   | "newest" | "oldest" | "found" | "scanned" | "duration" | "creator";
 type GroupBy = "creator" | "platform" | "found_by" | "tier" | "posted" | "month" | "found_day" | "scanned_day" | "duration" | "size";
 type F = {
   q: string; plat: string[]; minTier: "all" | "above" | "viral" | "mega"; maxAge: number; minViews: number;
   seenWithin: number; found: string; creator: string; newOnly: boolean; hideSaved: boolean; emerging: boolean;
-  hasHook: boolean; hide: string[]; view: View; group: GroupBy; sort: Sort; dir: "desc" | "asc";
+  hasHook: boolean; hide: string[]; show: Show; view: View; group: GroupBy; sort: Sort; dir: "desc" | "asc";
 };
 const DEFAULT: F = {
   q: "", plat: [], minTier: "all", maxAge: 0, minViews: 0, seenWithin: 0, found: "all", creator: "all",
   newOnly: false, hideSaved: false, emerging: false, hasHook: false, hide: [],
-  view: "cards", group: "creator", sort: "rank", dir: "desc",
+  show: "outliers", view: "cards", group: "creator", sort: "rank", dir: "desc",
 };
-const LAYOUT_KEYS = ["view", "group", "sort", "dir"];
+const LAYOUT_KEYS = ["show", "view", "group", "sort", "dir"];
+
+// The views of the posts, each computed from every post (not a top-N list) and ranked its own way ("best first").
+const num0 = (v: number | null | undefined) => v ?? 0;
+const SHOWS: { id: Show; label: string; hint: string; empty: string; pick: (all: Item[]) => Item[] }[] = [
+  { id: "all", label: "All posts", hint: "Everything the runs found and kept, fastest first.", empty: "No posts yet: run the scout first.",
+    pick: (all) => all.filter((i) => !i.dismissed).sort((a, b) => num0(b.per_day) - num0(a.per_day)) },
+  { id: "outliers", label: "Outliers", hint: "3× or more of the creator's usual: the format worked, not just the account. Posts with no creator baseline (e.g. single links) can't be outliers.",
+    empty: "No outliers yet. They need a creator baseline, which comes with searches and watch lists.",
+    pick: (all) => all.filter((i) => !i.dismissed && !i.tracked && num0(i.outlier) >= 3).sort((a, b) => num0(b.weighted) - num0(a.weighted)) },
+  { id: "fastest", label: "Fastest", hint: "Found by your searches, by views per day.", empty: "No posts from searches yet.",
+    pick: (all) => all.filter((i) => !i.dismissed && !i.tracked && !i.watched && i.per_day).sort((a, b) => num0(b.per_day) - num0(a.per_day)) },
+  { id: "rising", label: "Rising now", hint: "Growth since the previous run: what is taking off right now.",
+    empty: "Needs two runs at least an hour apart (ideally a day) to measure growth.",
+    pick: (all) => all.filter((i) => !i.dismissed && num0(i.rise_per_day) > 0).sort((a, b) => num0(b.rise_per_day) - num0(a.rise_per_day)) },
+  { id: "tracked", label: "Tracked", hint: "Links you sent or saved, re-measured every run.",
+    empty: "No tracked links. Use the Track button on a post, or python -m viral_scout add <profile> <url>.",
+    pick: (all) => all.filter((i) => i.tracked).sort((a, b) => num0(reach(b)) - num0(reach(a))) },
+  { id: "own", label: "Your posts", hint: "Your own posts against your own usual (Settings → Videos → your channels).",
+    empty: "No posts of your own yet. Add your channels in Settings → Videos.",
+    pick: (all) => all.filter((i) => i.own) },
+];
+const LEGACY_TAB: Record<string, Show> = { outliers: "outliers", by_day: "fastest", rising: "rising", seeds: "tracked", own: "own" };
 
 const TIER_RANK = { all: 0, above: 1.5, viral: 3, mega: 10 } as const;
 const DAY = 864e5;
@@ -71,7 +94,7 @@ const NATURAL: Partial<Record<GroupBy, (a: string, b: string) => number>> = {
 };
 
 const SORT_LABEL: Record<Sort, string> = {
-  rank: "tab order", outlier: "× usual", views: "views", per_day: "views per day", rise: "rise per day", engagement: "engagement",
+  rank: "best first", outlier: "× usual", views: "views", per_day: "views per day", rise: "rise per day", engagement: "engagement",
   comments: "comments", followers: "followers", newest: "newest post", oldest: "oldest post", found: "first seen", scanned: "last scanned",
   duration: "length", creator: "creator A–Z",
 };
@@ -108,25 +131,37 @@ const pct = (v: number | null) => (v === null ? "—" : `${(v * 100).toFixed(v <
 
 // ---------- the board ----------
 
-export default function PostsBoard({ items, profile, local, run, onChange, empty }: {
-  items: Item[];                 // the tab's posts, in the tab's own order (that order is the "tab order" sort)
+export default function PostsBoard({ items: allItems, profile, local, run, onChange }: {
+  items: Item[];                 // every post of the business (each view picks and ranks its own)
   profile: string; local: boolean; run: string | null;
-  onChange: (key: string, patch: Partial<Item>) => void; empty: React.ReactNode;
+  onChange: (key: string, patch: Partial<Item>) => void;
 }) {
   const [f, setF] = useState<F>(DEFAULT);
   const [ready, setReady] = useState(false);
   const [limit, setLimit] = useState(60);
-  useEffect(() => { setF({ ...DEFAULT, ...readUrl(DEFAULT) }); setReady(true); }, []);
-  useEffect(() => { if (ready) writeUrl(f, DEFAULT); }, [f, ready]);
+  const views = useMemo(() => SHOWS.map((v) => ({ ...v, list: v.pick([...allItems]) })), [allItems]);
+  useEffect(() => {
+    const fromUrl = readUrl(DEFAULT);
+    const legacy = LEGACY_TAB[new URLSearchParams(window.location.search).get("tab") ?? ""];   // old ?tab= links
+    const show = fromUrl.show ?? legacy ?? (views.find((v) => v.id === "outliers")!.list.length ? "outliers" : "all");
+    setF({ ...DEFAULT, ...fromUrl, show });
+    setReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const current = views.find((v) => v.id === f.show) ?? views[0];
+  const items = current.list;
+  useEffect(() => { if (ready) writeUrl(f, DEFAULT, ["tab"]); }, [f, ready]);   // drops an old ?tab= in the same write
   useEffect(() => { setLimit(60); }, [f, items]);
   const set = <K extends keyof F>(k: K, v: F[K]) => setF((x) => ({ ...x, [k]: v }));
 
   const rank = useMemo(() => new Map(items.map((i, n) => [i.key, n])), [items]);
+  // Every platform the business has, with how many posts it has in this view (0 = greyed out, with the reason).
   const platforms = useMemo(() => {
-    const c = new Map<string, number>();
-    items.forEach((i) => c.set(i.platform, (c.get(i.platform) ?? 0) + 1));
-    return [...c.entries()].sort((a, b) => b[1] - a[1]);
-  }, [items]);
+    const total = new Map<string, number>(), here = new Map<string, number>();
+    allItems.forEach((i) => total.set(i.platform, (total.get(i.platform) ?? 0) + 1));
+    items.forEach((i) => here.set(i.platform, (here.get(i.platform) ?? 0) + 1));
+    return [...total.entries()].sort((a, b) => b[1] - a[1]).map(([p, t]) => [p, here.get(p) ?? 0, t] as const);
+  }, [allItems, items]);
   const searches = useMemo(() => Array.from(new Set(items.flatMap((i) => i.found_by))).sort(), [items]);
   const creators = useMemo(() => Array.from(new Set(items.map(creatorName))).sort((a, b) => a.localeCompare(b)), [items]);
 
@@ -157,10 +192,19 @@ export default function PostsBoard({ items, profile, local, run, onChange, empty
     scanned: scans.length ? scans[scans.length - 1] : run,
   };
 
-  if (!items.length) return <>{empty}</>;
-
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted">Show</span>
+        {views.filter((v) => v.id !== "own" || v.list.length).map((v) => (
+          <button key={v.id} onClick={() => setF((x) => ({ ...x, show: v.id, sort: "rank", dir: "desc" }))}
+            className={`rounded-full border px-3 py-1 text-sm ${f.show === v.id ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:text-text"}`}>
+            {v.label} <span className="text-xs opacity-70">{num(v.list.length)}</span>
+          </button>
+        ))}
+      </div>
+      <p className="-mt-2 text-sm text-muted">{current.hint}</p>
+
       <div className="grid gap-3 sm:grid-cols-5">
         <Stat label={`posts${active ? " (filtered)" : ""}`} value={`${num(stat.shown)}${active ? ` / ${num(items.length)}` : ""}`} />
         <Stat label="⚡ 3×+ usual" value={num(stat.viral)} tone="text-viral" />
@@ -173,11 +217,13 @@ export default function PostsBoard({ items, profile, local, run, onChange, empty
         <div className="flex flex-wrap items-center gap-2">
           <input value={f.q} onChange={(e) => set("q", e.target.value)} placeholder="Search title, creator, hook, caption, search…"
             className="w-72 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm outline-none focus:border-accent" />
-          {platforms.map(([p, n]) => {
+          {platforms.map(([p, n, total]) => {
             const on = f.plat.includes(p);
+            const why = n ? undefined : `${total} ${PLATFORM[p] ?? p} posts in total, none in "${current.label}"`
+              + (f.show === "outliers" ? " (they need a creator baseline)" : "") + ". Try All posts.";
             return (
-              <button key={p} onClick={() => set("plat", on ? f.plat.filter((x) => x !== p) : [...f.plat, p])}
-                className={`rounded-full border px-3 py-1 text-xs ${on ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:text-text"}`}>
+              <button key={p} disabled={!n && !on} title={why} onClick={() => set("plat", on ? f.plat.filter((x) => x !== p) : [...f.plat, p])}
+                className={`rounded-full border px-3 py-1 text-xs ${on ? "border-accent bg-accent/15 text-accent" : n ? "border-line text-muted hover:text-text" : "cursor-help border-line/60 text-muted/50"}`}>
                 {PLATFORM[p] ?? p} <span className="opacity-70">{n}</span>
               </button>
             );
@@ -206,7 +252,7 @@ export default function PostsBoard({ items, profile, local, run, onChange, empty
           <Check on={f.emerging} onChange={(v) => set("emerging", v)}>🌱 Emerging creators</Check>
           <Check on={f.hasHook} onChange={(v) => set("hasHook", v)}>Has a hook / transcript</Check>
           {active > 0 && (
-            <button onClick={() => setF({ ...DEFAULT, view: f.view, group: f.group, sort: f.sort, dir: f.dir })}
+            <button onClick={() => setF({ ...DEFAULT, show: f.show, view: f.view, group: f.group, sort: f.sort, dir: f.dir })}
               className="text-xs text-rise hover:underline">Clear {active} filter{active > 1 ? "s" : ""}</button>
           )}
           {!local && <span className="text-xs text-muted">Read-only: buttons copy the command to run on your PC.</span>}
@@ -249,7 +295,7 @@ export default function PostsBoard({ items, profile, local, run, onChange, empty
         onHide={(c) => setF((x) => ({ ...x, hide: [...x.hide, c], creator: x.creator === c ? "all" : x.creator }))} />
 
       {list.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line p-8 text-center text-muted">Nothing matches the filters.</div>
+        <div className="rounded-xl border border-dashed border-line p-8 text-center text-muted">{items.length ? "Nothing matches the filters." : current.empty}</div>
       ) : f.view === "cards" ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

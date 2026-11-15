@@ -11,6 +11,10 @@ const COLUMNS = ["idea", "scripted", "filmed", "posted", "skip"] as const;
 export default function SwipeBoard({ notes, profile, local }: { notes: SwipeNote[]; profile: string; local: boolean }) {
   const [items, setItems] = useState(notes);
   const [msg, setMsg] = useState<string | null>(null);
+  const [kind, setKind] = useState<"all" | "video" | "ad">("all");
+  const isAd = (n: SwipeNote) => n.kind === "ad";
+  const ads = items.filter(isAd).length, videos = items.length - ads;
+  const shown = items.filter((n) => kind === "all" || (kind === "ad") === isAd(n));
 
   async function move(n: SwipeNote, status: string) {
     const body = { profile, action: "status" as const, ref: n.file, status };
@@ -35,9 +39,19 @@ export default function SwipeBoard({ notes, profile, local }: { notes: SwipeNote
   return (
     <div>
       {msg && <p className="mb-3 break-all text-xs text-muted">{msg}</p>}
+      {ads > 0 && videos > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {([["all", `All ${items.length}`], ["video", `🎬 Videos ${videos}`], ["ad", `📢 Ads ${ads}`]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setKind(k)}
+              className={`rounded-full border px-3 py-1 text-xs ${kind === k ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:text-text"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
         {COLUMNS.map((col) => {
-          const colItems = items.filter((n) => (n.status || "idea") === col);
+          const colItems = shown.filter((n) => (n.status || "idea") === col);
           return (
             <section key={col} className="rounded-2xl border border-line bg-panel/60 p-2.5">
               <h3 className="mb-2 flex items-center justify-between px-1 text-sm font-semibold capitalize">

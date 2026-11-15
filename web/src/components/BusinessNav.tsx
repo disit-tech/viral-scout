@@ -12,6 +12,8 @@ export default function BusinessNav({ name, counts }: { name: string; counts: Pa
     { key: "videos", label: "Videos", href: `${base}/videos`, match: (p) => p.startsWith(`${base}/videos`) || p.startsWith(`${base}/v/`) },
     { key: "ads", label: "Ads", href: `${base}/ads`, match: (p) => p.startsWith(`${base}/ads`) || p.startsWith(`${base}/a/`) },
     { key: "demand", label: "Search demand", href: `${base}/demand`, match: (p) => p.startsWith(`${base}/demand`) },
+    { key: "swipe", label: "Ideas & swipe file", href: `${base}/swipe`, match: (p) => p.startsWith(`${base}/swipe`) },
+    { key: "runs", label: "Runs", href: `${base}/runs`, match: (p) => p.startsWith(`${base}/runs`) },
     { key: "performance", label: "Your performance", href: `${base}/performance`, match: (p) => p.startsWith(`${base}/performance`) },
     { key: "settings", label: "Settings", href: `${base}/settings`, match: (p) => p.startsWith(`${base}/settings`) },
   ];

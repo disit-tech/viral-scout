@@ -74,7 +74,7 @@ export default async function Overview({ params }: { params: Promise<{ name: str
   if (nextUp) todo.push({ text: <>Start posting about <b className="text-text">{nextUp.term}</b> by {fmtDate(nextUp.start_by)} (it rises {fmtDate(nextUp.rise)}, peaks {fmtDate(nextUp.peak)}).</>, href: `${base}/demand` });
   if (viral.length) todo.push({ text: <><b className="text-text">{viral.length}</b> videos at 3× their creator&apos;s usual{fresh.length ? <>, <b className="text-text">{fresh.length}</b> new since the last run</> : null}. Pick formats to borrow.</>, href: `${base}/videos` });
   if (picks) todo.push({ text: <><b className="text-text">{picks}</b> competitor ads worth studying{newAds ? <> · {newAds} new this run</> : null}.</>, href: `${base}/ads?worth=1` });
-  if (toFilm) todo.push({ text: <><b className="text-text">{toFilm}</b> saved ideas waiting to be scripted or filmed.</>, href: `${base}/videos?tab=swipe` });
+  if (toFilm) todo.push({ text: <><b className="text-text">{toFilm}</b> saved ideas waiting to be scripted or filmed.</>, href: `${base}/swipe` });
   const warnings = [...(profile?.budget ?? []), ...(ads?.budget ?? [])];
 
   return (
@@ -181,15 +181,15 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           stats={[["records", num(perf?.records.length ?? 0)], ["goal", perf?.goal ?? "—"], ["own channels", num(setup?.own ?? 0)], ["ad account", setup?.perf ? "linked" : "—"]]}
           footer={<span>Run with <code className="text-text">python -m viral_scout perf {name}</code> (Meta / YouTube APIs, free) or import a CSV.</span>} />
 
-        <Card title="Ideas & swipe file" href={`${base}/videos?tab=ideas`} settings={`${base}/settings#business`}
+        <Card title="Ideas & swipe file" href={`${base}/swipe`} settings={`${base}/settings#business`}
           state={(profile?.ideas.length ?? 0) || swipe.length ? "fresh" : "never"} last={profile?.ideas[0]?.date ?? null} lastLabel="latest note"
           what="AI breakdowns adapted to this business, and saved references from idea to posted."
           stats={[["idea notes", num(profile?.ideas.length ?? 0)], ["saved", num(swipe.length)], ["to film", num(toFilm)], ["filmed", num(filmed)]]}
-          footer={<span>New breakdowns: <code className="text-text">/viral-scout {name}</code> in Claude Code. <Link href={`${base}/videos?tab=swipe`} className="text-rise hover:underline">Swipe file →</Link></span>} />
+          footer={<span>New breakdowns: <code className="text-text">/viral-scout {name}</code> in Claude Code. <Link href={`${base}/swipe#ideas`} className="text-rise hover:underline">Idea notes →</Link></span>} />
 
-        <Card title="Sources & health" href={`${base}/videos?tab=health`} settings={`${base}/settings`}
+        <Card title="Runs" href={`${base}/runs`} settings={`${base}/settings`}
           state={profile?.errors.length ? "stale" : "fresh"} last={entry?.date ?? profile?.date}
-          what="What ran, what was skipped (and which key unlocks it), errors and usage of the last runs."
+          what="What the videos, ads and search demand runs did, what they skipped and why (expected, temporary or a missing key), and hashtags or creators worth adding."
           stats={[["skipped", num((profile?.skipped.length ?? 0) + (ads?.skipped.length ?? 0))], ["errors", num((profile?.errors.length ?? 0) + (ads?.errors.length ?? 0))], ["runs logged", num(profile?.runs.length ?? 0)], ["watched", num(profile?.sources.watch ?? 0)]]}
           footer={<Link href="/setup" className="text-rise hover:underline">API keys and setup →</Link>} />
       </div>
