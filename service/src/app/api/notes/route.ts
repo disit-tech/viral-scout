@@ -119,9 +119,14 @@ export async function POST(req: Request) {
   const token = tokenOf(bot);
   const chat = allowedChats(bot)[0];
   if (!token || !chat) return json({ error: `bot ${bot} has no token or chat configured` }, 503);
+  const name = (f as File).name || "file";
+  // Like the old notes.mjs: videos play in the chat, images show inline, anything else is a file.
+  const kind = /\.(mp4|mov|m4v)$/i.test(name) ? "video" : /\.(jpe?g|png|webp)$/i.test(name) ? "photo" : "document";
+  const method = { video: "sendVideo", photo: "sendPhoto", document: "sendDocument" }[kind];
   const out = new FormData();
   out.set("chat_id", chat);
-  out.set("document", f, (f as File).name || "file");
+  out.set(kind, f, name);
+  if (kind === "video") out.set("supports_streaming", "true");
   // The project's header goes first, so a reply to the file is a note for that project.
   const caption = `${labelOf(project!)}${String(form.get("caption") ?? "")}`.slice(0, 1024);
   if (caption) out.set("caption", caption);
@@ -130,7 +135,7 @@ export async function POST(req: Request) {
     const n = (await prisma.claudeNote.findUnique({ where: { id: replyTo } })) as Note | null;
     if (n && n.bot === bot) out.set("reply_parameters", JSON.stringify({ message_id: n.messageId }));
   }
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, { method: "POST", body: out });
+  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: "POST", body: out });
   const res = (await r.json().catch(() => ({}))) as { ok?: boolean; description?: string; result?: { message_id?: number } };
   if (!res.ok) return json({ error: res.description ?? `Telegram ${r.status}` }, 502);
   return json({ message_id: res.result?.message_id });

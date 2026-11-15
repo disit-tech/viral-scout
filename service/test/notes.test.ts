@@ -67,3 +67,22 @@ describe("/api/notes", () => {
     expect((await notes.GET(new Request("http://svc/api/notes?file=3&sig=00"))).status).toBe(401);
   });
 });
+
+describe("/api/notes POST", () => {
+  it("sends films as videos, images as photos and anything else as a file", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }));
+    }));
+    const send = (name: string) => {
+      const form = new FormData();
+      form.set("project", "solar");
+      form.set("file", new File([new Uint8Array([1, 2, 3])], name));
+      return notes.POST(new Request("http://svc/api/notes", { method: "POST", headers: { authorization: `Bearer ${SECRET}` }, body: form }));
+    };
+    for (const n of ["film.mp4", "still.png", "notes.pdf"]) expect((await send(n)).status).toBe(200);
+    expect(urls.map((u) => u.split("/").pop())).toEqual(["sendVideo", "sendPhoto", "sendDocument"]);
+    vi.unstubAllGlobals();
+  });
+});
