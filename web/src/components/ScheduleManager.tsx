@@ -60,6 +60,15 @@ export default function ScheduleManager() {
     setGroupState(g);
     try { localStorage.setItem("schedule-group", g); } catch { /* no storage */ }
   };
+  // Show all tasks, only the ones that are on (incl. running), or only the paused ones; remembered like the grouping.
+  const [show, setShowState] = useState<"all" | "on" | "paused">("all");
+  useEffect(() => {
+    try { const v = localStorage.getItem("schedule-show"); if (v === "on" || v === "paused") setShowState(v); } catch { /* no storage */ }
+  }, []);
+  const setShow = (v: "all" | "on" | "paused") => {
+    setShowState(v);
+    try { localStorage.setItem("schedule-show", v); } catch { /* no storage */ }
+  };
 
   const load = useCallback(async () => {
     const r: Data = await fetch("/api/schedule").then((x) => x.json()).catch(() => ({ ok: false, output: "Could not reach the dashboard server" }));
@@ -93,6 +102,14 @@ export default function ScheduleManager() {
   const ideaTask = (p: string) => tasks.find((t) => t.name === `viral-scout ${p}.ideas`);
   const pauseAll = async (list: Task[]) => { for (const t of list.filter((t) => t.state !== "Disabled")) await act("all", { op: "disable", name: t.name }); };
 
+  // An idea generator without a task counts as paused (it isn't set up, so it doesn't run).
+  const isOn = (state?: string) => Boolean(state) && state !== "Disabled";
+  const pass = (state?: string) => show === "all" || (show === "on" ? isOn(state) : !isOn(state));
+  const vis = (list: Task[]) => list.filter((t) => pass(t.state));
+  const ideaShown = (p: IdeaProfile) => pass(ideaTask(p.profile)?.state);
+  const countOn = tasks.filter((t) => isOn(t.state)).length;
+  const counts = { all: tasks.length + ideas.filter((p) => !ideaTask(p.profile)).length, on: countOn,
+    paused: tasks.length - countOn + ideas.filter((p) => !ideaTask(p.profile)).length };
   const card = (t: Task) => (t.kind === "legacy" ? <LegacyCard key={t.name} t={t} busy={busy} act={act} /> : <TaskCard key={t.name} t={t} busy={busy} act={act} />);
   const ideaCard = (p: IdeaProfile) => <IdeaCard key={p.profile} p={p} task={ideaTask(p.profile)} busy={busy} act={act} />;
 
@@ -133,6 +150,15 @@ export default function ScheduleManager() {
             </button>
           ))}
         </div>
+        <div className="flex items-center gap-1 text-xs" role="group" aria-label="Show">
+          <span className="text-muted">Show</span>
+          {(["all", "on", "paused"] as const).map((v) => (
+            <button key={v} onClick={() => setShow(v)} aria-pressed={show === v}
+              className={`rounded-md border px-2 py-0.5 ${show === v ? "border-accent/60 text-accent" : "border-line text-muted hover:text-text"}`}>
+              {v === "all" ? "All" : v === "on" ? "On" : "Paused"} <span className="opacity-70">{counts[v]}</span>
+            </button>
+          ))}
+        </div>
         <span className="text-xs text-muted">Live runs and their logs: <Link href="/activity" className="text-rise underline">Activity</Link></span>
       </div>
 
@@ -142,6 +168,8 @@ export default function ScheduleManager() {
         <>
           {businesses.map(({ p, own, scout, studio, legacy }) => {
             const onHere = own.filter((t) => t.state !== "Disabled").length;
+            const ideaHere = p.has_ideas !== false && ideaShown(p);
+            if (show !== "all" && !vis(own.filter((t) => !(t.kind === "studio" && t.job === "ideas"))).length && !ideaHere) return null;
             return (
               <section key={p.profile} className="space-y-2 rounded-2xl border border-line/60 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -155,49 +183,49 @@ export default function ScheduleManager() {
                       className="ml-auto rounded-md border border-line px-2.5 py-1 text-xs hover:bg-panel disabled:opacity-40">Pause all for {p.name ?? p.profile}</button>
                   )}
                 </div>
-                {scout.length > 0 && <Sub label="Weekly scouting run">{scout.map(card)}</Sub>}
-                {p.has_ideas !== false && <Sub label="Idea generator">{ideaCard(p)}</Sub>}
-                {studio.length > 0 && <Sub label="Studio jobs">{studio.map(card)}</Sub>}
-                {legacy.length > 0 && <Sub label="Older tasks (other folders)">{legacy.map(card)}</Sub>}
+                {vis(scout).length > 0 && <Sub label="Weekly scouting run">{vis(scout).map(card)}</Sub>}
+                {ideaHere && <Sub label="Idea generator">{ideaCard(p)}</Sub>}
+                {vis(studio).length > 0 && <Sub label="Studio jobs">{vis(studio).map(card)}</Sub>}
+                {vis(legacy).length > 0 && <Sub label="Older tasks (other folders)">{vis(legacy).map(card)}</Sub>}
               </section>
             );
           })}
-          {shared.length > 0 && (
+          {vis(shared).length > 0 && (
             <section className="space-y-2 rounded-2xl border border-line/60 p-3 sm:p-4">
               <h2 className="font-semibold">Shared and other</h2>
               <p className="text-xs text-muted">Tasks for all businesses (publish), and older tasks that couldn&apos;t be matched to a profile.</p>
-              {shared.map(card)}
+              {vis(shared).map(card)}
             </section>
           )}
           {tasks.length === 0 && !businesses.length && <Empty />}
         </>
       ) : (
         <>
-          {scout.length === 0 ? <Empty /> : <Sub label="Weekly scouting runs">{scout.map(card)}</Sub>}
+          {scout.length === 0 ? <Empty /> : vis(scout).length > 0 && <Sub label="Weekly scouting runs">{vis(scout).map(card)}</Sub>}
 
-          {ideas.length > 0 && (
+          {ideas.filter(ideaShown).length > 0 && (
             <Sub label="Idea generator" intro={<>
               The <code className="text-text">/studio-ideas</code> job per business: it reads your ratings and the latest viral-scout data,
               writes new scored ideas and sends them for rating. It runs the Claude CLI (your subscription, no Apify) at most once per
               run day, retrying hourly until {ideas.find((i) => i.retry_until)?.retry_until ?? "20:00"} if the PC was asleep. Settings are
               saved in the profile (<code className="text-text">jobs.ideas</code>). New ones start paused.
-            </>}>{ideas.map(ideaCard)}</Sub>
+            </>}>{ideas.filter(ideaShown).map(ideaCard)}</Sub>
           )}
 
-          {studio.length > 0 && (
+          {vis(studio).length > 0 && (
             <Sub label="Studio jobs" intro={<>
               Unattended Claude jobs per business (script, notes, film, blog) and the morning post pack. Their times come from the
               profile&apos;s <code className="text-text">jobs:</code> block; to change them, edit the profile and run{" "}
               <code className="text-text">scripts/schedule-studio.ps1 -Profile &lt;name&gt;</code> again. None of them posts anything.
-            </>}>{studio.map(card)}</Sub>
+            </>}>{vis(studio).map(card)}</Sub>
           )}
 
-          {legacy.length > 0 && (
+          {vis(legacy).length > 0 && (
             <Sub label="Older idea and content tasks (other folders)" intro={<>
               Registered by the business sites before the idea generator moved here. They run scripts outside viral-scout, so they
               can be paused, run or removed here but not rescheduled. Once a business&apos;s idea generator is set up, pause or
               remove its older task so ideas aren&apos;t made twice.
-            </>}>{legacy.map(card)}</Sub>
+            </>}>{vis(legacy).map(card)}</Sub>
           )}
         </>
       )}
