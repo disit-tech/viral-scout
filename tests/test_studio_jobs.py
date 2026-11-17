@@ -142,6 +142,11 @@ class RunnerTest(Base):
         (_, msg), calls = self.run_job(cfg, "ideas")
         self.assertEqual(calls, [])
 
+    def test_prompt_says_how_to_type_commands(self):
+        cfg = self.profile({"ideas": {"enabled": True}})
+        text = prompts.assemble(cfg, "ideas", self.NOW)
+        self.assertIn("no `PYTHONIOENCODING=…` or `$env:…` in front", text)   # a prefix fails --allowedTools (2026-11-16)
+
     def test_busy_lock_skips(self):
         cfg = self.profile({"ideas": {"enabled": True}})
         S.lock_path().write_text('{"owner": "other:film"}', encoding="utf-8")
