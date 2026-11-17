@@ -4,12 +4,17 @@ import { parseConfig, setConfig } from "@/lib/config";
 import {
   askKeyboard,
   askText,
+  businessTag,
+  hashtag,
   ideaText,
   keyboard,
   packMessage,
   packMessages,
   PACK_MESSAGE_MAX,
   parseCallback,
+  platformOfTitle,
+  scriptText,
+  tagsLine,
   tooLongSection,
   toggleTag,
 } from "@/lib/ui";
@@ -62,6 +67,36 @@ describe("idea text", () => {
     expect(t).toContain("🏷 🪝 Сильний хук");
     expect(t).toContain("✅ У трекер + 📝 пости");
     expect(ideaText(idea({ status: "approved" }))).toContain("✅ У трекер (додам при наступній генерації)");
+  });
+});
+
+describe("hashtags", () => {
+  it("business tag from the label, else the slug; only letters, digits and _", () => {
+    expect(businessTag("homes")).toBe("#Homeworks");
+    expect(businessTag("agency")).toBe("#AcmeAgency");
+    expect(businessTag("solar")).toBe("#solar"); // no label in the example
+    expect(hashtag("YouTube Shorts")).toBe("#YouTubeShorts");
+    expect(hashtag("2026")).toBe(""); // Telegram doesn't link a tag without a letter
+  });
+  it("a hashtag set in projects.json wins", () => {
+    const c = JSON.parse(JSON.stringify(file));
+    c.projects.solar.hashtag = "LightsOn";
+    setConfig(parseConfig(c), ENV);
+    expect(businessTag("solar")).toBe("#LightsOn");
+  });
+  it("finds the platform a section title names", () => {
+    expect(platformOfTitle("▶ YouTube Shorts")).toBe("youtube");
+    expect(platformOfTitle("Facebook groups")).toBe("fb_groups");
+    expect(platformOfTitle("Facebook page")).toBe("facebook");
+    expect(platformOfTitle("▶ TIKTOK (відео)")).toBe("tiktok");
+    expect(platformOfTitle("Intro")).toBeUndefined();
+  });
+  it("ends idea and script messages with business, kind, platforms and the idea id", () => {
+    const t = ideaText(idea({ project: "homes", platforms: "facebook,nextdoor" }));
+    expect(t.split("\n").at(-1)).toBe("#Homeworks #idea #facebook #nextdoor #idea7");
+    expect(scriptText(idea({ project: "agency", stage: "script" })).split("\n").at(-1)).toBe("#AcmeAgency #script #idea7");
+    expect(ideaText(idea({ status: "deleted" }))).not.toContain("#idea");
+    expect(tagsLine("homes", ["idea", "idea"], ["tiktok", "tiktok"])).toBe("#Homeworks #idea #tiktok");
   });
 });
 
@@ -140,8 +175,9 @@ describe("content packs", () => {
     expect(msgs[0]).toContain("📝 <b>Пости · ідея #7</b>: A&amp;B");
     expect(msgs[0]).toContain("2 повідомлень");
     expect(msgs[0]).toContain("<i>Нотатка: 05 Marketing/p.md</i>");
-    expect(msgs[1]).toBe("<b>LinkedIn</b>\n\n<b>Post</b>\n<i>for &lt;you&gt;</i>\n<pre>xxxxxxxxxx</pre>");
-    expect(msgs[2]).toBe("<b>Threads</b>\n\n<pre>hi</pre>");
+    expect(msgs[0]).toContain("#solar #posts #linkedin #threads #idea7");
+    expect(msgs[1]).toBe("<b>LinkedIn</b>\n\n<b>Post</b>\n<i>for &lt;you&gt;</i>\n<pre>xxxxxxxxxx</pre>\n\n#solar #posts #linkedin #idea7");
+    expect(msgs[2]).toBe("<b>Threads</b>\n\n<pre>hi</pre>\n\n#solar #posts #threads #idea7");
   });
   it("flags a section too long for one Telegram message", () => {
     const fits = PACK_MESSAGE_MAX - "LinkedIn".length - "Post".length - "for <you>".length - 40;

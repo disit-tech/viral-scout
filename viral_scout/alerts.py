@@ -60,10 +60,12 @@ def send(cfg, hits, report_path, errors):
         if it.hook:
             lines.append(f"Hook: “{it.hook[:140]}”")
     lines.append(f"\nReport: {os.path.basename(report_path)}")
+    from . import hashtags
+    tags = hashtags.line(cfg, "viral", platforms=sorted({it.platform for it, _ in hits}))
     token, chat = _creds(cfg)
     try:
         r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                          json={"chat_id": chat, "text": "\n".join(lines)[:4000],
+                          json={"chat_id": chat, "text": "\n".join(lines)[:3900] + "\n\n" + tags,
                                 "disable_web_page_preview": True}, timeout=30)
         if not r.ok:
             errors.append(f"telegram: HTTP {r.status_code} {r.text[:150]}")

@@ -1,5 +1,5 @@
 import type { BlogReview, VideoIdea } from "./db";
-import { config, hasPacks, labelOf, PLATFORMS, REASONS, reasonsFor } from "./config";
+import { config, hasPacks, labelOf, PLATFORMS, projectOf, REASONS, reasonsFor } from "./config";
 import { esc } from "./telegram";
 
 /**
@@ -10,6 +10,31 @@ import { esc } from "./telegram";
  * Callback data: i:<id>:<action> rate/request · m:<id>:<more|back|del|delyes> menu · t:<id>:<reason|done|undo|tored>
  * "why?" question · p:<id>:req content pack · s:<id>:<ok|edit> scenario · b:<id>:<ok|edit> blog review
  */
+
+// ───────────── Hashtags (find messages by business, kind, platform or idea) ─────────────
+
+/** "#word" from any text: letters, digits and _ only (what Telegram links); "" when no letter is left. */
+export const hashtag = (s: string) => {
+  const t = s.replace(/[^\p{L}\p{N}_]+/gu, "");
+  return /\p{L}/u.test(t) ? `#${t}` : "";
+};
+const camel = (s: string) =>
+  s.split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+/** The business tag: projects.<p>.hashtag, else the label in CamelCase ("☀️ Lights On Illinois · " → #LightsOnIllinois),
+ *  else the slug. viral-scout's own Telegram messages build the same tag from the profile's studio.brand. */
+export const businessTag = (project: string) => hashtag(projectOf(project)?.hashtag || camel(labelOf(project)) || project);
+/** The platform key a pack section title names ("▶ TikTok", "YouTube Shorts"): longest label first, then the key. */
+export function platformOfTitle(title: string): string | undefined {
+  const t = title.toLowerCase();
+  const all = Object.entries(PLATFORMS()).sort((a, b) => b[1].length - a[1].length);
+  const hit = all.find(([, label]) => t.includes(label.toLowerCase())) ?? all.find(([k]) => t.includes(k.replace(/_/g, " ")));
+  return hit?.[0];
+}
+/** The last line of every bot message: business, kind (#idea #script #posts #blog #video …), platforms, #idea<N>. */
+export function tagsLine(project: string | null | undefined, kinds: string[], platforms: string[] = [], ideaId?: number) {
+  const tags = [project ? businessTag(project) : "", ...kinds.map(hashtag), ...platforms.map(hashtag), ideaId ? `#idea${ideaId}` : ""];
+  return [...new Set(tags.filter(Boolean))].join(" ");
+}
 
 export const STATUS: Record<string, string> = {
   sent: "⏳ чекає оцінки",
@@ -85,6 +110,8 @@ export function ideaText(i: VideoIdea) {
     i.stage ? `🎬 Виробництво: <b>${STAGE[i.stage] ?? i.stage}</b>` : null,
     tagList(i).length ? `🏷 ${tagList(i).map((t) => REASONS()[t]).join(" · ")}` : null,
     i.comment ? `💬 ${esc(i.comment)}` : `<i>Коментар: відповідай на це повідомлення текстом.</i>`,
+    "",
+    tagsLine(i.project, ["idea"], platforms, i.id),
   ]
     .filter((l) => l !== null)
     .join("\n");
@@ -169,6 +196,8 @@ export const scriptText = (i: VideoIdea) =>
     i.stage === "script"
       ? "<i>✅ = Claude робить відео (поки ПК увімкнений). Правки: відповідай (reply) на це повідомлення текстом або голосом.</i>"
       : `🎬 <b>${STAGE[i.stage ?? ""] ?? i.stage}</b>`,
+    "",
+    tagsLine(i.project, ["script"], platformList(i), i.id),
   ].join("\n");
 
 export const scriptKeyboard = (i: VideoIdea): Keyboard =>
@@ -192,6 +221,8 @@ export const blogText = (b: BlogReview, summary: string) =>
     "",
     `Статус: <b>${BLOG_STATUS[b.status] ?? b.status}</b>`,
     b.status === "waiting" ? "<i>Повний текст: файл нижче. ✅ = публікація на сайті. Правки: відповідай (reply) на це повідомлення.</i>" : null,
+    "",
+    tagsLine(config().defaultProject, ["blog"]),
   ]
     .filter((l) => l !== null)
     .join("\n");
@@ -202,7 +233,8 @@ export const blogKeyboard = (b: BlogReview): Keyboard =>
     : { inline_keyboard: [] };
 
 export const blogStatusText = (b: BlogReview, status: string) =>
-  `📰 ${esc(b.title)}: <b>${BLOG_STATUS[status] ?? status}</b>${status === "published" && config().blog ? `\n${config().blog!.publicUrl}${b.slug}` : ""}`;
+  `📰 ${esc(b.title)}: <b>${BLOG_STATUS[status] ?? status}</b>${status === "published" && config().blog ? `\n${config().blog!.publicUrl}${b.slug}` : ""}` +
+  `\n\n${tagsLine(config().defaultProject, ["blog"])}`;
 
 // ───────────── Content packs ─────────────
 
@@ -214,7 +246,7 @@ export const PACK_KIND = "pack";
 /** Telegram caps a message at 4096 characters; leave room for the HTML tags and escaping. */
 export const PACK_MESSAGE_MAX = 3900;
 
-export const packMessage = (s: PackSection) =>
+export const packMessage = (s: PackSection, tags = "") =>
   [
     `<b>${esc(s.title)}</b>`,
     ...s.parts.map((p) =>
@@ -222,6 +254,7 @@ export const packMessage = (s: PackSection) =>
         .filter((l) => l !== null)
         .join("\n"),
     ),
+    ...(tags ? [tags] : []),
   ].join("\n\n");
 
 /** The first section too long for one Telegram message (same estimate as the solar site), if any. */
@@ -229,15 +262,18 @@ export const tooLongSection = (sections: PackSection[]) =>
   sections.find((s) => s.title.length + s.parts.reduce((n, p) => n + p.text.length + (p.label?.length ?? 0) + (p.note?.length ?? 0) + 40, 0) > PACK_MESSAGE_MAX);
 
 /** The messages of a pack: a short header, then one message per platform section. */
-export function packMessages(i: Pick<VideoIdea, "id" | "title">, sections: PackSection[], notePath?: string) {
+export function packMessages(i: Pick<VideoIdea, "id" | "title" | "project">, sections: PackSection[], notePath?: string) {
+  const plats = sections.map((x) => platformOfTitle(x.title));
   const head = [
     `📝 <b>Пости · ідея #${i.id}</b>: ${esc(i.title)}`,
     `${sections.length} повідомлень, по одному на платформу. Текст у сірому блоці копіюється натиском.`,
     notePath ? `<i>Нотатка: ${esc(notePath)}</i>` : null,
+    "",
+    tagsLine(i.project, ["posts"], plats.filter((k): k is string => !!k), i.id),
   ]
     .filter((l) => l !== null)
     .join("\n");
-  return [head, ...sections.map(packMessage)];
+  return [head, ...sections.map((x, n) => packMessage(x, tagsLine(i.project, ["posts"], plats[n] ? [plats[n]!] : [], i.id)))];
 }
 
 // ───────────── Callback data ─────────────

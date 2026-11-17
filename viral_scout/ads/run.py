@@ -66,7 +66,7 @@ def _history(db_path, ads):
 def _alert_long_runners(cfg, ads, store, report_path, errors):
     """Telegram (same bot/creds as the organic alerts): competitor ads that just passed `ads.alert_days` (default 30)
     and are still running. Each ad is alerted once (table ads_alerted)."""
-    from .. import alerts
+    from .. import alerts, hashtags
     if not cfg.get("alerts") or not alerts.available(cfg):
         return 0
     days = (cfg.get("ads") or {}).get("alert_days", 30)
@@ -92,7 +92,8 @@ def _alert_long_runners(cfg, ads, store, report_path, errors):
     lines.append(f"{nl}Report: {Path(report_path).name}")
     try:
         r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=30,
-                          json={"chat_id": chat, "text": nl.join(lines)[:4000], "disable_web_page_preview": True})
+                          json={"chat_id": chat, "text": nl.join(lines)[:3900] + nl + nl + hashtags.line(cfg, "ads"),
+                                "disable_web_page_preview": True})
         if not r.ok:
             errors.append(f"ads alerts: HTTP {r.status_code}")
             return 0

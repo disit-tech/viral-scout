@@ -59,6 +59,7 @@ Webhook and forward routes answer 200 once the request is authorised, even if ha
 | `bots.<slug>.chatsEnv` | optional, overrides the top-level `chatsEnv` |
 | `bots.<slug>.notes` | `off` (CRM bot), `replies` (replies to the bot become notes for Claude), `replies+call` (also plain "Claude, ..." messages; one bot only) |
 | `projects.<slug>.bot` | the bot that posts this project's ideas |
+| `projects.<slug>.hashtag` | optional business hashtag without `#` (default: the label in CamelCase); see [Hashtags](#hashtags-searching-the-group) |
 | `projects.<slug>.label` | header in front of each idea, e.g. `🔨 Homeworks · ` |
 | `projects.<slug>.reasonSet` | which entry of `reasonSets` gives the "why?" chips |
 | `projects.<slug>.packs` | approved ideas get a content pack (📝 Пости) |
@@ -98,6 +99,19 @@ How it behaves:
 - **Old bots keep working.** Keep the old per-project bots in `bots` and keep their webhooks pointed at this service. In a basic group every bot numbers its messages on its own, and only the bot that posted a message can edit it. So the service records which bot posted each idea (`posted by the X bot` in the feedback log) and edits and answers every message through that bot. Old ideas stay on their old bot; new ideas go through the ideas bot. Nothing has to be re-posted. `repost` moves an idea to the ideas bot if you want it there.
 - **Until a generic bot's token is set, nothing changes.** `ideasBot` and `videoBot` only take over once `TELEGRAM_STUDIO_IDEAS_BOT_TOKEN` / `TELEGRAM_STUDIO_VIDEO_BOT_TOKEN` exist. So the config can be deployed before the bots are created.
 - `projects.<p>.bot` becomes optional once `ideasBot` is set. `scriptsBot` and `blog.bot` are only used without a `videoBot`.
+
+### Hashtags (searching the group)
+
+Every message ends with a line of hashtags, so tapping one (or typing it in the group's search) lists everything with it:
+
+| Tag | What | Examples |
+|---|---|---|
+| business | `projects.<p>.hashtag`, else the label in CamelCase, else the slug. viral-scout's own messages use the profile's `studio.hashtag`, else `studio.brand` the same way, so both match | `#BrightSolar`, `#AcmeAgency` |
+| kind | what the message is | `#idea` `#script` `#posts` (content pack) `#post` (morning post pack) `#blog` `#video` `#image` `#file` `#film` `#reply` `#viral` (outlier alerts) `#ads` (ads alerts) |
+| platform | where it goes: the idea's platforms, a pack section's platform, a POST.md block's platform | `#tiktok` `#instagram` `#instagram_story` `#youtube` `#facebook` `#threads` `#linkedin` |
+| idea | the idea's number on the idea, its script, its posts and its film | `#idea92` |
+
+Telegram only links letters, digits and `_`, so `#instagram_story`, not `#instagram-story`. Ideas posted before this change get their tags the next time their message is edited (a rating or a comment). Jobs pass extra tags on files with `notes <profile> send <file> "caption" --tags "film idea92"`.
 
 ### Checking the bots
 

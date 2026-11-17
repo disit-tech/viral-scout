@@ -3,6 +3,7 @@ import { apiSecret, allowedChats, config, labelOf, noteBotsFor, noteProjectOf, p
 import { prisma } from "@/lib/db";
 import { bearer, safeEqual } from "@/lib/auth";
 import { api } from "@/lib/telegram";
+import { tagsLine } from "@/lib/ui";
 
 /**
  * Owner notes for the unattended jobs (client: viral-scout's `python -m viral_scout notes`, see viral_scout/notes.py).
@@ -15,7 +16,7 @@ import { api } from "@/lib/telegram";
  *                                                blog bot (like solar's notes.mjs pending)
  *   GET   ?file=<id>&sig=<hmac>                → the note's Telegram file, proxied (no auth header; the signed link is the key)
  *   PATCH {id, project, status: done|skipped|open, result?, reply?}   reply = answer in the note's thread
- *   POST  multipart: project, caption, reply_to?, file → {message_id}  (sent to the project bot's first allowed chat)
+ *   POST  multipart: project, caption, tags?, reply_to?, file → {message_id}  (caption ends with the hashtags: business, file kind, tags)  (sent to the project bot's first allowed chat)
  * The bot token never leaves the service: file links point back here with an HMAC of the note id.
  */
 
@@ -103,7 +104,8 @@ export async function PATCH(req: Request) {
     data: { status, doneAt: status === "new" ? null : new Date(), result: b.result?.slice(0, 2000) ?? n.result },
   });
   if (b.reply?.trim()) {
-    await api("sendMessage", { chat_id: n.chatId, text: b.reply.slice(0, 3900), reply_parameters: { message_id: n.messageId } }, bot);
+    const tags = tagsLine(b.project, ["reply"]);
+    await api("sendMessage", { chat_id: n.chatId, text: `${b.reply.trim().slice(0, 3800)}\n\n${tags}`, reply_parameters: { message_id: n.messageId } }, bot);
   }
   return json({ ok: true });
 }
@@ -128,7 +130,12 @@ export async function POST(req: Request) {
   out.set(kind, f, name);
   if (kind === "video") out.set("supports_streaming", "true");
   // The project's header goes first, so a reply to the file is a note for that project.
-  const caption = `${labelOf(project!)}${String(form.get("caption") ?? "")}`.slice(0, 1024);
+  // Tags last (business, file kind, and any extra words the job passed in `tags`, e.g. "film tiktok idea92"), kept whole
+  // when the caption has to be cut to Telegram's 1024 characters.
+  const extra = String(form.get("tags") ?? "").split(/[\s,]+/).filter(Boolean);
+  const tags = tagsLine(project, [{ video: "video", photo: "image", document: "file" }[kind]!, ...extra]);
+  const body = `${labelOf(project!)}${String(form.get("caption") ?? "")}`.trim();
+  const caption = `${body.slice(0, 1024 - tags.length - 2)}\n\n${tags}`.trim();
   if (caption) out.set("caption", caption);
   const replyTo = Number(form.get("reply_to"));
   if (Number.isInteger(replyTo) && replyTo > 0) {

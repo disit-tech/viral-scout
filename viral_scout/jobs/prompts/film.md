@@ -27,7 +27,7 @@ Follow the `/studio-video` skill, mode `film`, and read the shared notes it list
 1. Posting pack `POST.md` in the film folder: one "▶ PLATFORM (format · goal)" block per platform in {{platforms}}, each with its OWN text (not one caption pasted everywhere), how to post, the AI label line when the voice or picture is AI, and the UTM link for that platform. `{{publish}} today` sends it to {{owner}} on the post date.
 2. The "Don't / Do" still when the topic has an honest pair, made as the `/studio-video` film mode says (a ❌ and a ✅ frame from the render, cropped between the film's heading and its captions, labels of 3-5 words that match each picture, a short source tag; `{{video}} still …` → `still.png` in the film folder). Read the PNG before sending. No honest pair: skip it.
 3. Queue row in `{{queue}}`: `| <post date> | <title> | `<full mp4 path>` | <script link> | waiting for {{owner}} |`. Tracker row → 🎬 film rendered <MM-DD>, the full mp4 path and the post date.
-4. Delivery: `{{notes}} send <mp4> "🎬 Video for <date>: <title>. Watch with sound. Reply with changes or ✅."`. If it came from an idea: `{{ideas}} stage <ID> draft --draft <mp4 path>`.
+4. Delivery: `{{notes}} send <mp4> "🎬 Video for <date>: <title>. Watch with sound. Reply with changes or ✅." --tags "film idea<ID>"` (leave out `idea<ID>` when it didn't come from an idea; the business tag is added for you). If it came from an idea: `{{ideas}} stage <ID> draft --draft <mp4 path>`.
 5. Last step, only if the film was delivered: write the slug into `{{done_file}}`.
 
 If something fails: write what broke in the daily note, put an idea back with `{{ideas}} stage <ID> script_ok`, and do not write the .done file (the next hourly run retries, at most {{max_tries}} runs a day).

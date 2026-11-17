@@ -47,6 +47,8 @@ const Project = z.object({
   bot: slug.optional(),
   /** Header in front of every idea message, so brands sharing a group don't mix (e.g. "🔨 Homeworks · "). */
   label: z.string().default(""),
+  /** Business hashtag at the end of every message (without #); default: the label in CamelCase, else the slug. */
+  hashtag: z.string().regex(/^[\p{L}\p{N}_]+$/u).optional(),
   /** Which entry of reasonSets offers the "why?" chips. */
   reasonSet: z.string().min(1),
   /** Approved ideas get a content pack (📝 Пости): one ready-to-post text per platform. */

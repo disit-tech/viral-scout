@@ -2,7 +2,7 @@
 
   python -m viral_scout notes <profile> [list] [--brief] | all | pending
   python -m viral_scout notes <profile> reply|done|skip <id> "text"
-  python -m viral_scout notes <profile> send <file> "caption" [--reply <id>]
+  python -m viral_scout notes <profile> send <file> "caption" [--reply <id>] [--tags "film idea92"]
 
 Backends (jobs: block of the profile):
   api      (default) the ideas API / service: {url}/api/notes, "Authorization: Bearer <secret>", ?project=<project>
@@ -75,9 +75,11 @@ class Client:
         return self._call("PATCH", body={"id": int(nid), "project": self.project, "status": status, "result": result,
                                          **({"reply": reply} if reply else {})})
 
-    def send(self, file, caption="", reply_to=None):
+    def send(self, file, caption="", reply_to=None, tags=""):
+        """tags: extra hashtag words ("film idea92"); the service adds the business and the file kind."""
         b = uuid.uuid4().hex
-        fields = {"project": self.project, "caption": caption[:1024], **({"reply_to": str(reply_to)} if reply_to else {})}
+        fields = {"project": self.project, "caption": caption[:1024], **({"reply_to": str(reply_to)} if reply_to else {}),
+                  **({"tags": tags} if tags else {})}
         body = b"".join(f"--{b}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode() for k, v in fields.items())
         body += (f"--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{Path(file).name}\"\r\n"
                  "Content-Type: application/octet-stream\r\n\r\n").encode() + Path(file).read_bytes() + f"\r\n--{b}--\r\n".encode()
@@ -174,8 +176,9 @@ def cli(argv):
             print(f"error: file not found: {args[0] if args else ''}")
             return 2
         reply = args[args.index("--reply") + 1] if "--reply" in args else None
-        caption = args[1] if len(args) > 1 and args[1] != "--reply" else ""
-        r = c.send(args[0], caption, reply)
+        tags = args[args.index("--tags") + 1] if "--tags" in args else ""
+        caption = args[1] if len(args) > 1 and not args[1].startswith("--") else ""
+        r = c.send(args[0], caption, reply, tags)
         print(f"sent (message {r.get('message_id', '?')})")
         return 0
     print(f"unknown command: {cmd}")

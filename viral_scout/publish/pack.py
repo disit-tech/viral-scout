@@ -12,7 +12,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-from .. import config
+from .. import config, hashtags
 from . import core
 
 
@@ -36,7 +36,20 @@ def state_dir(cfg):
 
 
 def build(cfg, day):
-    """What would be sent for `day`: a list of messages {kind: video|photo|text, file?, text}. Pure (reads files only)."""
+    """What would be sent for `day`: a list of messages {kind: video|photo|text, file?, text}. Pure (reads files only).
+    Every message ends with hashtags (business, #post, its platform) so the group can be searched."""
+    row, msgs = _build(cfg, day)
+    return row, [_tagged(cfg, m) for m in msgs]
+
+
+def _tagged(cfg, m):
+    m = dict(m)
+    tags = hashtags.line(cfg, "post", platforms=m.pop("platforms", ()))
+    room = (1024 if m["kind"] != "text" else 4096) - len(tags) - 2   # a caption holds 1024, a message 4096
+    return {**m, "text": m["text"][:room] + "\n\n" + tags}
+
+
+def _build(cfg, day):
     s = core.settings(cfg)
     rows = core.read_queue(s["queue"])
     row = next((r for r in rows if r["date"] == day), None)
@@ -50,7 +63,7 @@ def build(cfg, day):
     msgs = []
     video = Path(row["video"]) if row["video"] else None
     if video and video.exists() and video.stat().st_size < 49 * 1024 * 1024:
-        msgs.append({"kind": "video", "file": str(video), "text": head[:1024]})
+        msgs.append({"kind": "video", "file": str(video), "text": head[:1024], "platforms": list(s.get("platforms") or [])})
     else:
         msgs.append({"kind": "text", "text": f"{head}\n\n⚠️ Video not found or over 49 MB: {row['video']}"})
     film = None
@@ -59,7 +72,8 @@ def build(cfg, day):
         still = next((film / f for f in ("still.png", "still.jpg") if (film / f).exists()), None)
         if still:
             msgs.append({"kind": "photo", "file": str(still),
-                         "text": "🖼 \"Don't / Do\" still → Threads, Instagram Story (+ link sticker), groups. Text in the blocks below."})
+                         "text": "🖼 \"Don't / Do\" still → Threads, Instagram Story (+ link sticker), groups. Text in the blocks below.",
+                         "platforms": ["threads", "instagram_story"]})
     pack = film / "POST.md" if film else None
     if pack and pack.exists():
         text = re.sub(r"^---[\s\S]*?---\s*", "", pack.read_text(encoding="utf-8")).strip()
@@ -68,7 +82,7 @@ def build(cfg, day):
             h = re.match(r"▶\s*([A-Za-z]+)(?:\s+(STORY|STORIES))?", sec, re.I)
             plat = (h.group(1).lower() + ("_story" if h.group(2) else "")) if h else "post"
             sec = sec.replace("{link}", core.utm_link(s["link"], plat, film.name, s))
-            msgs.extend({"kind": "text", "text": c} for c in core.chunks(sec))
+            msgs.extend({"kind": "text", "text": c, "platforms": [plat] if h else []} for c in core.chunks(sec))
     else:
         msgs.append({"kind": "text", "text": f"⚠️ No POST.md found ({pack}). Captions are in the film's script note."})
     return row, msgs
