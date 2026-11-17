@@ -29,6 +29,7 @@ No profile → `python -m viral_scout profiles` and pick the one matching `$OBSI
 
 6. The shared method notes for your mode (table below).
 7. `video.formats` (in the `info` output): formats the owner marked as good references. For `script`, `film` and `week`, read each format's `references` swipe notes ("Why it works") and its `guide` section in docs/video.md, and follow its `structure`, `length` and `topics` when the topic fits.
+8. **One goal per video.** Every video serves one goal: `views` (reach strangers), `follows` (a series people come back for), `trust` (the owner, the process, real jobs) or `leads` (a check → the CTA). `video.goals` in the profile says what each goal means for this business. A video that tries to do all of them does none well. Pick the goal first, write it in the script's frontmatter (`goal:`), then let it decide the format, hook, ending and CTA: a views video keeps the brand to the last seconds and has no hard CTA, and a leads video ends on a check the viewer can do plus `studio.cta`. `week` balances the goals across the 5 slots.
 
 ## Shared method notes (read the ones your mode needs)
 

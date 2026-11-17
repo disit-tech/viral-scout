@@ -96,7 +96,8 @@ Two blocks in `profiles/<name>.yaml`. `${ENV}` is expanded everywhere, so `${OBS
 | `stat_units` | none | extra units that make a number a stat card (`kwh`, `homes?`) |
 | `cta_card` | `{big: studio.cta.text, pill: "Link in bio", triggers: [link, comment, dm, check]}` | the auto-drafted CTA card; a CTA line with a trigger word gets it |
 | `ai_label` | `AI voice of me, script written by me. -{owner}` | first caption line when the voice or a realistic visual is AI |
-| `formats` | none | formats the owner marked as good references: `[{name, mode, tool, guide, references: [swipe notes], structure, topics, length}]`. `/studio-video` reads them (and their swipe notes) before `script` and `film`. See [3D cutaway films](#3d-cutaway-films) |
+| `goals` | none | what each video goal means for this business: `{views, follows, trust, leads}` → one line each. Every script picks one goal (`goal:` in its frontmatter); see the studio-video skill, "One goal per video" |
+| `formats` | none | formats the owner marked as good references: `[{name, goal, mode, tool, guide, references: [swipe notes], structure, topics, length, rules}]`. `/studio-video` reads them (and their swipe notes) before `script` and `film`. See [3D cutaway films](#3d-cutaway-films) |
 
 Example (solar):
 
@@ -191,6 +192,11 @@ A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REV
 ### 3D cutaway films
 
 An animated 3D explainer of one job: the camera goes where a phone can't (inside the wall, behind the siding). One part lights up at a time, force arrows show where the weight or water goes, pointer labels name the parts, red is wrong and green is right, and 2-3 caption words at a time sit on dark plates. Proven on TikTok by home-improvement and "how to operate X" channels. It suits home services: a danger hook, then the job done right, then a check the homeowner can do from outside, then "get it checked" as the CTA.
+
+The same 3D tools serve different goals, so pick one per video:
+- **Cutaway explainer for leads:** it ends on a check the viewer can do and the CTA.
+- **Cutaway explainer for views:** a "how to operate X" part tour, ending on a question.
+- **What-if hypothetical for views:** an absurd "what if you…" that escalates with big measurement labels, then a twist ending that lands at the business. The brand appears only in the last seconds, as the punchline. Numbers in a what-if are sourced or obviously fictional.
 
 **Save a reference.** `python -m viral_scout save <profile> <url> --note "GOOD REFERENCE (format): …"` stores the post in the database, tracks it and writes a swipe note. Set `format: "3D cutaway explainer"` in the note and add the tags `reference` and `format/3d-cutaway`. Then list the note under the profile's `video.formats[].references`. To study it frame by frame: `python -m yt_dlp <url>` from `$VIRAL_SCOUT_YTDLP`, `video <profile> transcribe <mp4>`, and a contact sheet (`ffmpeg -i in.mp4 -vf "fps=1/4,scale=360:-1,tile=4x2" sheet%02d.png`).
 
