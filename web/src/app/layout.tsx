@@ -4,6 +4,7 @@ import "./globals.css";
 import { isLocal } from "@/lib/data";
 import { isPublicDemo } from "@/lib/auth";
 import NavActivity from "@/components/NavActivity";
+import HashFlash from "@/components/HashFlash";
 
 export const metadata: Metadata = {
   title: { default: "Viral Scout", template: "%s · Viral Scout" },
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         )}
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <HashFlash />
         <footer className="mx-auto max-w-7xl px-4 pb-10 pt-4 text-xs text-muted">
           Data from public posts (yt-dlp), official APIs and Apify. Viral posts are references for formats, never footage to reuse.
         </footer>

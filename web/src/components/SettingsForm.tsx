@@ -106,19 +106,8 @@ export default function SettingsForm({ initial }: { initial: ProfileFields }) {
   const dirty = (f: Field) => !same(vals[f.path] ?? empty(f.kind), saved[f.path] ?? empty(f.kind));
   const dirtyCount = all.filter(dirty).length;
 
-  // Shortcuts from setup checklists: #f-<path> (e.g. #f-demand.terms) opens that field, even inside "Advanced".
-  useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.slice(1));
-    if (!id.startsWith("f-")) return;
-    const el = document.getElementById(id);
-    if (!el) return;
-    const det = el.closest("details");
-    if (det) det.open = true;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("ring-2", "ring-accent");
-    el.querySelector<HTMLElement>("input, textarea, select")?.focus({ preventScroll: true });
-    setTimeout(() => el.classList.remove("ring-2", "ring-accent"), 2200);
-  }, []);
+  // Shortcuts from setup checklists (#f-<path>, e.g. #f-demand.terms) are flashed by HashFlash in the layout,
+  // which also opens the "Advanced" <details> around the field.
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => { if (dirtyCount) e.preventDefault(); };

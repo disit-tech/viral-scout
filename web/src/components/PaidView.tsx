@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { flashId } from "@/lib/flash";
 import { ago, when } from "@/lib/format";
 import { PLATFORM_NAMES, usd, type Account, type Brief, type Campaign, type Paid, type PaidPlatform } from "@/lib/paid-format";
 
@@ -10,14 +11,7 @@ const GOALS = ["leads", "sales", "traffic", "awareness", "messages", "calls"];
 type Msg = { ok: boolean; text: string } | null;
 
 /** Scroll to a field of this page, focus it and flash it, so a "fill this in" message is one click away. */
-function jump(id: string) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  (el as HTMLElement).focus?.({ preventScroll: true });
-  el.classList.add("ring-2", "ring-accent");
-  setTimeout(() => el.classList.remove("ring-2", "ring-accent"), 1800);
-}
+const jump = (id: string) => flashId(id, 0);
 const KEY_OF: Record<PaidPlatform, string> = { meta: "META_ADS_TOKEN", google: "GOOGLE_ADS_CLIENT_ID", tiktok: "TIKTOK_ADS_TOKEN" };
 const setupLink = (key: string) => `/setup?use=paid#key-${key}`;
 const FIELD = { goal: "brief-goal", daily_budget_usd: "brief-budget", geo: "brief-geo", audience: "brief-audience" } as const;

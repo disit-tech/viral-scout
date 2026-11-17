@@ -2,15 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PRICE, USES, byTier, costDetail, priceOf, useLabel } from "@/lib/keys-ui";
+import { flash } from "@/lib/flash";
 import Connections from "./Connections";
 
 type Key = {
   name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string;
   secret?: boolean; tier?: string; price?: string; has_default?: boolean; uses?: string[];
 };
-
-// The highlight a key row gets when a link jumps to it.
-const FLASH = ["ring-2", "ring-accent", "ring-offset-4", "ring-offset-panel", "bg-accent/10"];
 
 export default function SetupKeys() {
   const [keys, setKeys] = useState<Key[] | null>(null);
@@ -55,9 +53,9 @@ export default function SetupKeys() {
     document.addEventListener("click", onClick);
     return () => { window.removeEventListener("hashchange", fromHash); document.removeEventListener("click", onClick); };
   }, []);
-  const flash = useRef<{ el: HTMLElement; t: ReturnType<typeof setTimeout> } | null>(null);
+  const flashed = useRef(0);   // nonce of the last target flashed: changing a filter later doesn't flash it again
   useEffect(() => {
-    if (!keys || !target) return;
+    if (!keys || !target || flashed.current === target.n) return;
     const el = document.getElementById(target.id);
     if (!el) {
       // Hidden by a filter: clear the filters, and this runs again once the row is rendered.
@@ -66,11 +64,8 @@ export default function SetupKeys() {
       }
       return;
     }
-    if (flash.current) { clearTimeout(flash.current.t); flash.current.el.classList.remove(...FLASH); }
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add(...FLASH);
-    el.querySelector<HTMLElement>("input, textarea")?.focus({ preventScroll: true });
-    flash.current = { el, t: setTimeout(() => el.classList.remove(...FLASH), 2500) };
+    flashed.current = target.n;
+    flash(el);
   }, [keys, target, use, price, state]);
 
   if (error) return <p className="mt-6 text-mega">{error}</p>;
