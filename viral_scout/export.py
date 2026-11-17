@@ -256,6 +256,13 @@ def export_all(names=None, out=WEB_DATA):
                      "channel": i["channel"], "url": i["url"]} for i in top],
         })
     perf_done = set(export_perf(names, out)[1])
+    from .paid.cli import export as export_paid   # the Paid ads page reads the last pull; exporting never calls an API
+    for p in index:
+        try:
+            export_paid(config.load(p["name"]), out)
+            p["paid"] = True
+        except Exception:  # noqa: BLE001 (the page shows "not pulled yet")
+            pass
     for p in index:
         if p["name"] in perf_done:
             p["perf"] = True

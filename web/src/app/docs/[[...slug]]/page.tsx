@@ -11,7 +11,7 @@ export async function generateStaticParams() {
 const GROUPS: [string, string[]][] = [
   ["", ["readme"]],
   ["Get started", ["setup", "profiles", "marketing-workflow"]],
-  ["Features", ["dashboard", "ads-scout", "search-demand", "performance"]],
+  ["Features", ["dashboard", "ads-scout", "search-demand", "performance", "paid-ads"]],
   ["Making better videos", ["video-quality-framework", "originality-and-duplicate-detection"]],
   ["Content studio", ["studio", "ideas", "video", "telegram-service", "publish-and-jobs"]],
   ["Under the hood", ["how-it-works", "similar-tools", "references"]],

@@ -18,6 +18,7 @@ New here? Read them in this order: **Setup and keys → Profiles → Marketing w
 | [Ads scout](ads-scout.md) | The paid side: long-running competitor ads, offers and hooks (Meta, TikTok, Google), coverage per region, scoring, costs |
 | [Search demand](search-demand.md) | Google Trends for the business's area: when each service rises and peaks, and which words people use |
 | [Your performance](performance.md) | Your own videos and ads: hook rate, retention, CTR, CPA, ROAS from official APIs or your exports; diagnostics |
+| [Paid ads](paid-ads.md) | Your own ad accounts per business: spend against a monthly cap, campaigns, pause / resume / budget, Claude building and launching campaigns from a brief (Meta's official ads connector) |
 
 ## Making better videos
 

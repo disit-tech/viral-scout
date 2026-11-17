@@ -41,7 +41,7 @@ export function costDetail(k: { cost?: string; price?: string }): string {
 /** What a key is for (uses from viral_scout/keys.py), in filter order. */
 export const USES: { id: string; label: string }[] = [
   { id: "videos", label: "🎬 videos" }, { id: "ads", label: "📢 ads" }, { id: "demand", label: "🔎 search demand" },
-  { id: "performance", label: "📊 your performance" }, { id: "local", label: "📍 local competitors" },
+  { id: "performance", label: "📊 your performance" }, { id: "paid", label: "💳 paid ads" }, { id: "local", label: "📍 local competitors" },
   { id: "alerts", label: "🔔 alerts" }, { id: "tools", label: "🛠 tools" },
 ];
 export const useLabel = (id: string) => USES.find((u) => u.id === id)?.label ?? id;

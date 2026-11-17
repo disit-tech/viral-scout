@@ -40,6 +40,11 @@ FIELDS = {
     "demand.every_days": "int", "demand.lead_weeks": "int",
     "local.query": "str", "local.near": "str", "local.limit": "int",
     "perf.meta_ad_account_id": "str",
+    # Paid ads (docs/paid-ads.md): the cap, the accounts and the default brief Claude starts from
+    "paid.monthly_cap_usd": "money", "paid.platforms": "paid_platforms",
+    "paid.accounts.meta": "str", "paid.accounts.google": "str", "paid.accounts.tiktok": "str",
+    "paid.brief.goal": "paid_goal", "paid.brief.daily_budget_usd": "money", "paid.brief.geo": "str",
+    "paid.brief.audience": "text", "paid.brief.offer": "str", "paid.brief.landing": "str", "paid.brief.notes": "text",
     # Idea generator schedule (dashboard Schedule page → the studio ideas job, docs/publish-and-jobs.md)
     "jobs.ideas.enabled": "bool", "jobs.ideas.at": "hhmm", "jobs.ideas.days": "jobdays", "jobs.ideas.count": "int",
 }
@@ -124,6 +129,22 @@ def _clean(path, kind, v):
         if isinstance(v, bool) or not re.fullmatch(r"\d{1,9}", str(v).strip()):
             raise ValueError(f"{path}: expected a whole number")
         return int(v)
+    if kind == "money":
+        try:
+            f = round(float(v), 2)
+        except (TypeError, ValueError):
+            raise ValueError(f"{path}: expected an amount in USD") from None
+        if isinstance(v, bool) or not 0 <= f <= 100000:
+            raise ValueError(f"{path}: expected an amount between 0 and 100000")
+        return int(f) if f == int(f) else f
+    if kind == "paid_platforms":
+        if not isinstance(v, list) or any(x not in ("meta", "google", "tiktok") for x in v):
+            raise ValueError(f"{path}: a list of meta, google, tiktok")
+        return list(dict.fromkeys(v))
+    if kind == "paid_goal":
+        if v not in ("leads", "sales", "traffic", "awareness", "messages", "calls"):
+            raise ValueError(f"{path}: leads, sales, traffic, awareness, messages or calls")
+        return v
     if kind == "bool":
         if not isinstance(v, bool):
             raise ValueError(f"{path}: expected true/false")

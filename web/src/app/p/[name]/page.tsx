@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { isLocal, loadAds, loadIndex, loadProfile, profileNames } from "@/lib/data";
 import { loadDemand, geoLabel } from "@/lib/demand";
 import { loadPerf } from "@/lib/perf";
+import { loadPaid, usd } from "@/lib/paid";
 import { ago, num, times, when } from "@/lib/format";
 import { studyPicks } from "@/lib/ads";
 import RunButton from "@/components/RunButton";
@@ -35,7 +36,7 @@ const fmtDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("en-
 
 export default async function Overview({ params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
-  const [profile, ads, demand, perf, index] = await Promise.all([loadProfile(name), loadAds(name), loadDemand(name), loadPerf(name), loadIndex()]);
+  const [profile, ads, demand, perf, index, paid] = await Promise.all([loadProfile(name), loadAds(name), loadDemand(name), loadPerf(name), loadIndex(), loadPaid(name)]);
   if (!profile && !ads) notFound();
   const entry = index.profiles.find((p) => p.name === name);
   const setup = profile?.setup;
@@ -174,6 +175,17 @@ export default async function Overview({ params }: { params: Promise<{ name: str
             </ul>
           )}
         </Card>
+
+        <Card title="Paid ads" href={`${base}/paid`} settings={`${base}/paid#brief`}
+          state={!paid || !Object.keys(paid.accounts).length ? "off" : freshness(paid.snapshot?.pulled ?? null)} last={paid?.snapshot?.pulled ?? null} lastLabel="read"
+          what="Your own ad accounts (Meta, Google, TikTok) in one place: spend this month against the cap, what's running, cost per result, and Claude building campaigns from your brief."
+          stats={[
+            ["cap / month", paid?.cap ? usd(paid.cap) : "not set"],
+            ["spent", usd(paid?.month.spent ?? 0)],
+            ["projected", usd(paid?.month.projected ?? 0)],
+            ["running", String(Object.values(paid?.snapshot?.platforms ?? {}).reduce((n, a) => n + (a?.campaigns ?? []).filter((c) => c.running).length, 0))],
+          ]}
+          footer={<span>{paid?.cap ? paid.month.check : "Set a monthly cap and the brief to let Claude build campaigns."} <Link href={`${base}/paid`} className="text-rise hover:underline">Open →</Link></span>} />
 
         <Card title="Your performance" href={`${base}/performance`} settings={`${base}/settings#perf`}
           state={freshness(perf?.date, Boolean(setup?.perf || setup?.own || perf))} last={perf?.date}

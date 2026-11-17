@@ -81,6 +81,13 @@ def main(argv=None):
     if argv and argv[0] == "ideas":                # ideas API: pull ratings, push batches, content packs
         from .ideas import main as ideas_main
         return ideas_main(argv[1:])
+    if argv and argv[0] == "paid":                 # own ad accounts: pull, cap check, pause/resume/budget, log
+        from . import activity
+        from .paid.cli import main as paid_main
+        if len(argv) > 2 and argv[2] in ("pause", "resume", "budget", "ask", "enforce"):
+            with activity.track(argv[1], f"paid {argv[2]}", argv):
+                return paid_main(argv[1:])
+        return paid_main(argv[1:])
     if argv and argv[0] == "perf":                 # own performance has its own sub-commands
         from .perf.cli import main as perf_main
         if len(argv) > 1 and not argv[1].startswith("-") and argv[1] not in ("import", "auth"):

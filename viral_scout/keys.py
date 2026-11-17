@@ -109,9 +109,11 @@ KEYS = [
      "docs": "https://developers.google.com/youtube/analytics/reference/reports/query"},
     {"name": "META_ADS_TOKEN", "group": "Meta Marketing API (your ads)", "cost": "free",
      "unlocks": "Your performance: your Meta ads' impressions, hook rate (3-s plays), ThruPlays, quartiles, CTR, "
-                "CPC, CPM, leads, purchases, ROAS, daily frequency for fatigue.",
-     "get": "Meta for Developers → app with Marketing API → Business Settings → System user with ads_read on the "
-            "ad account → generate token.",
+                "CPC, CPM, leads, purchases, ROAS, daily frequency for fatigue. Paid ads page: campaigns, budgets, "
+                "spend this month against the cap, and the Pause / Resume / Budget buttons.",
+     "get": "Meta for Developers → app with Marketing API → Business Settings → System user assigned to every "
+            "business's ad account → generate token with ads_read (reading) and ads_management (pause, resume, "
+            "budget). Each business's account id goes in its profile (Paid ads page), not here.",
      "docs": "https://developers.facebook.com/documentation/ads-commerce/marketing-api/insights"},
     {"name": "META_AD_ACCOUNT_ID", "group": "Meta Marketing API (your ads)", "cost": "",
      "unlocks": "Which ad account to read (act_123… or the number).",
@@ -119,9 +121,9 @@ KEYS = [
      "docs": "https://developers.facebook.com/documentation/ads-commerce/marketing-api/insights"},
     {"name": "TIKTOK_ADS_TOKEN", "group": "TikTok API for Business (your ads)", "cost": "free",
      "unlocks": "Your performance: your TikTok ads' 2-s/6-s views, 25–100% views, avg play time, CTR, CPC, CPM, "
-                "conversions, CPA, ROAS, daily frequency.",
-     "get": "TikTok for Business developers → create an app with Reporting permission → authorize your advertiser "
-            "account → long-term access token.",
+                "conversions, CPA, ROAS, daily frequency. Paid ads page: campaigns, budgets, spend, Pause / Resume / Budget.",
+     "get": "TikTok for Business developers → create an app with Reporting and Campaign Management permissions → "
+            "authorize every business's advertiser account → long-term access token.",
      "docs": "https://business-api.tiktok.com/portal/docs"},
     {"name": "TIKTOK_ADVERTISER_ID", "group": "TikTok API for Business (your ads)", "cost": "",
      "unlocks": "Which advertiser account to read.",
@@ -180,8 +182,8 @@ USES = {
     "VIRAL_SCOUT_MCP_PAID": ["tools"], "GOOGLE_PLACES_API_KEY": ["local"],
     "TELEGRAM_BOT_TOKEN": ["alerts"], "TELEGRAM_CHAT_ID": ["alerts"],
     "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
-    "META_ADS_TOKEN": ["performance"], "META_AD_ACCOUNT_ID": ["performance"],
-    "TIKTOK_ADS_TOKEN": ["performance"], "TIKTOK_ADVERTISER_ID": ["performance"], "VIRAL_SCOUT_YTDLP": ["videos"],
+    "META_ADS_TOKEN": ["performance", "paid"], "META_AD_ACCOUNT_ID": ["performance"],
+    "TIKTOK_ADS_TOKEN": ["performance", "paid"], "TIKTOK_ADVERTISER_ID": ["performance"], "VIRAL_SCOUT_YTDLP": ["videos"],
     "OBSIDIAN_VAULT": ["tools"],
 }
 for _k in KEYS:
