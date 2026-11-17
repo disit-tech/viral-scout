@@ -22,7 +22,7 @@ Competitors' ads are the ads scout (`/viral-scout <profile> ads`); this skill is
 3. **Record it.** After launching (or changing) anything through a connector, run
    `python -m viral_scout paid <profile> log launch "<campaign name>: <goal>, $<daily>/day, <geo>, <audience>" --platform meta --campaign <id> --amount <daily> --by claude`
    then `python -m viral_scout paid <profile> pull`. Use `log change`, `log pause` the same way.
-4. **Pausing is always fine.** `python -m viral_scout paid <profile> pause <meta|tiktok> <campaign_id> --by claude`.
+4. **Pausing is always fine.** `python -m viral_scout paid <profile> pause <meta|google|tiktok> <campaign_id> --by claude`.
    Resume / budget changes: `paid <profile> resume|budget …` (they run the cap check themselves).
 5. **Unattended means no spend.** In a scheduled job, only read and report.
 6. **Ads rules.** Meta special ad categories (housing, employment, credit/financing, social issues): declare them
@@ -40,8 +40,8 @@ Competitors' ads are the ads scout (`/viral-scout <profile> ads`); this skill is
 2. **Context** (read, don't run paid tools): MCP `viral-scout` → `ads_results` (competitors' long-running angles,
    offers, hooks), `demand_results` (what people search now, start-posting-by dates), `perf_results` (own ads:
    CTR, CPA, fatigue). The business: `profiles/<profile>.yaml` (`business`, `studio`) and its vault notes.
-3. **Read the account** through the connector (Meta: the `meta-ads` MCP; Google: the `google-ads` MCP, read-only;
-   TikTok: the `paid` CLI). Pixel / conversion event set up? Existing audiences? Past winners?
+3. **Read the account** through the connector (Meta: the `meta-ads` MCP; Google: `paid status` or the `google-ads`
+   MCP; TikTok: `paid status`). Pixel / conversion event set up? Existing audiences? Past winners?
 4. **Plan** in a few lines: objective → optimization event, budget and schedule, geo (radius / zips / metro),
    audience (broad + the brief's signals; exclusions such as current customers), placements, 2–3 creatives with
    hook / primary text (first 125 characters carry it) / headline ≤ 40 / CTA / landing URL with UTM
@@ -57,7 +57,9 @@ Competitors' ads are the ads scout (`/viral-scout <profile> ads`); this skill is
 
 - **Meta** (`meta-ads` MCP, official, hosted at mcp.facebook.com/ads): read, create, update, pause. If every call
   fails with a rollout/permission error, the account isn't in Meta's rollout yet: say so and stop.
-- **Google Ads** (`google-ads` MCP, official, read-only): reports, keywords, search terms. Changes: tell the owner
-  exactly what to click in Google Ads; don't use unofficial write servers.
+- **Google Ads**: read with `paid <profile> status` (official Google Ads API) or the `google-ads` MCP (official,
+  read-only: reports, keywords, search terms). Pause / resume / daily budget with the `paid` CLI (official API; a
+  shared budget is refused). Creating a Google campaign: give the owner the exact setup to enter in Google Ads;
+  don't use unofficial write servers.
 - **TikTok Ads**: no official MCP. Read with `paid <profile> status`; pause / resume / budget with the `paid` CLI.
   Creating TikTok campaigns: give the owner the exact setup to enter in TikTok Ads Manager.

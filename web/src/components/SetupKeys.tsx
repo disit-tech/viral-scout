@@ -12,6 +12,7 @@ export default function SetupKeys() {
   const [keys, setKeys] = useState<Key[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [use, setUse] = useState("all");
+  const [price, setPrice] = useState("");   // "" = any cost; else a PRICE id (free, free_tier, paid, control)
 
   async function load() {
     const r = await fetch("/api/keys").then((x) => x.json()).catch(() => null);
@@ -24,7 +25,8 @@ export default function SetupKeys() {
   if (!keys) return <p className="mt-6 text-muted">Loading…</p>;
 
   const tiers = byTier(keys);
-  const shown = byTier(use === "all" ? keys : keys.filter((k) => k.uses?.includes(use)));
+  const byUse = (u: string) => (u === "all" ? keys : keys.filter((k) => k.uses?.includes(u)));
+  const shown = byTier(byUse(use).filter((k) => !price || k.price === price));
   return (
     <div className="mt-6 space-y-8">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-line bg-panel px-4 py-3 text-sm">
@@ -36,8 +38,19 @@ export default function SetupKeys() {
             </a>
           );
         })}
-        <span className="ml-auto flex flex-wrap gap-1.5">
-          {Object.values(PRICE).map((p) => <span key={p.label} title={p.title} className={`rounded-full border px-2 py-0.5 text-[11px] ${p.cls}`}>{p.label}</span>)}
+        <span className="ml-auto flex flex-wrap items-center gap-1.5">
+          {Object.entries(PRICE).map(([id, p]) => {
+            const n = byUse(use).filter((k) => k.price === id).length;
+            const on = price === id;
+            return (
+              <button key={id} onClick={() => setPrice(on ? "" : id)} disabled={!n && !on} aria-pressed={on}
+                title={`${p.title}. ${on ? "Click again to show every key." : "Click to show only these."}`}
+                className={`rounded-full border px-2 py-0.5 text-[11px] ${p.cls} ${on ? "ring-2 ring-current" : price ? "opacity-50 hover:opacity-100" : ""} disabled:cursor-default disabled:opacity-30`}>
+                {p.label} <span className="opacity-70">{n}</span>
+              </button>
+            );
+          })}
+          {price && <button onClick={() => setPrice("")} className="text-[11px] text-muted hover:text-text">✕ clear</button>}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-sm">

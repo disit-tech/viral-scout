@@ -16,16 +16,22 @@ Claude and the dashboard reach the accounts differently, because the dashboard c
 | Platform | Claude (build, launch, read) | Dashboard and CLI (numbers, pause, resume, budget) |
 |---|---|---|
 | Meta | official **Meta Ads MCP** (`meta-ads`, hosted at `https://mcp.facebook.com/ads`, open beta): read, create, update, pause | Marketing API with `META_ADS_TOKEN` (`ads_read` + `ads_management`) |
-| Google Ads | official **google-ads-mcp** (`googleads/google-ads-mcp`, runs locally): read-only reports | not read yet; the page links the account |
+| Google Ads | official **google-ads-mcp** (`googleads/google-ads-mcp`, runs locally): read-only reports; changes through the `paid` CLI | official Google Ads API (REST v26) with OAuth: campaigns, budgets, spend, conversions; pause / resume / daily budget |
 | TikTok | no official MCP: the `paid` CLI | TikTok API for Business with `TIKTOK_ADS_TOKEN` |
 
 ### Connect Meta (Claude)
 
 Registered at user scope: `claude mcp add --transport http --scope user meta-ads https://mcp.facebook.com/ads`. Then in Claude Code type `/mcp`, pick `meta-ads` and log in with the Facebook account that manages the ad accounts. Meta rolls the connector out to ad accounts in waves: an account outside the rollout gets every request refused, and the skill says so and stops.
 
-### Connect Google Ads (Claude, read-only)
+### Connect Google Ads
 
-Google's server runs on this PC and needs a Google Cloud project with the Google Ads API enabled and an OAuth login for the account that manages the Google Ads accounts. Follow the repo's README (`googleads/google-ads-mcp`), then register it as `google-ads` (`claude mcp add --scope user google-ads …`). It can't create campaigns or change budgets: the skill gives the exact clicks for Google Ads instead.
+1. Google Cloud console (the same project as YouTube Analytics is fine): enable the **Google Ads API**, create an OAuth client ID of type **Desktop app**, and publish the consent screen (**In production**; in Testing the refresh token dies after 7 days).
+2. Setup page → `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET` (they fall back to the YouTube Analytics client).
+3. `python -m viral_scout paid auth google` → sign in with the Google account that manages the businesses' Google Ads accounts → `GOOGLE_ADS_REFRESH_TOKEN` lands in `.env`.
+4. Only if needed: `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (you reach the accounts through a manager account) and `GOOGLE_ADS_DEVELOPER_TOKEN` (Google Ads → Tools → API Center). Google's REST auth page now lists only `Authorization` and `login-customer-id`; older guides require the developer token, so it's sent whenever it's set. **Test** on the Setup page lists the accounts the login reaches.
+5. The customer id (`123-456-7890`) goes into each business's Paid ads page.
+
+For Claude, Google's own read-only server (`googleads/google-ads-mcp`, runs on this PC) can be added as `google-ads` (`claude mcp add --scope user google-ads …`, see its README). It isn't required: the skill reads Google through `paid <profile> status` too. Creating a Google campaign isn't automated (Google's connector can't, and unofficial write servers aren't used): the skill gives the exact setup to enter in Google Ads.
 
 ### Keys for the dashboard
 
@@ -58,7 +64,7 @@ The projected month = spend so far + every running campaign's daily budget for t
 - `paid <profile> resume|budget …` and the dashboard's Resume and Budget buttons (fresh numbers each time).
 - The **backstop** after every dashboard **Build campaign with Claude** run (`paid <profile> ask`): it reads the accounts again and, if the month is over the cap or can't be totalled, pauses every campaign created during the run, newest first, and logs `auto-pause`. `paid <profile> enforce` does the same for today's campaigns by hand.
 
-It also refuses when no cap is set, when an account isn't in USD (the cap is USD), and when a listed account can't be read (its spend is unknown). Google Ads isn't read by the dashboard yet, so a business with a Google account listed can't start new spend through the cap check until it is. Pausing is always allowed. Scheduled jobs never spend (publish-and-jobs.md, safety rules).
+It also refuses when no cap is set, when an account isn't in USD (the cap is USD), and when a listed account can't be read (its spend is unknown), for example a Google account id without the Google keys. A Google shared budget is counted once for all its campaigns. Pausing is always allowed. Scheduled jobs never spend (publish-and-jobs.md, safety rules).
 
 As a second backstop outside viral-scout, set an account spending limit in each platform's billing settings.
 

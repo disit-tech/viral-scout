@@ -48,20 +48,27 @@ def missing_keys():
 
 
 # ---- OAuth installed-app flow -----------------------------------------------------------------------------------
-def auth_url(client_id, redirect, challenge, state):
+def auth_url(client_id, redirect, challenge, state, scopes=None):
     return AUTH + "?" + urllib.parse.urlencode({
-        "client_id": client_id, "redirect_uri": redirect, "response_type": "code", "scope": " ".join(SCOPES),
+        "client_id": client_id, "redirect_uri": redirect, "response_type": "code", "scope": " ".join(scopes or SCOPES),
         "access_type": "offline", "prompt": "consent", "code_challenge": challenge,
         "code_challenge_method": "S256", "state": state})
 
 
 def authorize(open_browser=True, timeout=300, port=0):
     """Run the consent flow on a loopback port; save the refresh token to .env. Returns a message."""
-    from .. import keys
     cid, secret = os.environ.get("YT_OAUTH_CLIENT_ID"), os.environ.get("YT_OAUTH_CLIENT_SECRET")
     if not cid or not secret:
         raise SystemExit("Set YT_OAUTH_CLIENT_ID and YT_OAUTH_CLIENT_SECRET first (Google Cloud → Credentials → "
                          "OAuth client ID → Desktop app). See docs/performance.md.")
+    return consent(cid, secret, SCOPES, "YT_OAUTH_REFRESH_TOKEN",
+                   "pick the Google account that owns the channel, and allow read-only access", open_browser, timeout, port)
+
+
+def consent(cid, secret, scopes, key_name, what, open_browser=True, timeout=300, port=0):
+    """Google's installed-app flow (loopback + PKCE) for any scopes; the refresh token goes to .env as key_name.
+    Also used by the Google Ads login of the Paid ads page (paid/google.py)."""
+    from .. import keys
     verifier = secrets.token_urlsafe(64)[:96]
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     state = secrets.token_urlsafe(16)
@@ -85,9 +92,8 @@ def authorize(open_browser=True, timeout=300, port=0):
 
     srv = http.server.HTTPServer(("127.0.0.1", port), H)
     redirect = f"http://127.0.0.1:{srv.server_address[1]}"
-    url = auth_url(cid, redirect, challenge, state)
-    print("Open this URL, pick the Google account that owns the channel, and allow read-only access:\n" + url,
-          flush=True)
+    url = auth_url(cid, redirect, challenge, state, scopes)
+    print(f"Open this URL, {what}:\n" + url, flush=True)
     if open_browser:
         webbrowser.open(url)
     srv.timeout = timeout
@@ -104,8 +110,8 @@ def authorize(open_browser=True, timeout=300, port=0):
     d = r.json()
     if not d.get("refresh_token"):
         raise SystemExit(f"Token exchange failed: {d.get('error_description') or d.get('error') or r.text[:200]}")
-    keys.set_key("YT_OAUTH_REFRESH_TOKEN", d["refresh_token"])
-    return "YT_OAUTH_REFRESH_TOKEN saved to .env"
+    keys.set_key(key_name, d["refresh_token"])
+    return f"{key_name} saved to .env"
 
 
 def access_token(errors=None):

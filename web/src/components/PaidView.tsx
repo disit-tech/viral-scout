@@ -155,7 +155,7 @@ function AccountCard({ platform, account, accountId, local, busy, act }: {
   const camps = account?.campaigns ?? [];
   const shown = showAll ? camps : camps.filter((c) => c.running || c.month_spend > 0);
   const state = !accountId ? ["no account id", "text-muted"] : account?.ok ? ["connected", "text-above"] : account?.missing === "key" ? ["needs a key", "text-viral"] : account ? ["can't read", "text-mega"] : ["not read yet", "text-muted"];
-  const writable = platform !== "google";
+  const writable = true;
   return (
     <section className="rounded-2xl border border-line bg-panel p-4 text-sm">
       <div className="flex flex-wrap items-center gap-2">
@@ -166,7 +166,7 @@ function AccountCard({ platform, account, accountId, local, busy, act }: {
       </div>
       {!accountId && <p className="mt-2 text-muted">Add the account id in the brief below (Meta: act_… · Google: 123-456-7890 · TikTok: advertiser id).</p>}
       {account && !account.ok && <p className="mt-2 text-muted">{account.error}{account.missing === "key" && <> · <Link href="/setup" className="text-rise hover:underline">Setup →</Link></>}</p>}
-      {platform === "google" && <p className="mt-1 text-[11px] text-muted">Google Ads is read by Claude through Google&apos;s official connector (read-only); changes stay in the Google Ads app. While a Google account is listed, the cap check can&apos;t total the month and refuses new spend.</p>}
+      {platform === "google" && <p className="mt-1 text-[11px] text-muted">Read and changed through the official Google Ads API (login: <code>python -m viral_scout paid auth google</code>). Campaigns on a shared budget can be paused here; their budget is changed in Google Ads, since it moves every campaign on it.</p>}
       {account?.ok && (
         <>
           <p className="mt-2 text-muted">{usd(account.month_spend, 2)} this month · {camps.filter((c) => c.running).length} running of {camps.length} campaigns</p>

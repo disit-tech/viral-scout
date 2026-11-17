@@ -19,7 +19,7 @@ export default function BusinessNav({ name, counts }: { name: string; counts: Pa
     { key: "settings", label: "Settings", href: `${base}/settings`, match: (p) => p.startsWith(`${base}/settings`) },
   ];
   return (
-    <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
+    <nav className="mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
       {tabs.map((t) => {
         const on = t.match(path);
         return (

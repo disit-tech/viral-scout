@@ -1,4 +1,4 @@
-"""python -m viral_scout paid <profile> <command>
+"""python -m viral_scout paid <profile> <command>     (and: paid auth google  →  Google Ads login, refresh token in .env)
 
   pull                               read every connected ad account → data/paid/<profile>.json + the dashboard
   status                             what's running, spend this month, the cap
@@ -19,7 +19,9 @@ from .. import config
 from . import core, google, meta, tiktok
 
 MODS = {"meta": meta, "google": google, "tiktok": tiktok}
-WRITABLE = ("meta", "tiktok")
+WRITABLE = ("meta", "google", "tiktok")
+KEYS = {"meta": "META_ADS_TOKEN", "tiktok": "TIKTOK_ADS_TOKEN",
+        "google": "GOOGLE_ADS_CLIENT_ID + GOOGLE_ADS_CLIENT_SECRET + GOOGLE_ADS_REFRESH_TOKEN"}
 
 
 def pull(cfg, quiet=False):
@@ -29,10 +31,10 @@ def pull(cfg, quiet=False):
     for p in s["platforms"]:
         acc = s["accounts"].get(p)
         m = MODS[p]
-        key = "META_ADS_TOKEN" if p == "meta" else "TIKTOK_ADS_TOKEN"
+        key = KEYS[p]
         if not acc:
             snap["platforms"][p] = {"ok": False, "missing": "account", "error": f"no paid.accounts.{p} in the profile"}
-        elif p != "google" and not m.available():
+        elif not m.available():
             snap["platforms"][p] = {"ok": False, "missing": "key", "account": acc, "error": f"no {key} in .env"}
         else:
             try:
@@ -121,6 +123,9 @@ def change(cfg, cmd, platform, cid, usd=None, by="cli"):
 
 
 def main(argv):
+    if argv[:2] == ["auth", "google"]:              # OAuth consent → GOOGLE_ADS_REFRESH_TOKEN in .env
+        print(google.authorize(open_browser="--no-browser" not in argv))
+        return 0
     if len(argv) < 2:
         print(__doc__)
         return 2

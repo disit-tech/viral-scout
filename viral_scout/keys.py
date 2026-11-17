@@ -129,6 +129,30 @@ KEYS = [
      "unlocks": "Which advertiser account to read.",
      "get": "TikTok Ads Manager → account info (Advertiser ID).",
      "docs": "https://business-api.tiktok.com/portal/docs"},
+    {"name": "GOOGLE_ADS_CLIENT_ID", "group": "Google Ads API (your ads)", "cost": "free",
+     "unlocks": "Paid ads page: your Google Ads campaigns, budgets, this month's spend and conversions, and the "
+                "Pause / Resume / Budget buttons. Without it the cap check can't total a business that lists a Google account.",
+     "get": "Google Cloud console → enable the Google Ads API → Credentials → OAuth client ID → Desktop app. The same "
+            "client as YouTube Analytics works (it falls back to YT_OAUTH_CLIENT_ID).",
+     "docs": "https://developers.google.com/google-ads/api/rest/auth"},
+    {"name": "GOOGLE_ADS_CLIENT_SECRET", "group": "Google Ads API (your ads)", "cost": "",
+     "unlocks": "The secret of that OAuth client (falls back to YT_OAUTH_CLIENT_SECRET).",
+     "get": "Shown next to the client ID in Google Cloud → Credentials.",
+     "docs": "https://developers.google.com/google-ads/api/rest/auth"},
+    {"name": "GOOGLE_ADS_REFRESH_TOKEN", "group": "Google Ads API (your ads)", "cost": "",
+     "unlocks": "Lets viral-scout act as you in Google Ads (scope adwords).",
+     "get": "Run `python -m viral_scout paid auth google` and sign in with the Google account that manages the Google Ads "
+            "accounts. Publish the OAuth consent screen (In production), or the token dies after 7 days.",
+     "docs": "https://developers.google.com/google-ads/api/rest/auth"},
+    {"name": "GOOGLE_ADS_DEVELOPER_TOKEN", "group": "Google Ads API (your ads)", "cost": "free (after Google's review)",
+     "unlocks": "Sent with every Google Ads API call when set. Google's REST auth page no longer lists it; set it if calls "
+                "are refused without it.",
+     "get": "Google Ads (a manager account) → Tools → API Center → developer token; apply for Basic access.",
+     "docs": "https://developers.google.com/google-ads/api/docs/get-started/dev-token"},
+    {"name": "GOOGLE_ADS_LOGIN_CUSTOMER_ID", "group": "Google Ads API (your ads)", "cost": "", "secret": False,
+     "unlocks": "Only when you reach the businesses' Google Ads accounts through a manager (MCC) account: its id.",
+     "get": "Google Ads → the manager account's id in the top bar (with or without dashes).",
+     "docs": "https://developers.google.com/google-ads/api/rest/auth"},
     {"name": "VIRAL_SCOUT_YTDLP", "group": "Tools", "cost": "free",
      "unlocks": "Path to a yt-dlp clone with newer extractors than the pip package.",
      "get": "git clone https://github.com/yt-dlp/yt-dlp",
@@ -155,6 +179,8 @@ TIER = {
     "IG_GRAPH_TOKEN": "recommended", "IG_GRAPH_USER_ID": "recommended", "META_ADS_TOKEN": "recommended",
     "META_AD_ACCOUNT_ID": "recommended", "TELEGRAM_BOT_TOKEN": "recommended", "TELEGRAM_CHAT_ID": "recommended",
     "YT_OAUTH_CLIENT_ID": "recommended", "YT_OAUTH_CLIENT_SECRET": "recommended", "YT_OAUTH_REFRESH_TOKEN": "recommended",
+    "GOOGLE_ADS_CLIENT_ID": "optional", "GOOGLE_ADS_CLIENT_SECRET": "optional", "GOOGLE_ADS_REFRESH_TOKEN": "optional",
+    "GOOGLE_ADS_DEVELOPER_TOKEN": "optional", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "advanced",
     "GOOGLE_PLACES_API_KEY": "optional", "TIKTOK_ADS_TOKEN": "optional", "TIKTOK_ADVERTISER_ID": "optional",
     "META_AD_LIBRARY_TOKEN": "optional", "TIKTOK_RESEARCH_CLIENT_KEY": "optional",
     "TIKTOK_RESEARCH_CLIENT_SECRET": "optional", "APIFY_TRENDS_ACTOR": "optional",
@@ -171,7 +197,8 @@ PRICE = {
     "APIFY_MAX_USD_PER_RUN": "control", "VIRAL_SCOUT_MCP_PAID": "control",
 }
 # Settings that work unset (the code has a default): the Setup pages count them as done.
-HAS_DEFAULT = {"APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID"}
+HAS_DEFAULT = {"APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID",
+               "GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID"}   # optional: only some setups need them
 # What each key is for (tags and filters on the Setup pages).
 USES = {
     "YOUTUBE_API_KEY": ["videos"], "IG_GRAPH_TOKEN": ["videos", "performance"], "IG_GRAPH_USER_ID": ["videos", "performance"],
@@ -182,6 +209,8 @@ USES = {
     "VIRAL_SCOUT_MCP_PAID": ["tools"], "GOOGLE_PLACES_API_KEY": ["local"],
     "TELEGRAM_BOT_TOKEN": ["alerts"], "TELEGRAM_CHAT_ID": ["alerts"],
     "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
+    "GOOGLE_ADS_CLIENT_ID": ["paid"], "GOOGLE_ADS_CLIENT_SECRET": ["paid"], "GOOGLE_ADS_REFRESH_TOKEN": ["paid"],
+    "GOOGLE_ADS_DEVELOPER_TOKEN": ["paid"], "GOOGLE_ADS_LOGIN_CUSTOMER_ID": ["paid"],
     "META_ADS_TOKEN": ["performance", "paid"], "META_AD_ACCOUNT_ID": ["performance"],
     "TIKTOK_ADS_TOKEN": ["performance", "paid"], "TIKTOK_ADVERTISER_ID": ["performance"], "VIRAL_SCOUT_YTDLP": ["videos"],
     "OBSIDIAN_VAULT": ["tools"],
@@ -318,6 +347,19 @@ def test(name):
                                                           "access_token": os.environ.get("META_ADS_TOKEN", "")}, timeout=20)
             d = r.json()
             return r.ok, f"ok: {d.get('name')} ({d.get('currency')})" if r.ok else d.get("error", {}).get("message", "")
+        if name.startswith("GOOGLE_ADS_"):
+            from .paid import google as gads
+            if gads.missing():
+                return False, "set " + ", ".join(gads.missing()) + " (refresh token: python -m viral_scout paid auth google)"
+            try:
+                r = requests.get(f"{gads.API}/customers:listAccessibleCustomers", headers=gads._headers(), timeout=20)
+            except RuntimeError as e:
+                return False, str(e)
+            d = r.json()
+            if not r.ok:
+                return False, (d.get("error") or {}).get("message", r.text[:160])
+            n = len(d.get("resourceNames") or [])
+            return True, f"ok: {n} Google Ads account{'s' if n != 1 else ''} reachable"
         if name in ("TIKTOK_ADS_TOKEN", "TIKTOK_ADVERTISER_ID"):
             r = requests.get("https://business-api.tiktok.com/open_api/v1.3/advertiser/info/",
                              params={"advertiser_ids": json.dumps([os.environ.get("TIKTOK_ADVERTISER_ID", "")])},

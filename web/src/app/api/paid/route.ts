@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     startDetached(["paid", profile, "ask", extra, "--by", "dashboard"]);
     return NextResponse.json({ ok: true, output: "Claude is on it: follow it on the Activity page. It reads the accounts, plans, checks the cap, then builds the campaign." });
   }
-  if (!["pause", "resume", "budget"].includes(action) || !["meta", "tiktok"].includes(platform) || !/^[\w-]{1,40}$/.test(campaign)) {
+  if (!["pause", "resume", "budget"].includes(action) || !["meta", "google", "tiktok"].includes(platform) || !/^[\w-]{1,40}$/.test(campaign)) {
     return NextResponse.json({ ok: false, output: "bad request" }, { status: 400 });
   }
   const args = ["paid", profile, action, platform, campaign];

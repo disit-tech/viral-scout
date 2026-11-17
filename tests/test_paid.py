@@ -108,5 +108,28 @@ class BackstopTest(Base):
         self.assertFalse([x for x in t if x.startswith("Bash(") and "paid demo" not in x])
 
 
+
+class GoogleTest(unittest.TestCase):
+    def test_pull_counts_a_shared_budget_once_and_reads_micros(self):
+        from viral_scout.paid import google
+        cust = [{"customer": {"descriptiveName": "Demo", "currencyCode": "USD"}}]
+        camps = [
+            {"campaign": {"id": "1", "name": "a", "status": "ENABLED"}, "campaignBudget": {"id": "9", "amountMicros": "20000000", "explicitlyShared": True}},
+            {"campaign": {"id": "2", "name": "b", "status": "ENABLED"}, "campaignBudget": {"id": "9", "amountMicros": "20000000", "explicitlyShared": True}},
+            {"campaign": {"id": "3", "name": "c", "status": "PAUSED"}, "campaignBudget": {"id": "8", "amountMicros": "5000000"}},
+        ]
+        mets = [{"campaign": {"id": "1"}, "metrics": {"costMicros": "12500000", "clicks": "10", "conversions": 2.0}},
+                {"campaign": {"id": "1"}, "metrics": {"costMicros": "2500000", "clicks": "5"}}]
+        with mock.patch.object(google, "_headers", return_value={}),                 mock.patch.object(google, "_search", side_effect=[cust, camps, mets]):
+            a = google.pull("123-456-7890")
+        by = {c["id"]: c for c in a["campaigns"]}
+        self.assertEqual(a["account"], "1234567890")
+        self.assertEqual((by["1"]["daily_budget"], by["2"]["daily_budget"]), (20.0, None))   # shared: once
+        self.assertEqual(by["3"]["daily_budget"], 5.0)
+        self.assertEqual((by["1"]["month_spend"], by["1"]["clicks"], by["1"]["cost_per_result"]), (15.0, 15, 7.5))
+        self.assertEqual(a["month_spend"], 15.0)
+        self.assertEqual(by["1"]["budget_level"], "shared budget")                      # no Budget button
+        self.assertEqual(core.committed({"platforms": {"google": a}}, TODAY)[1], 200.0)  # 20/day × 10 days, once
+
 if __name__ == "__main__":
     unittest.main()

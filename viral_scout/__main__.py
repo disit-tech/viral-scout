@@ -84,7 +84,7 @@ def main(argv=None):
     if argv and argv[0] == "paid":                 # own ad accounts: pull, cap check, pause/resume/budget, log
         from . import activity
         from .paid.cli import main as paid_main
-        if len(argv) > 2 and argv[2] in ("pause", "resume", "budget", "ask", "enforce"):
+        if len(argv) > 2 and argv[1] != "auth" and argv[2] in ("pause", "resume", "budget", "ask", "enforce"):
             with activity.track(argv[1], f"paid {argv[2]}", argv):
                 return paid_main(argv[1:])
         return paid_main(argv[1:])
