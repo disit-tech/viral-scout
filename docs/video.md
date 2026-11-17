@@ -96,6 +96,7 @@ Two blocks in `profiles/<name>.yaml`. `${ENV}` is expanded everywhere, so `${OBS
 | `stat_units` | none | extra units that make a number a stat card (`kwh`, `homes?`) |
 | `cta_card` | `{big: studio.cta.text, pill: "Link in bio", triggers: [link, comment, dm, check]}` | the auto-drafted CTA card; a CTA line with a trigger word gets it |
 | `ai_label` | `AI voice of me, script written by me. -{owner}` | first caption line when the voice or a realistic visual is AI |
+| `formats` | none | formats the owner marked as good references: `[{name, mode, tool, guide, references: [swipe notes], structure, topics, length}]`. `/studio-video` reads them (and their swipe notes) before `script` and `film`. See [3D cutaway films](#3d-cutaway-films) |
 
 Example (solar):
 
@@ -186,6 +187,21 @@ A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REV
 - `film words` transcribes the voice, aligns it to the script, writes `work-words.json` (`[{w, s, e, i}]`, `i` = script sentence, `w` exactly as in the script) and `voice-check.md`: missing sentences, extra speech (repeats like "two two"), and words longer than 0.8 s, which can hide a repeat the aligner merged. Exit code 1 when it finds any. A first or last word of a sentence that Whisper heard as another word ("Do" as "so", "Save" as "Tape") is kept with the script's text and listed as `heard differently: so → Do`, not as extra speech; listen to those spots. Spelled numbers keep the script's words ("one eight hundred", not "1-800") with the heard word's time shared among them.
 - `film check` runs `hyperframes check` (lint, runtime, layout, contrast).
 - `film render` renders to `<film>/out/<name>-film.mp4` and reports loudness against about -14 LUFS and -1 dBTP. It changes nothing. A ⚠ line → change the voice and sound effect levels in the composition and render again; as a last resort normalize the audio only (`ffmpeg -i in.mp4 -c:v copy -af loudnorm=I=-14:TP=-1:LRA=11 out.mp4`) and run `check` again.
+
+### 3D cutaway films
+
+An animated 3D explainer of one job: the camera goes where a phone can't (inside the wall, behind the siding). One part lights up at a time, force arrows show where the weight or water goes, pointer labels name the parts, red is wrong and green is right, and 2-3 caption words at a time sit on dark plates. Proven on TikTok by home-improvement and "how to operate X" channels. It suits home services: a danger hook, then the job done right, then a check the homeowner can do from outside, then "get it checked" as the CTA.
+
+**Save a reference.** `python -m viral_scout save <profile> <url> --note "GOOD REFERENCE (format): …"` stores the post in the database, tracks it and writes a swipe note. Set `format: "3D cutaway explainer"` in the note and add the tags `reference` and `format/3d-cutaway`. Then list the note under the profile's `video.formats[].references`. To study it frame by frame: `python -m yt_dlp <url>` from `$VIRAL_SCOUT_YTDLP`, `video <profile> transcribe <mp4>`, and a contact sheet (`ffmpeg -i in.mp4 -vf "fps=1/4,scale=360:-1,tile=4x2" sheet%02d.png`).
+
+**Build it** as a normal film (`/studio-video <profile> film`), with the 3D scenes in Three.js inside the HyperFrames composition:
+
+- The method: the hyperframes skill's `references/types/3d.md` (deterministic frames, one hero object, cutaways and exploded views, light and materials) and `references/runtimes.md` (render from `e.detail.time` in an `hf-seek` listener; heavy setup registers `window.__hf.buildReady`).
+- Models: build them from primitives (boards, joists, screws, anchors, gutters are boxes and cylinders). Textures and HDRIs: CC0 only (ambientCG, Poly Haven), credited in `assets/CREDITS.md` like the sound effects. Never the reference's models, voice, music or words: only the format.
+- Shots: SHOTS in `SPEC.md` keyed to the voice's words. One step = one visible action. Labels carry real numbers only with a source tag (code section, manufacturer's table).
+- Length: 45-75 s. The references run 2-3 min, but a first film is easier to review short.
+- The first one is built live with the owner and becomes the quality bar; later films start with `film new <name> --from <that film>`.
+- Check like any film: `film check`, snapshots of the dive and the payoff, `film render`. A heavy frame slows every render, so profile the heaviest moment once.
 
 ## Triggering it from another repo
 

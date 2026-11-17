@@ -28,6 +28,7 @@ No profile → `python -m viral_scout profiles` and pick the one matching `$OBSI
 5. The video folder: `<studio.vault_dir>/05 Marketing/Video Studio/` (or the parent of `video.script_dir`): `video-tracker.md`, `hook-bank.md`, `scripts/`. Missing files are created from the formats below only when the mode writes to them.
 
 6. The shared method notes for your mode (table below).
+7. `video.formats` (in the `info` output): formats the owner marked as good references. For `script`, `film` and `week`, read each format's `references` swipe notes ("Why it works") and its `guide` section in docs/video.md, and follow its `structure`, `length` and `topics` when the topic fits.
 
 ## Shared method notes (read the ones your mode needs)
 
