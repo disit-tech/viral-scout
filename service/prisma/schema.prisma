@@ -50,6 +50,11 @@ model VideoIdea {
   script          String?
   scriptMessageId Int?
   draftPath       String?
+  /// idea | film (a finished daily film, copied in by the solar repo's site/scripts/films-sync.mjs). A waiting film is
+  /// "review", never "sent": "sent" rows without a Telegram message get auto-posted as new ideas.
+  kind            String   @default("idea")
+  /// Films: the planned post day (YYYY-MM-DD)
+  postDate        String?
   feedback        IdeaFeedback[]
 
   @@index([status])

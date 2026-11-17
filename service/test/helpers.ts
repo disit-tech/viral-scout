@@ -35,6 +35,8 @@ export function idea(over: Partial<VideoIdea> = {}): VideoIdea {
     script: null,
     scriptMessageId: null,
     draftPath: null,
+    kind: "idea",
+    postDate: null,
     ...over,
   };
 }
