@@ -139,6 +139,13 @@ export type IndexEntry = {
   ads?: number | null;
   perf?: boolean;
   top: { title: string; thumbnail?: string; outlier: number | null; channel: string; url: string }[];
+  /** One line per feature for the business card (viral_scout/export.py _features). Missing = not set up / not run. */
+  features?: {
+    ads?: { ads: number; running: number; long: number; advertisers: number; date?: string | null };
+    demand?: { in_season: string[]; terms: number; next: { term: string; start_by: string } | null; date?: string | null };
+    perf?: { records: number; date?: string | null };
+    paid?: { cap: number; spent: number; projected: number; running: number };
+  };
 };
 
 /** One ad from the ads scout (web/data/ads/<profile>.json). Scores are proxies, not spend or ROAS. */

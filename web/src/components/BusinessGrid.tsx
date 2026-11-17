@@ -68,8 +68,8 @@ export default function BusinessGrid({ profiles }: { profiles: IndexEntry[] }) {
           {list.map((p) => (
             <div key={p.name}
               className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-panel transition hover:-translate-y-0.5 hover:border-accent/60">
-              <Link href={`/p/${p.name}`} className="flex flex-1 flex-col">
-                <div className="grid h-32 grid-cols-4 gap-px bg-line">
+              <Link href={`/p/${p.name}`} className="flex flex-col">
+                <div className="grid h-28 grid-cols-4 gap-px bg-line">
                   {[0, 1, 2, 3].map((i) => {
                     const t = p.top[i];
                     return t?.thumbnail ? (
@@ -80,30 +80,15 @@ export default function BusinessGrid({ profiles }: { profiles: IndexEntry[] }) {
                     );
                   })}
                 </div>
-                <div className="flex flex-1 flex-col gap-3 p-4">
+                <div className="flex flex-col gap-2 px-4 pt-4">
                   <div className="flex items-baseline justify-between gap-2">
                     <h2 className="text-lg font-semibold">{p.display_name || p.name}</h2>
-                    <span suppressHydrationWarning className="text-xs text-muted">{when(p.date)}</span>
+                    <span suppressHydrationWarning className="text-xs text-muted" title="last videos run">{p.date ? when(p.date) : "not run yet"}</span>
                   </div>
                   <p className="line-clamp-2 text-sm text-muted">{p.business || "No business description in the profile."}</p>
-                  <div className="mt-auto grid grid-cols-4 gap-2 text-center">
-                    <Stat label="posts" value={num(p.posts)} />
-                    <Stat label="outliers" value={num(p.outliers)} tone="text-viral" />
-                    <Stat label="🔥 mega" value={num(p.mega)} tone="text-mega" />
-                    <Stat label="saved" value={num(p.saved)} />
-                  </div>
-                  {p.top[0] && (
-                    <p className="truncate text-xs text-muted">
-                      Top: <span className="text-text">{p.top[0].title}</span> · {times(p.top[0].outlier)} usual
-                    </p>
-                  )}
                 </div>
               </Link>
-              <Link href={`/p/${p.name}/ads`}
-                className="flex items-center justify-between border-t border-line px-4 py-2 text-sm text-muted hover:bg-panel-2 hover:text-text">
-                <span>{p.ads ? <>Ads · <span className="text-text">{num(p.ads)}</span> running in the niche</> : "Ads · no ads run yet"}</span>
-                <span>→</span>
-              </Link>
+              <FeatureRows p={p} />
             </div>
           ))}
         </div>
@@ -112,11 +97,46 @@ export default function BusinessGrid({ profiles }: { profiles: IndexEntry[] }) {
   );
 }
 
-function Stat({ label, value, tone = "text-text" }: { label: string; value: string; tone?: string }) {
+const usd = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
+const short = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/** The business at a glance: one row per feature it uses, each linking to its page. Features not set up stay off. */
+function FeatureRows({ p }: { p: IndexEntry }) {
+  const f = p.features ?? {};
+  const base = `/p/${encodeURIComponent(p.name)}`;
+  const rows: { href: string; icon: string; label: string; body: React.ReactNode }[] = [
+    {
+      href: `${base}/videos`, icon: "🎬", label: "Videos",
+      body: p.posts ? <><b>{num(p.posts)}</b> posts · <b className="text-viral">{num(p.outliers)}</b> outliers · <b className="text-mega">{num(p.mega)}</b> 🔥</> : <span className="text-muted">not run yet</span>,
+    },
+  ];
+  if (f.ads) rows.push({ href: `${base}/ads`, icon: "📢", label: "Competitor ads",
+    body: <><b>{num(f.ads.ads)}</b> ads · <b>{num(f.ads.long)}</b> running 30d+ · {num(f.ads.advertisers)} advertisers</> });
+  if (f.demand) rows.push({ href: `${base}/demand`, icon: "🔎", label: "Search demand",
+    body: f.demand.in_season.length ? <>in season: <b>{f.demand.in_season.join(", ")}</b></>
+      : f.demand.next ? <>next: <b>{f.demand.next.term}</b>, start by {short(f.demand.next.start_by)}</> : <>{f.demand.terms} terms, nothing in season</> });
+  if (f.paid) rows.push({ href: `${base}/paid`, icon: "💳", label: "Paid ads",
+    body: f.paid.cap > 0 ? <><b>{usd(f.paid.spent)}</b> of {usd(f.paid.cap)} this month · {f.paid.running} running</> : <span className="text-viral">no monthly cap yet</span> });
+  if (f.perf) rows.push({ href: `${base}/performance`, icon: "📊", label: "Your performance", body: <><b>{num(f.perf.records)}</b> of your posts and ads measured</> });
+  if (p.saved || p.ideas) rows.push({ href: `${base}/swipe`, icon: "💡", label: "Ideas & swipe file", body: <><b>{num(p.saved)}</b> saved · {num(p.ideas)} idea notes</> });
   return (
-    <div className="rounded-lg bg-panel-2 px-2 py-1.5">
-      <div className={`text-base font-semibold ${tone}`}>{value}</div>
-      <div className="text-[11px] uppercase tracking-wide text-muted">{label}</div>
-    </div>
+    <ul className="mt-3 flex-1 divide-y divide-line border-t border-line text-sm">
+      {rows.map((r) => (
+        <li key={r.label}>
+          <Link href={r.href} className="flex items-center gap-2 px-4 py-1.5 hover:bg-panel-2">
+            <span aria-hidden>{r.icon}</span>
+            <span className="w-32 shrink-0 text-xs text-muted">{r.label}</span>
+            <span className="min-w-0 truncate text-xs">{r.body}</span>
+            <span className="ml-auto text-muted">→</span>
+          </Link>
+        </li>
+      ))}
+      {p.top[0] && (
+        <li className="truncate px-4 py-1.5 text-[11px] text-muted">
+          Top video: <span className="text-text">{p.top[0].title}</span> · {times(p.top[0].outlier)} usual
+        </li>
+      )}
+    </ul>
   );
 }
+

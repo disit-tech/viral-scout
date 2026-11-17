@@ -155,6 +155,45 @@ def profile(cfg):
     }
 
 
+def _features(cfg):
+    """One line per feature for the business card on the Businesses page (numbers only, from files on disk)."""
+    base, n = Path(cfg["db"]).parent, cfg["name"]
+
+    def read(f):
+        try:
+            return json.loads((base / f).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    out = {}
+    a = read(f"{n}-ads-latest.json")
+    if a:
+        ads = a.get("ads") or []
+        out["ads"] = {"ads": len(ads), "running": sum(1 for x in ads if x.get("active")),
+                      "long": sum(1 for x in ads if x.get("active") and (x.get("days_running") or 0) >= 30),
+                      "advertisers": len(a.get("advertisers") or []), "date": a.get("date")}
+    d = read(f"{n}-demand.json")
+    if d:
+        cal = d.get("calendar") or []
+        today = datetime.now().date().isoformat()
+        nxt = sorted((c for c in cal if not c.get("in_season") and (c.get("start_by") or "") >= today),
+                     key=lambda c: c.get("start_by") or "")
+        out["demand"] = {"in_season": [c["term"] for c in cal if c.get("in_season")][:3], "terms": len(d.get("terms") or []),
+                         "next": {"term": nxt[0]["term"], "start_by": nxt[0]["start_by"]} if nxt else None,
+                         "date": d.get("fetched") or d.get("date")}
+    pf = read(f"{n}-perf-latest.json")
+    if pf and pf.get("records"):
+        out["perf"] = {"records": len(pf.get("records") or []), "date": pf.get("date")}
+    from .paid import core as paid
+    ps = paid.settings(cfg)
+    if ps["cap"] > 0 or ps["accounts"]:
+        snap = paid.load(cfg)
+        spent, future, _ = paid.committed(snap)
+        running = sum(1 for acc in ((snap or {}).get("platforms") or {}).values() for c in (acc.get("campaigns") or []) if c.get("running"))
+        out["paid"] = {"cap": ps["cap"], "spent": spent, "projected": round(spent + future, 2), "running": running}
+    return out
+
+
 def _setup(cfg):
     """What each section is configured with (counts only), for the business overview."""
     ads, dem, loc = cfg.get("ads") or {}, cfg.get("demand") or {}, cfg.get("local") or {}
@@ -225,13 +264,15 @@ def export_demand(cfg, out=WEB_DATA):
 
 def export_all(names=None, out=WEB_DATA):
     out.mkdir(parents=True, exist_ok=True)
-    if not names:
+    every = not names
+    if every:
         names = [p.stem for p in config.PROFILES.glob("*.yaml") if not p.stem.startswith("_")]
     index = []
     old = out / "index.json"
-    if old.exists() and names:
+    if old.exists() and not every:                 # a partial export keeps the others' entries, if they still exist
         try:
-            index = [p for p in json.loads(old.read_text(encoding="utf-8"))["profiles"] if p["name"] not in names]
+            index = [p for p in json.loads(old.read_text(encoding="utf-8"))["profiles"]
+                     if p["name"] not in names and (config.PROFILES / f"{p['name']}.yaml").exists()]
         except (ValueError, KeyError):
             index = []
     done = []
@@ -241,6 +282,8 @@ def export_all(names=None, out=WEB_DATA):
         has_demand = bool(export_demand(cfg, out))
         data = profile(cfg)
         if not data:
+            continue
+        if name.startswith("example-") and not data["items"]:   # the repo's sample profiles show only once they've run
             continue
         done.append(name)
         (out / f"{name}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
@@ -252,6 +295,7 @@ def export_all(names=None, out=WEB_DATA):
             "mega": sum(1 for i in live if (i.get("outlier") or 0) >= 10),
             "new": sum(1 for i in live if i.get("new")), "saved": len(data["swipe"]), "ideas": len(data["ideas"]),
             "ads": (data.get("ads_summary") or {}).get("ads"), "demand": has_demand,
+            "features": _features(cfg),
             "top": [{"title": i["title"], "thumbnail": i.get("thumbnail"), "outlier": i.get("outlier"),
                      "channel": i["channel"], "url": i["url"]} for i in top],
         })
