@@ -4,8 +4,8 @@ comment, remove, reason tags, notes for Claude and "posted" for films.
   python -m viral_scout ideas board get          JSON for the dashboard (every profile with an ideas: block)
   python -m viral_scout ideas board set          JSON on stdin {ids, op, value?, project?} → the change
 
-Reads and writes go to the bot service's /api/board (GET / PATCH {ids, op, value}), the same API as the disit.tech
-board, so there is one set of rules. Until /api/board is deployed (404), it falls back to the per-project
+Reads and writes go to the bot service's /api/board (GET / PATCH {ids, op, value}), so the board and the Telegram
+buttons follow one set of rules. Until /api/board is deployed (404), it falls back to the per-project
 /api/ideas: reading every project, and rate (sent, good, bad, redo, approved), comment and remove. Tags, notes and
 "posted" need /api/board; the answer says which mode is on ("source": "board" | "ideas").
 The secret stays in this process: the dashboard only ever sees the JSON.
