@@ -3,6 +3,7 @@
   python -m viral_scout keys                 # status (values masked)
   python -m viral_scout keys test [NAME]     # live test
   python -m viral_scout keys set NAME VALUE  # write to .env
+  python -m viral_scout keys connect meta    # Facebook sign-in fills every Meta key (connect_meta.py)
 Values are never printed in full.
 """
 import json
@@ -18,6 +19,27 @@ KEYS = [
      "unlocks": "Keyword search for Shorts (per language), age-matched baselines.",
      "get": "Google Cloud console → APIs & Services → enable YouTube Data API v3 → Credentials → API key.",
      "docs": "https://developers.google.com/youtube/v3/getting-started"},
+    {"name": "META_APP_ID", "group": "Connect Meta (Facebook sign-in)", "cost": "free", "secret": False,
+     "unlocks": "Sign in with Facebook once and the Meta keys are filled for you: Instagram token and account id "
+                "(a Page token that doesn't expire), ad account, ads token, Ad Library token.",
+     "get": "Once: Meta for Developers → Create app (Business) → add Facebook Login for Business → Valid OAuth "
+            "Redirect URIs: http://localhost:8765/ → App settings → Basic → App ID. Then press Sign in with Facebook "
+            "at the top of this page, or run: python -m viral_scout keys connect meta",
+     "docs": "https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow"},
+    {"name": "META_APP_SECRET", "group": "Connect Meta (Facebook sign-in)", "cost": "",
+     "unlocks": "The app's secret: swaps the sign-in code for tokens and checks when tokens expire.",
+     "get": "Same app → App settings → Basic → App secret (Show).",
+     "docs": "https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived"},
+    {"name": "META_LOGIN_CONFIG_ID", "group": "Connect Meta (Facebook sign-in)", "cost": "", "secret": False,
+     "unlocks": "Only if your app's Facebook Login for Business uses a configuration: its id (the configuration holds "
+                "the permissions). Empty: the sign-in asks for the permissions itself.",
+     "get": "App → Facebook Login for Business → Configurations → the configuration's id.",
+     "docs": "https://developers.facebook.com/docs/facebook-login/facebook-login-for-business"},
+    {"name": "META_USER_TOKEN", "group": "Connect Meta (Facebook sign-in)", "cost": "",
+     "unlocks": "The long-lived token from the Facebook sign-in (about 60 days). The other Meta keys are made from it; "
+                "sign in again before it expires (Test shows the date).",
+     "get": "Written by Sign in with Facebook (python -m viral_scout keys connect meta), not pasted by hand.",
+     "docs": "https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived"},
     {"name": "IG_GRAPH_TOKEN", "group": "Instagram Graph API", "cost": "free (needs a business account)",
      "unlocks": "Instagram watch list (Business Discovery), hashtag top posts (30 hashtags / 7 days), and your own "
                 "reels' insights for Your performance (needs instagram_manage_insights).",
@@ -185,6 +207,8 @@ TIER = {
     "YOUTUBE_API_KEY": "essential", "APIFY_TOKEN": "essential", "APIFY_ADS_ACTOR": "essential",
     "APIFY_GOOGLE_ADS_ACTOR": "essential", "APIFY_TIKTOK_ADS_ACTOR": "essential",
     "APIFY_GOOGLE_TRENDS_ACTOR": "essential", "APIFY_MAX_USD_PER_RUN": "essential",
+    "META_APP_ID": "recommended", "META_APP_SECRET": "recommended", "META_USER_TOKEN": "recommended",
+    "META_LOGIN_CONFIG_ID": "advanced",
     "IG_GRAPH_TOKEN": "recommended", "IG_GRAPH_USER_ID": "recommended", "META_ADS_TOKEN": "recommended",
     "META_AD_ACCOUNT_ID": "recommended", "TELEGRAM_BOT_TOKEN": "recommended", "TELEGRAM_CHAT_ID": "recommended",
     "YT_OAUTH_CLIENT_ID": "recommended", "YT_OAUTH_CLIENT_SECRET": "recommended", "YT_OAUTH_REFRESH_TOKEN": "recommended",
@@ -207,10 +231,12 @@ PRICE = {
     "APIFY_MAX_USD_PER_RUN": "control", "VIRAL_SCOUT_MCP_PAID": "control",
 }
 # Settings that work unset (the code has a default): the Setup pages count them as done.
-HAS_DEFAULT = {"APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID",
+HAS_DEFAULT = {"META_LOGIN_CONFIG_ID", "APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID",
                "GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID"}   # optional: only some setups need them
 # What each key is for (tags and filters on the Setup pages).
 USES = {
+    "META_APP_ID": ["videos", "performance", "paid", "ads"], "META_APP_SECRET": ["videos", "performance", "paid", "ads"],
+    "META_USER_TOKEN": ["videos", "performance", "paid", "ads"], "META_LOGIN_CONFIG_ID": ["videos", "performance", "paid"],
     "YOUTUBE_API_KEY": ["videos"], "IG_GRAPH_TOKEN": ["videos", "performance"], "IG_GRAPH_USER_ID": ["videos", "performance"],
     "APIFY_TOKEN": ["videos", "ads", "demand"], "APIFY_TRENDS_ACTOR": ["videos"],
     "META_AD_LIBRARY_TOKEN": ["ads"], "TIKTOK_RESEARCH_CLIENT_KEY": ["ads"], "TIKTOK_RESEARCH_CLIENT_SECRET": ["ads"],
@@ -286,7 +312,21 @@ def test(name):
                              params={"fields": "id,username" if uid else "id,name",
                                      "access_token": os.environ.get("IG_GRAPH_TOKEN", "")}, timeout=20)
             d = r.json()
-            return r.ok, f"ok: {d.get('username') or d.get('name')}" if r.ok else d.get("error", {}).get("message", "")
+            return r.ok, f"ok: {d.get('username') or d.get('name')}{_meta_expiry(os.environ.get('IG_GRAPH_TOKEN', ''))}" \
+                if r.ok else d.get("error", {}).get("message", "")
+        if name in ("META_APP_ID", "META_APP_SECRET", "META_USER_TOKEN"):
+            from . import connect_meta as cm
+            aid, sec = os.environ.get("META_APP_ID", ""), os.environ.get("META_APP_SECRET", "")
+            if not aid or not sec:
+                return False, "set both META_APP_ID and META_APP_SECRET"
+            if name != "META_USER_TOKEN":
+                r = requests.get(f"{cm.GRAPH}/{aid}", params={"fields": "name", "access_token": f"{aid}|{sec}"}, timeout=20)
+                d = r.json()
+                return r.ok, f"ok: app {d.get('name')}" if r.ok else d.get("error", {}).get("message", r.text[:160])
+            info = cm.describe(v)
+            if not info.get("valid"):
+                return False, f"{info.get('error')} (sign in again: python -m viral_scout keys connect meta)"
+            return True, f"ok: expires {info['expires']}, data access until {info['data_access_expires']}"
         if name == "APIFY_TOKEN":
             r = requests.get("https://api.apify.com/v2/users/me", params={"token": v}, timeout=20)
             if not r.ok:
@@ -357,7 +397,8 @@ def test(name):
             r = requests.get(f"{API}/{account()}", params={"fields": "name,currency",
                                                           "access_token": os.environ.get("META_ADS_TOKEN", "")}, timeout=20)
             d = r.json()
-            return r.ok, f"ok: {d.get('name')} ({d.get('currency')})" if r.ok else d.get("error", {}).get("message", "")
+            return r.ok, f"ok: {d.get('name')} ({d.get('currency')}){_meta_expiry(os.environ.get('META_ADS_TOKEN', ''))}" \
+                if r.ok else d.get("error", {}).get("message", "")
         if name in ("STUDIO_SERVICE_URL", "IDEAS_API_SECRET"):
             base = (os.environ.get("STUDIO_SERVICE_URL") or "").rstrip("/")
             if not base or not os.environ.get("IDEAS_API_SECRET"):
@@ -412,7 +453,56 @@ def test(name):
         return False, str(err)[:160]
 
 
+def _meta_expiry(token):
+    """', expires 2027-01-13' from debug_token when the app keys are set; '' otherwise (never fails a test)."""
+    if not (token and os.environ.get("META_APP_ID") and os.environ.get("META_APP_SECRET")):
+        return ""
+    try:
+        from . import connect_meta as cm
+        exp = cm.describe(token).get("expires")
+        return f", expires {exp}" if exp else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _meta_cli(args):
+    import argparse
+    from . import connect_meta as cm
+    try:
+        if args[0] == "connect":
+            a = argparse.ArgumentParser(prog="viral_scout keys connect meta")
+            a.add_argument("--no-browser", action="store_true")
+            a.add_argument("--port", type=int, default=cm.PORT)
+            a.add_argument("--timeout", type=int, default=300)
+            a.add_argument("--status-file")
+            o = a.parse_args(args[2:])
+            print("\n".join(cm.connect(not o.no_browser, o.port, o.timeout, o.status_file)))
+            return 0
+        sub = args[1] if len(args) > 1 else "status"
+        if sub == "accounts":
+            print(json.dumps(cm.accounts(), indent=1, ensure_ascii=False))
+            return 0
+        if sub == "status":
+            print(json.dumps(cm.status(), indent=1))
+            return 0
+        if sub == "use":
+            a = argparse.ArgumentParser(prog="viral_scout keys meta use")
+            a.add_argument("--ig")
+            a.add_argument("--ad-account")
+            a.add_argument("--replace-ads-token", action="store_true")
+            o = a.parse_args(args[2:])
+            print("\n".join(cm.use(o.ig, o.ad_account, o.replace_ads_token, auto=not (o.ig or o.ad_account))))
+            return 0
+    except cm.MetaError as e:
+        print(f"error: {e}")
+        return 1
+    print(cm.__doc__)
+    return 2
+
+
 def cli(args):
+    if args[:2] == ["connect", "meta"] or args[:1] == ["meta"]:
+        return _meta_cli(args)
     if not args or args[0] == "status":
         print(json.dumps(status(), indent=1))
         return 0
@@ -425,5 +515,6 @@ def cli(args):
         set_key(args[1], args[2] if len(args) == 3 else "")
         print(f"{args[1]} {'saved' if len(args) == 3 and args[2] else 'cleared'} ({mask(args[2] if len(args) == 3 else '')})")
         return 0
-    print("usage: keys [status] | keys test [NAME...] | keys set NAME [VALUE]")
+    print("usage: keys [status] | keys test [NAME...] | keys set NAME [VALUE] | keys connect meta | "
+          "keys meta [accounts | use | status]")
     return 2

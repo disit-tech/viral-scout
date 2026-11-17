@@ -62,7 +62,29 @@ What you need:
 - a Meta app with `instagram_basic` and `pages_read_engagement`,
 - a long-lived access token.
 
-Add `IG_GRAPH_TOKEN=...` and `IG_GRAPH_USER_ID=...` (your Instagram business account id) to `.env`.
+The easy way is [Connect Meta](#connect-meta) below: one Facebook sign-in fills `IG_GRAPH_TOKEN` and `IG_GRAPH_USER_ID`. By hand: add `IG_GRAPH_TOKEN=...` and `IG_GRAPH_USER_ID=...` (your Instagram business account id) to `.env`.
+
+### Connect Meta
+One Facebook sign-in fills every Meta key: `IG_GRAPH_TOKEN` (a Page token, which doesn't expire), `IG_GRAPH_USER_ID`, `META_AD_ACCOUNT_ID`, `META_ADS_TOKEN`, and `META_AD_LIBRARY_TOKEN` when your account has confirmed its identity. It uses the official Facebook Login with a callback on this PC.
+
+Once, by hand (Meta has no API for creating apps):
+1. [Meta for Developers](https://developers.facebook.com/apps) → **Create app** → type **Business**. An existing app works too.
+2. Add the product **Facebook Login for Business** (or **Facebook Login**). Under its settings → **Valid OAuth Redirect URIs** add `http://localhost:8765/`.
+3. **App settings → Basic**: save the App ID as `META_APP_ID` and the App secret as `META_APP_SECRET` (Setup page, or `keys set`).
+4. Leave the app in **Development** mode. People with a role on the app (you) get every permission without App Review. If the login product makes you create a configuration, put its id in `META_LOGIN_CONFIG_ID`.
+
+Then press **Sign in with Facebook** at the top of the dashboard's Setup page, or run:
+
+```
+python -m viral_scout keys connect meta          # opens the sign-in, saves the keys
+python -m viral_scout keys meta accounts         # with several Instagram or ad accounts: list them
+python -m viral_scout keys meta use --ig @brand --ad-account 1234567890
+python -m viral_scout keys meta status           # each Meta token's type and expiry date
+```
+
+Sign in with the Facebook account that manages the Pages and ad accounts, and allow every permission it asks for. With one Instagram account and one ad account, both are picked on their own.
+
+What expires: the sign-in token (`META_USER_TOKEN`, and `META_ADS_TOKEN` when it's made from it) lasts about 60 days. Sign in again before then; **Test** on the Setup page shows the date. The Instagram Page token doesn't expire. `META_ADS_TOKEN` that already holds a system-user token (which never expires) is kept, unless you pass `--replace-ads-token`.
 
 Limits: it only reads **professional** accounts, and it returns likes, not views.
 
@@ -96,7 +118,7 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
 Reads **your own** accounts' private metrics for the [Your performance](performance.md) report. Each pair is optional:
 - **Instagram insights:** the `IG_GRAPH_TOKEN` above, with `instagram_manage_insights` (and `instagram_manage_comments` for comment sentiment) added.
 - **YouTube Analytics:** a Desktop OAuth client (`YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`), then `python -m viral_scout perf auth youtube` once; it saves `YT_OAUTH_REFRESH_TOKEN`. Step by step in [performance.md](performance.md#youtube-oauth-setup-once).
-- **Meta ads:** `META_ADS_TOKEN` (system-user token with `ads_read`) and `META_AD_ACCOUNT_ID`.
+- **Meta ads:** `META_ADS_TOKEN` (system-user token with `ads_read`, or the [Connect Meta](#connect-meta) sign-in) and `META_AD_ACCOUNT_ID`.
 - **TikTok ads:** `TIKTOK_ADS_TOKEN` (TikTok for Business developer app with Reporting) and `TIKTOK_ADVERTISER_ID`.
 - **No keys at all:** `python -m viral_scout perf import <profile> export.csv --source meta|tiktok|youtube|generic`.
 
