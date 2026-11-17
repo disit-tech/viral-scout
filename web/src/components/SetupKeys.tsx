@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PRICE, USES, byTier, costDetail, priceOf, useLabel } from "@/lib/keys-ui";
 import Connections from "./Connections";
 
@@ -8,6 +8,9 @@ type Key = {
   name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string;
   secret?: boolean; tier?: string; price?: string; has_default?: boolean; uses?: string[];
 };
+
+// The highlight a key row gets when a link jumps to it.
+const FLASH = ["ring-2", "ring-accent", "ring-offset-4", "ring-offset-panel", "bg-accent/10"];
 
 export default function SetupKeys() {
   const [keys, setKeys] = useState<Key[] | null>(null);
@@ -30,16 +33,45 @@ export default function SetupKeys() {
     if (st === "set" || st === "unset") setState(st);   // /setup?state=unset: only what's still missing
     load();
   }, []);
+
+  // Jump to a key and flash it: on load (#key-X in the URL), on any #key-X link click on this page (the cards'
+  // "First save X" links, docs), and on back/forward. A click on the same link again flashes again (nonce).
+  const [target, setTarget] = useState<{ id: string; n: number } | null>(null);
   useEffect(() => {
-    const id = window.location.hash.slice(1);
-    if (!keys || !id.startsWith("key-")) return;
-    const el = document.getElementById(id);
-    if (!el) return;
+    const fromHash = () => {
+      const id = window.location.hash.slice(1);
+      if (id.startsWith("key-")) setTarget({ id, n: Date.now() });
+    };
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#key-"]');
+      if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      const id = a.getAttribute("href")!.slice(1);
+      history.replaceState(null, "", `#${id}`);
+      setTarget({ id, n: Date.now() });
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    document.addEventListener("click", onClick);
+    return () => { window.removeEventListener("hashchange", fromHash); document.removeEventListener("click", onClick); };
+  }, []);
+  const flash = useRef<{ el: HTMLElement; t: ReturnType<typeof setTimeout> } | null>(null);
+  useEffect(() => {
+    if (!keys || !target) return;
+    const el = document.getElementById(target.id);
+    if (!el) {
+      // Hidden by a filter: clear the filters, and this runs again once the row is rendered.
+      if (keys.some((k) => `key-${k.name}` === target.id) && (use !== "all" || price || state)) {
+        setUse("all"); setPrice(""); setState("");
+      }
+      return;
+    }
+    if (flash.current) { clearTimeout(flash.current.t); flash.current.el.classList.remove(...FLASH); }
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("ring-2", "ring-accent");
+    el.classList.add(...FLASH);
     el.querySelector<HTMLElement>("input, textarea")?.focus({ preventScroll: true });
-    setTimeout(() => el.classList.remove("ring-2", "ring-accent"), 2000);
-  }, [keys]);
+    flash.current = { el, t: setTimeout(() => el.classList.remove(...FLASH), 2500) };
+  }, [keys, target, use, price, state]);
 
   if (error) return <p className="mt-6 text-mega">{error}</p>;
   if (!keys) return <p className="mt-6 text-muted">Loading…</p>;
@@ -142,7 +174,7 @@ function KeyRow({ k, onSaved }: { k: Key; onSaved: () => void }) {
   }
 
   return (
-    <div id={`key-${k.name}`} className="grid scroll-mt-24 gap-2 rounded-lg md:grid-cols-[1fr_1.2fr]">
+    <div id={`key-${k.name}`} className="grid scroll-mt-24 gap-2 rounded-lg transition-colors duration-500 md:grid-cols-[1fr_1.2fr]">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <code className="text-sm text-text">{k.name}</code>
