@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 const jobFile = (name: string) => path.join(REPO, "data", "jobs", `${name}.json`);
 
-/** Local only. GET ?name= → job status; GET (no name) → vault project folders. POST → create profile + start run. */
+/** Local only. GET ?name= → job status; GET (no name) → vault project folders.
+ *  POST {name, keywords, …, run?} → create the profile, and start the first run unless run is false.
+ *  POST {startRun: <profile>} → start the first run of a profile created earlier with "Create only". */
 export async function GET(req: NextRequest) {
   const deny = localOnly(req);
   if (deny) return deny;
@@ -35,6 +37,12 @@ export async function POST(req: NextRequest) {
   const deny = localOnly(req);
   if (deny) return deny;
   const b = await req.json().catch(() => ({}));
+  if (b.startRun) {
+    const p = String(b.startRun);
+    if (!/^[\w.-]+$/.test(p)) return NextResponse.json({ ok: false, output: "bad profile" }, { status: 400 });
+    startDetached(["run", p, "--quiet", "--status-file", jobFile(p)]);
+    return NextResponse.json({ ok: true, profile: p, started: true });
+  }
   const name = String(b.name ?? "").trim();
   const keywords = String(b.keywords ?? "").trim();
   if (!name || name.length > 60 || !keywords || keywords.length > 3000) {
@@ -50,6 +58,7 @@ export async function POST(req: NextRequest) {
   const m = r.output.match(/created profile ([\w.-]+)/);
   if (r.code !== 0 || !m) return NextResponse.json({ ok: false, output: r.output.slice(-400) }, { status: 500 });
   const profile = m[1];
+  if (b.run === false) return NextResponse.json({ ok: true, profile, started: false });   // "Create only": nothing runs yet
   startDetached(["run", profile, "--quiet", "--status-file", jobFile(profile)]);
-  return NextResponse.json({ ok: true, profile });
+  return NextResponse.json({ ok: true, profile, started: true });
 }

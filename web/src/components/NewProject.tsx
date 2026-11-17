@@ -30,16 +30,29 @@ export default function NewProject() {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF({ ...f, [k]: e.target.value });
 
+  const [run, setRun] = useState(true);   // which button was pressed: create and run, or create only
+  const post = (body: object) => fetch("/api/new", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+    .then((x) => x.json()).catch(() => ({ ok: false, output: "request failed" }));
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Which button submitted the form (state set in onClick would still be the old value here).
+    const go = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("data-run") !== "no";
+    setRun(go);
     setBusy(true);
     setErr(null);
-    const r = await fetch("/api/new", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...f, research: mode === "research", vaultProject: mode === "project" ? f.vaultProject : "" }) })
-      .then((x) => x.json()).catch(() => ({ ok: false, output: "request failed" }));
+    const r = await post({ ...f, run: go, research: mode === "research", vaultProject: mode === "project" ? f.vaultProject : "" });
     setBusy(false);
     if (!r.ok) return setErr(r.output);
     setProfile(r.profile);
+    setJob(r.started ? { status: "running" } : null);
+  }
+
+  async function startNow() {
+    setBusy(true);
+    const r = await post({ startRun: profile });
+    setBusy(false);
+    if (!r.ok) return setErr(r.output);
     setJob({ status: "running" });
   }
 
@@ -48,6 +61,20 @@ export default function NewProject() {
       <div className="mt-6 rounded-2xl border border-line bg-panel p-6">
         <p className="text-sm text-muted">Profile</p>
         <p className="text-lg font-semibold">{profile}</p>
+        {!job && (
+          <div className="mt-3 space-y-3 text-sm">
+            <p className="text-above">Created. Nothing has run yet, so no API credits were used.</p>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/p/${profile}`} className="rounded-lg border border-line px-3 py-1.5 hover:bg-panel-2">Open the business →</Link>
+              <Link href={`/p/${profile}/settings`} className="rounded-lg border border-line px-3 py-1.5 hover:bg-panel-2">⚙ Settings (keywords, ads, search demand…)</Link>
+              <button onClick={startNow} disabled={busy} className="rounded-lg bg-accent px-3 py-1.5 font-semibold text-ink disabled:opacity-50">
+                {busy ? "Starting…" : "Start the first run now"}
+              </button>
+            </div>
+            {err && <p className="text-mega">{err}</p>}
+            <p className="text-xs text-muted">The overview&apos;s tiles show what each feature still needs. The weekly run starts it too once it&apos;s on the Schedule page.</p>
+          </div>
+        )}
         {job?.status === "running" && <p className="mt-3 text-sm text-viral">Running… this takes 3–8 minutes. You can leave this page.</p>}
         {job?.status === "done" && (
           <p className="mt-3 text-sm text-above">
@@ -106,9 +133,15 @@ export default function NewProject() {
         )}
       </div>
       {err && <p className="text-sm text-mega">{err}</p>}
-      <button disabled={busy} className="rounded-lg bg-accent px-4 py-2 font-semibold text-ink hover:brightness-110 disabled:opacity-50">
-        {busy ? "Creating…" : "Create and start the first run"}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button disabled={busy} data-run="yes" className="rounded-lg bg-accent px-4 py-2 font-semibold text-ink hover:brightness-110 disabled:opacity-50">
+          {busy && run ? "Creating…" : "Create and start the first run"}
+        </button>
+        <button disabled={busy} data-run="no" className="rounded-lg border border-line px-4 py-2 text-sm hover:bg-panel-2 disabled:opacity-50"
+          title="Saves the business only. Add keys and settings first, then start the run from the next screen or the overview.">
+          {busy && !run ? "Creating…" : "Create only (run later)"}
+        </button>
+      </div>
     </form>
   );
 }
