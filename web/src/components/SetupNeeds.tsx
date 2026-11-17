@@ -55,9 +55,11 @@ export function ItemRow({ i, profile }: { i: SetupItem; profile?: string }) {
   );
 }
 
-/** One checklist for some sections of one business (or the shared tools with `tools`). */
-export default function SetupNeeds({ profile, sections, tools = false, title, showDone = false }: {
-  profile?: string; sections?: string[]; tools?: boolean; title?: string; showDone?: boolean;
+/** What one thing still needs. Renders nothing when it's ready, so it only shows up where something is missing.
+ *  sections: which features of the business; only: limit to some item ids; tools: shared program ids (e.g. ["ffmpeg"]);
+ *  compact: a short list for inside a tile, instead of a box. */
+export default function SetupNeeds({ profile, sections, only, tools = [], title, compact = false }: {
+  profile?: string; sections?: string[]; only?: string[]; tools?: string[]; title?: string; compact?: boolean;
 }) {
   const [data, setData] = useState<SetupData | null>(null);
   const [showOptional, setShowOptional] = useState(false);
@@ -65,30 +67,34 @@ export default function SetupNeeds({ profile, sections, tools = false, title, sh
   if (!data) return null;
 
   const secs = profile ? (data.profiles[profile]?.sections ?? []).filter((s) => !sections || sections.includes(s.id)) : [];
-  const items: SetupItem[] = [...(tools ? data.global : []), ...secs.flatMap((s) => s.items)];
+  const items: SetupItem[] = [...data.global.filter((i) => tools.includes(i.id)), ...secs.flatMap((s) => s.items)]
+    .filter((i) => !only || only.includes(i.id));
   const open = items.filter((i) => !i.done && !i.optional);
   const optional = items.filter((i) => !i.done && i.optional);
-  if (!open.length && !showDone && !optional.length) return null;
-  if (!open.length && !showDone) {
+  if (!open.length) return null;
+  const shown = [...open, ...(showOptional ? optional : [])];
+  const toggle = optional.length > 0 && (
+    <button onClick={() => setShowOptional(!showOptional)} className="text-[11px] text-muted hover:text-text">
+      {showOptional ? "hide optional" : `+ ${optional.length} optional`}
+    </button>
+  );
+
+  if (compact) {
     return (
-      <p className="text-xs text-muted">
-        ✓ Set up.{" "}
-        <button onClick={() => setShowOptional(!showOptional)} className="text-rise hover:underline">{showOptional ? "hide" : `${optional.length} optional extra${optional.length > 1 ? "s" : ""}`}</button>
-        {showOptional && <ul className="mt-1 divide-y divide-line rounded-xl border border-line bg-panel px-3 text-sm">{optional.map((i) => <ItemRow key={i.id + i.label} i={i} profile={profile} />)}</ul>}
-      </p>
+      <div className="rounded-lg border border-viral/40 px-2.5 py-1 text-xs">
+        <div className="flex items-center gap-2 pt-0.5 text-viral">
+          <span>Needed: {open.length}</span><span className="ml-auto">{toggle}</span>
+        </div>
+        <ul className="divide-y divide-line">{shown.map((i) => <ItemRow key={i.id + i.label} i={i} profile={profile} />)}</ul>
+      </div>
     );
   }
-  const shown = [...items.filter((i) => !i.done && !i.optional), ...(showOptional ? optional : []), ...(showDone ? items.filter((i) => i.done) : [])];
   return (
-    <section className={`rounded-2xl border bg-panel p-4 text-sm ${open.length ? "border-viral/50" : "border-above/40"}`}>
+    <section className="rounded-2xl border border-viral/50 bg-panel p-4 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-semibold">{title ?? "To set up"}</h2>
-        <span className={open.length ? "text-muted" : "text-above"}>{open.length ? `${open.length} thing${open.length > 1 ? "s" : ""} needed` : "✓ all set up"}</span>
-        {optional.length > 0 && (
-          <button onClick={() => setShowOptional(!showOptional)} className="ml-auto text-xs text-muted hover:text-text">
-            {showOptional ? "hide optional" : `+ ${optional.length} optional`}
-          </button>
-        )}
+        <span className="text-muted">{open.length} thing{open.length > 1 ? "s" : ""} needed</span>
+        <span className="ml-auto">{toggle}</span>
       </div>
       <ul className="mt-2 divide-y divide-line">{shown.map((i) => <ItemRow key={i.id + i.label} i={i} profile={profile} />)}</ul>
     </section>

@@ -31,7 +31,7 @@ export default async function DemandPage({ params }: { params: Promise<{ name: s
     if (!(await loadProfile(name))) notFound();
     return (
       <div className="space-y-3">
-        {isLocal && <SetupNeeds profile={name} sections={["demand"]} title="Search demand: to set up" showDone />}
+        {isLocal && <SetupNeeds profile={name} sections={["demand"]} title="Search demand needs" />}
         <div className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
           No search demand yet. Add the services to track and the area in Settings → Search demand, then run{" "}
           <code className="text-text">python -m viral_scout demand {name}</code> (about $0.005 per term via Apify).

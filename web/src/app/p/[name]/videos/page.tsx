@@ -18,7 +18,7 @@ export default async function VideosPage({ params }: { params: Promise<{ name: s
   if (!profile) notFound();
   return (
     <div className="space-y-4">
-      {isLocal && <SetupNeeds profile={name} sections={["videos"]} title="Videos: to set up" />}
+      {isLocal && <SetupNeeds profile={name} sections={["videos"]} title="Videos needs" />}
       <Dashboard profile={{ ...profile, ideas: [], swipe: [] }} local={isLocal} />{/* ideas and swipe live on their own tab */}
     </div>
   );

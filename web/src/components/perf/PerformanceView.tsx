@@ -34,7 +34,7 @@ export default function PerformanceView({ perf, local }: { perf: Perf; local: bo
     <div className="space-y-6">
       <Header perf={perf} kinds={kinds} kind={kind} setKind={setKind} />
 
-      {!perf.records.length && local && <SetupNeeds profile={perf.name} sections={["performance"]} title="Your performance: to set up" showDone />}
+      {!perf.records.length && local && <SetupNeeds profile={perf.name} sections={["performance"]} title="Your performance needs" />}
       {!perf.records.length && <EmptyState name={perf.name} />}
 
       {acc && (

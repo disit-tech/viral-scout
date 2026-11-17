@@ -51,20 +51,17 @@ def _ytdlp():
 
 
 def tools():
-    """Programs and folders every business shares."""
-    v = os.environ.get("OBSIDIAN_VAULT", "")
+    """Programs a single page needs (Check a video: FFmpeg). Each feature's own needs are in its section."""
     return [
-        _item("vault", "Obsidian vault folder", v and Path(v).is_dir(), _key("OBSIDIAN_VAULT", "tools"),
-              v if v and Path(v).is_dir() else "reports, idea notes and the swipe file go there"),
-        _item("ytdlp", "yt-dlp (reads public posts)", _ytdlp(), _key("VIRAL_SCOUT_YTDLP", "tools"),
-              "" if _ytdlp() else "pip install yt-dlp, or point VIRAL_SCOUT_YTDLP at a clone"),
-        _item("claude", "Claude Code CLI (AI breakdowns, ideas, scores, campaigns)", _claude(),
-              _cmd("npm install -g @anthropic-ai/claude-code"), _claude() or "not on PATH"),
-        _item("ffmpeg", "FFmpeg (transcripts, video check, films)", shutil.which("ffmpeg"),
-              _cmd("winget install Gyan.FFmpeg"), shutil.which("ffmpeg") or "not on PATH", optional=True),
-        _item("node", "Node.js (dashboard, films)", shutil.which("node"), _cmd("winget install OpenJS.NodeJS.LTS"),
-              shutil.which("node") or "not on PATH", optional=True),
+        _item("claude", "Claude Code CLI", _claude(), _cmd("npm install -g @anthropic-ai/claude-code"), _claude() or "not on PATH"),
+        _item("ffmpeg", "FFmpeg (reads the video file)", shutil.which("ffmpeg"), _cmd("winget install Gyan.FFmpeg"),
+              shutil.which("ffmpeg") or "not on PATH"),
     ]
+
+
+def _vault():
+    v = os.environ.get("OBSIDIAN_VAULT", "")
+    return v if v and Path(v).is_dir() else ""
 
 
 def _latest(cfg, suffix=""):
@@ -87,12 +84,16 @@ def sections(cfg):
     out.append({"id": "business", "title": "Business", "href": f"/p/{n}/settings#business", "items": [
         _item("business", "Business description", (cfg.get("business") or "").strip(), _field("business"),
               "every idea, breakdown and campaign is adapted to it"),
+        _item("vault", "Obsidian vault folder (reports, idea notes, swipe file)", _vault(), _key("OBSIDIAN_VAULT", "tools"),
+              _vault()),
         _item("display_name", "Display name", cfg.get("display_name"), _field("display_name"), optional=True),
     ]})
 
     has_yt = bool(yt.get("keywords") or yt.get("hashtags") or w.get("youtube"))
     has_tt = bool(tt.get("keywords") or tt.get("hashtags") or w.get("tiktok"))
     vid = [
+        _item("ytdlp", "yt-dlp (reads public posts)", _ytdlp(), _key("VIRAL_SCOUT_YTDLP", "tools"),
+              "" if _ytdlp() else "pip install yt-dlp, or point VIRAL_SCOUT_YTDLP at a clone"),
         _item("search", "Something to search (YouTube keywords, hashtags or creators)", has_yt or has_tt,
               _field("discover.youtube.keywords")),
         _item("yt_key", "YouTube Data API key (keyword search)", _env("YOUTUBE_API_KEY"), _key("YOUTUBE_API_KEY", "videos"),

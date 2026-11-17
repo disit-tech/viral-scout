@@ -27,8 +27,9 @@ class FreshInstallTest(unittest.TestCase):
 
     def test_nothing_set_up_lists_what_each_feature_needs_with_a_fix(self):
         s = self.sections(cfg())
-        self.assertEqual(self.open_ids(s["business"]), ["business"])
-        self.assertEqual(self.open_ids(s["videos"]), ["search", "run"])            # no keywords yet: the key is optional
+        ids = lambda sec: [x for x in self.open_ids(sec) if x not in ("vault", "ytdlp")]   # depend on this PC
+        self.assertEqual(ids(s["business"]), ["business"])
+        self.assertEqual(ids(s["videos"]), ["search", "run"])                      # no keywords yet: the key is optional
         self.assertEqual(self.open_ids(s["demand"]), ["terms", "geo", "apify", "run"])
         self.assertEqual(self.open_ids(s["ideas"]), ["block", "service", "secret"] + ([] if setup_check._claude() else ["claude"]))
         for sec in s.values():                                                     # every open item says where to fix it
@@ -41,15 +42,15 @@ class FreshInstallTest(unittest.TestCase):
     def test_what_you_search_decides_which_keys_are_required(self):
         s = self.sections(cfg(discover={"youtube": {"keywords": ["gutters"]}, "tiktok": {"hashtags": ["diy"]}},
                               watch={"instagram": ["@x"]}))
-        self.assertEqual(self.open_ids(s["videos"]), ["yt_key", "apify_tt", "ig", "run"])
+        self.assertEqual([x for x in self.open_ids(s["videos"]) if x != "ytdlp"], ["yt_key", "apify_tt", "ig", "run"])
         s = self.sections(cfg(discover={"youtube": {"keywords": ["gutters"]}, "tiktok": {}}),
                           BLANK | {"YOUTUBE_API_KEY": "k"})
-        self.assertEqual(self.open_ids(s["videos"]), ["run"])
+        self.assertEqual([x for x in self.open_ids(s["videos"]) if x != "ytdlp"], ["run"])
 
     def test_counts_and_optional_features(self):
         s = self.sections(cfg(business="We clean gutters", demand={"terms": ["gutter cleaning"], "geo": "US-IL"}),
                           BLANK | {"APIFY_TOKEN": "t"})
-        self.assertEqual((s["business"]["open"], s["demand"]["open"], s["demand"]["total"]), (0, 1, 4))   # only the first run
+        self.assertEqual((s["demand"]["open"], s["demand"]["total"]), (1, 4))   # only the first run
         self.assertTrue(s["local"]["optional"] and s["paid"]["optional"])
 
 

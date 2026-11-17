@@ -39,7 +39,7 @@ export default async function AdsPage({ params }: { params: Promise<{ name: stri
         <AdsBoard data={ads} profile={name} />
       ) : (
         <div className="space-y-3">
-          {isLocal && <SetupNeeds profile={name} sections={["ads"]} title="Ads scout: to set up" showDone />}
+          {isLocal && <SetupNeeds profile={name} sections={["ads"]} title="Ads scout needs" />}
           <div className="rounded-xl border border-dashed border-line p-8 text-center text-muted">
             No ads run yet. Add competitors or keyword searches in <Link href={`/p/${name}/settings#ads`} className="text-rise underline">Settings → Ads</Link>, then run{" "}
             <code className="text-text">python -m viral_scout ads {name}</code>. Sources without keys are listed as skipped;

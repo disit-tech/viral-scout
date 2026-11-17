@@ -8,7 +8,7 @@ import { loadPaid, usd } from "@/lib/paid";
 import { ago, num, times, when } from "@/lib/format";
 import { studyPicks } from "@/lib/ads";
 import RunButton from "@/components/RunButton";
-import { BusinessSetup } from "@/components/SetupOverview";
+import SetupNeeds from "@/components/SetupNeeds";
 
 export async function generateStaticParams() {
   return (await profileNames()).map((name) => ({ name }));
@@ -94,9 +94,8 @@ export default async function Overview({ params }: { params: Promise<{ name: str
             ⚙ Edit business
           </Link>
         </div>
+        {isLocal && <div className="mt-3 max-w-3xl"><SetupNeeds compact profile={name} sections={["business"]} /></div>}
       </section>
-
-      {isLocal && <BusinessSetup profile={name} />}
 
       {/* this week */}
       {(todo.length > 0 || warnings.length > 0) && (
@@ -117,7 +116,7 @@ export default async function Overview({ params }: { params: Promise<{ name: str
 
       {/* sections */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Videos" href={`${base}/videos`} settings={`${base}/settings#videos`}
+        <Card title="Videos" need={isLocal ? <SetupNeeds compact profile={name} sections={["videos"]} /> : null} href={`${base}/videos`} settings={`${base}/settings#videos`}
           state={freshness(profile?.date, Boolean(profile))} last={scanned}
           what="Viral Shorts, Reels and TikToks on the topic: outliers against each creator's usual, fastest, rising, your tracked links."
           stats={[["posts", num(live.length)], ["3×+ usual", num(viral.length)], ["new", num(fresh.length)], ["hashtags · keywords", `${profile?.sources.hashtags ?? 0} · ${profile?.sources.keywords ?? 0}`]]}
@@ -140,7 +139,7 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           )}
         </Card>
 
-        <Card title="Ads" href={`${base}/ads`} settings={`${base}/settings#ads`}
+        <Card title="Ads" need={isLocal ? <SetupNeeds compact profile={name} sections={["ads"]} /> : null} href={`${base}/ads`} settings={`${base}/settings#ads`}
           state={freshness(ads?.date, Boolean(setup?.ads ?? ads))} last={ads?.date}
           what="Competitors' and the category's long-running ads: offers, hooks, formats. Scores are proxies, not spend."
           stats={[["ads", num(adList.length)], ["running", num(running)], ["30d+", num(long)], ["competitors", num(setup?.ads?.advertisers ?? ads?.advertisers.length ?? 0)]]}
@@ -160,7 +159,7 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           )}
         </Card>
 
-        <Card title="Search demand" href={`${base}/demand`} settings={`${base}/settings#demand`}
+        <Card title="Search demand" need={isLocal ? <SetupNeeds compact profile={name} sections={["demand"]} /> : null} href={`${base}/demand`} settings={`${base}/settings#demand`}
           state={freshness(demand?.fetched, Boolean(setup?.demand ?? demand))} last={demand?.fetched}
           what={`Google Trends${demand ? ` for ${geoLabel(demand.geo)}` : ""}: when each service rises and peaks, so posts and ads go out before demand does.`}
           stats={[["terms", num(demand?.terms.length ?? setup?.demand?.terms ?? 0)], ["in season", num(inSeason.length)], ["next start-by", nextUp ? fmtDate(nextUp.start_by) : "—"], ["area", demand?.geo || setup?.demand?.geo || "—"]]}
@@ -179,7 +178,7 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           )}
         </Card>
 
-        <Card title="Paid ads" href={`${base}/paid`} settings={`${base}/paid#brief`}
+        <Card title="Paid ads" need={isLocal ? <SetupNeeds compact profile={name} sections={["paid"]} /> : null} href={`${base}/paid`} settings={`${base}/paid#brief`}
           state={!paid || !Object.keys(paid.accounts).length ? "off" : freshness(paid.snapshot?.pulled ?? null)} last={paid?.snapshot?.pulled ?? null} lastLabel="read"
           what="Your own ad accounts (Meta, Google, TikTok) in one place: spend this month against the cap, what's running, cost per result, and Claude building campaigns from your brief."
           stats={[
@@ -190,13 +189,13 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           ]}
           footer={<span>{paid?.cap ? paid.month.check : "Set a monthly cap and the brief to let Claude build campaigns."} <Link href={`${base}/paid`} className="text-rise hover:underline">Open →</Link></span>} />
 
-        <Card title="Your performance" href={`${base}/performance`} settings={`${base}/settings#perf`}
+        <Card title="Your performance" need={isLocal ? <SetupNeeds compact profile={name} sections={["performance"]} /> : null} href={`${base}/performance`} settings={`${base}/settings#perf`}
           state={freshness(perf?.date, Boolean(setup?.perf || setup?.own || perf))} last={perf?.date}
           what="Your own videos and ads against benchmarks: hook rate, retention, CTR, CPA, ROAS, and what to fix first."
           stats={[["records", num(perf?.records.length ?? 0)], ["goal", perf?.goal ?? "—"], ["own channels", num(setup?.own ?? 0)], ["ad account", setup?.perf ? "linked" : "—"]]}
           footer={<span>Run with <code className="text-text">python -m viral_scout perf {name}</code> (Meta / YouTube APIs, free) or import a CSV.</span>} />
 
-        <Card title="Ideas & swipe file" href={`${base}/swipe`} settings={`${base}/settings#business`}
+        <Card title="Ideas & swipe file" need={isLocal ? <SetupNeeds compact profile={name} sections={["ideas"]} /> : null} href={`${base}/swipe`} settings={`${base}/settings#business`}
           state={(profile?.ideas.length ?? 0) || swipe.length ? "fresh" : "never"} last={profile?.ideas[0]?.date ?? null} lastLabel="latest note"
           what="AI breakdowns adapted to this business, and saved references from idea to posted."
           stats={[["idea notes", num(profile?.ideas.length ?? 0)], ["saved", num(swipe.length)], ["to film", num(toFilm)], ["filmed", num(filmed)]]}
@@ -212,9 +211,9 @@ export default async function Overview({ params }: { params: Promise<{ name: str
   );
 }
 
-function Card({ title, href, settings, state, last, lastLabel = "last run", what, stats, footer, children }: {
+function Card({ title, href, settings, state, last, lastLabel = "last run", what, stats, footer, children, need }: {
   title: string; href: string; settings: string; state: Fresh; last?: string | null; lastLabel?: string; what: string;
-  stats: [string, string][]; footer?: React.ReactNode; children?: React.ReactNode;
+  stats: [string, string][]; footer?: React.ReactNode; children?: React.ReactNode; need?: React.ReactNode;
 }) {
   const [label, cls] = FRESH[state];
   return (
@@ -226,6 +225,7 @@ function Card({ title, href, settings, state, last, lastLabel = "last run", what
         <Link href={settings} className="ml-auto text-xs text-muted hover:text-text">⚙ Settings</Link>
       </div>
       <p className="text-sm text-muted">{what}</p>
+      {need}
       <dl className="grid grid-cols-4 gap-2 text-center">
         {stats.map(([k, v]) => (
           <div key={k} className="rounded-lg bg-panel-2 px-1 py-1.5">
