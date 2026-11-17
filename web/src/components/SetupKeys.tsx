@@ -14,6 +14,7 @@ export default function SetupKeys() {
   const [error, setError] = useState<string | null>(null);
   const [use, setUse] = useState("all");
   const [price, setPrice] = useState("");   // "" = any cost; else a PRICE id (free, free_tier, paid, control)
+  const [state, setState] = useState<"" | "set" | "unset">("");   // "" = both; a working default counts as set
 
   async function load() {
     const r = await fetch("/api/keys").then((x) => x.json()).catch(() => null);
@@ -22,8 +23,11 @@ export default function SetupKeys() {
   }
   useEffect(() => {
     // Shortcuts from other pages: /setup?use=paid#key-META_ADS_TOKEN opens the filter and jumps to that key.
-    const u = new URLSearchParams(window.location.search).get("use");
+    const q = new URLSearchParams(window.location.search);
+    const u = q.get("use");
     if (u) setUse(u);
+    const st = q.get("state");
+    if (st === "set" || st === "unset") setState(st);   // /setup?state=unset: only what's still missing
     load();
   }, []);
   useEffect(() => {
@@ -42,7 +46,10 @@ export default function SetupKeys() {
 
   const tiers = byTier(keys);
   const byUse = (u: string) => (u === "all" ? keys : keys.filter((k) => k.uses?.includes(u)));
-  const shown = byTier(byUse(use).filter((k) => !price || k.price === price));
+  const done = (k: Key) => k.set || Boolean(k.has_default);   // same rule as the tier counters
+  const byState = (ks: Key[]) => (state === "set" ? ks.filter(done) : state === "unset" ? ks.filter((k) => !done(k)) : ks);
+  const pool = byUse(use).filter((k) => !price || k.price === price);   // what the set / not set counts are out of
+  const shown = byTier(byState(pool));
   const isSet = (n: string) => keys.some((k) => k.name === n && k.set);
   return (
     <div className="mt-6 space-y-8">
@@ -83,7 +90,22 @@ export default function SetupKeys() {
             </button>
           );
         })}
+        <span className="ml-auto flex items-center gap-1.5">
+          {([["", "all", pool.length], ["set", "set", pool.filter(done).length], ["unset", "not set", pool.filter((k) => !done(k)).length]] as const).map(([id, label, n]) => (
+            <button key={id || "any"} onClick={() => setState(id)} aria-pressed={state === id}
+              title={id === "set" ? "Saved, or working on its default" : id === "unset" ? "Still missing (no value, no default)" : "Set and not set"}
+              className={`rounded-full border px-3 py-1 text-xs ${state === id ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:text-text"}`}>
+              {label} <span className="opacity-70">{n}</span>
+            </button>
+          ))}
+        </span>
       </div>
+      {!shown.length && (
+        <p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">
+          No keys match these filters.{" "}
+          <button onClick={() => { setState(""); setPrice(""); setUse("all"); }} className="text-rise hover:underline">Show every key</button>
+        </p>
+      )}
       {shown.map((t) => (
         <section key={t.id} id={`tier-${t.id}`} className="scroll-mt-20 space-y-3">
           <div>
