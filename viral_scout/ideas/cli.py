@@ -217,6 +217,9 @@ def dispatch(args, transport=None, environ=None):
 
 
 def main(argv, transport=None, environ=None):
+    if argv and argv[0] == "board":                 # every business's ideas for the dashboard's Ideas board
+        from .board import cli as board_cli
+        return board_cli(argv[1:])
     p = argparse.ArgumentParser(prog="viral_scout")
     sub = p.add_subparsers(dest="cmd", required=True)
     register(sub)

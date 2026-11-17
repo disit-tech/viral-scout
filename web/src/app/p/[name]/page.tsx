@@ -197,7 +197,7 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           state={(profile?.ideas.length ?? 0) || swipe.length ? "fresh" : "never"} last={profile?.ideas[0]?.date ?? null} lastLabel="latest note"
           what="AI breakdowns adapted to this business, and saved references from idea to posted."
           stats={[["idea notes", num(profile?.ideas.length ?? 0)], ["saved", num(swipe.length)], ["to film", num(toFilm)], ["filmed", num(filmed)]]}
-          footer={<span>New breakdowns: <code className="text-text">/viral-scout {name}</code> in Claude Code. <Link href={`${base}/swipe#ideas`} className="text-rise hover:underline">Idea notes →</Link></span>} />
+          footer={<span>New breakdowns: <code className="text-text">/viral-scout {name}</code> in Claude Code. <Link href={`${base}/swipe#ideas`} className="text-rise hover:underline">Idea notes →</Link>{isLocal && <> · <Link href={`/ideas?project=${encodeURIComponent(name)}`} className="text-rise hover:underline">Ideas board →</Link></>}</span>} />
 
         <Card title="Runs" href={`${base}/runs`} settings={`${base}/settings`}
           state={profile?.errors.length ? "stale" : "fresh"} last={entry?.date ?? profile?.date}

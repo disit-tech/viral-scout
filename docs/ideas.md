@@ -103,6 +103,10 @@ The requests are the same as `solar-site/site/scripts/ideas.mjs` sends (paths, m
 
 MCP: `ideas_pull(profile)` is the read-only version of `pull`. Writes stay in the CLI.
 
+## The ideas board
+
+The local dashboard's **Ideas** page (`/ideas`) shows every business's ideas and films on one board, with the same ratings, comments and deletes as the Telegram buttons. See [dashboard.md](dashboard.md#pages). Backend: `python -m viral_scout ideas board get | set` (`viral_scout/ideas/board.py`).
+
 ## Daily run
 
 `scripts/ideas-daily.ps1 -Profile <name> [-Count N] [-Topic "…"] [-PostsOnly]` checks that the API answers, then runs `/studio-ideas` headless with a narrow allowlist: Read, Glob, Grep, Edit, Write, WebSearch, WebFetch and only `python -m viral_scout ideas <name> …` in the shell, with `--add-dir $env:OBSIDIAN_VAULT` (plus `ideas.daily.add_dirs`). `-PostsOnly` exits without starting Claude when no idea is ✅ or waiting for a pack. Logs: `data/logs/ideas-<name>-<date>.log`.
