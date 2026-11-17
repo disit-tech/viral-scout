@@ -13,6 +13,22 @@ It runs in two modes:
 
 Nothing runs in the cloud. Collection stays on your PC (home IP, yt-dlp, the scheduled task). Vercel only hosts the pages.
 
+## Keep it running (Windows)
+
+`scripts/dashboard.ps1 install` registers a Task Scheduler task, `viral-scout-dashboard`, that starts the local dashboard at logon, hidden, and restarts it within a minute if it stops. It runs as you, so every button reaches the same Python, `.env`, vault, Claude CLI and Task Scheduler as a dashboard started by hand.
+
+```powershell
+powershell -File scripts\dashboard.ps1 install     # register + start now → http://localhost:3210
+powershell -File scripts\dashboard.ps1 status      # task state, port, log tail
+powershell -File scripts\dashboard.ps1 restart     # after git pull or npm install
+powershell -File scripts\dashboard.ps1 uninstall   # stop and remove the task
+```
+
+- It runs `next dev` on `127.0.0.1` only, so other devices on the network can't open it. A production build (`next start`) isn't used: the business pages are pre-rendered at build time, so they would show the data as it was then, while dev re-reads `web/data/*.json` after every run.
+- Log: `data/logs/dashboard.log`, started fresh on each launch.
+- The name has no space after `viral-scout`, so the Schedule page (which lists `viral-scout *`) doesn't show it.
+- Docker or IIS don't fit: the actions call local Python, yt-dlp, the Claude CLI, PowerShell's Task Scheduler cmdlets and the vault, which a container or an IIS app pool (another user, without your env vars and logins) can't reach.
+
 ## Data flow
 
 ```
