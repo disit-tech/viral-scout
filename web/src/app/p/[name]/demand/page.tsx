@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { demandNames, geoLabel, loadDemand, type DemandTerm } from "@/lib/demand";
+import { isLocal, loadProfile, profileNames } from "@/lib/data";
+import SetupNeeds from "@/components/SetupNeeds";
 import { when } from "@/lib/format";
 import { HistoryLine, SeasonCurve } from "@/components/DemandChart";
 
 export async function generateStaticParams() {
-  return (await demandNames()).map((name) => ({ name }));
+  const names = new Set([...(await profileNames()), ...(await demandNames())]);
+  return [...names].map((name) => ({ name }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ name: string }> }) {
@@ -24,7 +27,18 @@ const pct = (v: number | null | undefined) => (v === null || v === undefined ? "
 export default async function DemandPage({ params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
   const d = await loadDemand(name);
-  if (!d) notFound();
+  if (!d) {
+    if (!(await loadProfile(name))) notFound();
+    return (
+      <div className="space-y-3">
+        {isLocal && <SetupNeeds profile={name} sections={["demand"]} title="Search demand: to set up" showDone />}
+        <div className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
+          No search demand yet. Add the services to track and the area in Settings → Search demand, then run{" "}
+          <code className="text-text">python -m viral_scout demand {name}</code> (about $0.005 per term via Apify).
+        </div>
+      </div>
+    );
+  }
   const nowWeek = isoWeek(new Date());
   const inSeason = d.calendar.filter((c) => c.in_season);
   const next = d.calendar.filter((c) => !c.in_season);

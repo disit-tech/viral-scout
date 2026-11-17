@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { adsNames, loadAds, profileNames } from "@/lib/data";
+import { adsNames, isLocal, loadAds, profileNames } from "@/lib/data";
+import SetupNeeds from "@/components/SetupNeeds";
 import { when } from "@/lib/format";
 import AdsBoard from "@/components/AdsBoard";
 
@@ -37,10 +38,13 @@ export default async function AdsPage({ params }: { params: Promise<{ name: stri
       {ads ? (
         <AdsBoard data={ads} profile={name} />
       ) : (
-        <div className="rounded-xl border border-dashed border-line p-8 text-center text-muted">
-          No ads run yet. Add an <code className="text-text">ads:</code> block to the profile, then run{" "}
-          <code className="text-text">python -m viral_scout ads {name}</code>. Sources without keys are listed as skipped;
-          see the Setup page and docs/ads-scout.md.
+        <div className="space-y-3">
+          {isLocal && <SetupNeeds profile={name} sections={["ads"]} title="Ads scout: to set up" showDone />}
+          <div className="rounded-xl border border-dashed border-line p-8 text-center text-muted">
+            No ads run yet. Add competitors or keyword searches in <Link href={`/p/${name}/settings#ads`} className="text-rise underline">Settings → Ads</Link>, then run{" "}
+            <code className="text-text">python -m viral_scout ads {name}</code>. Sources without keys are listed as skipped;
+            see the Setup page and docs/ads-scout.md.
+          </div>
         </div>
       )}
     </div>

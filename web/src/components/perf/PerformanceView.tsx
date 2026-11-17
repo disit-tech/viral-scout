@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Kpi, KpiDef, Perf, PerfRecord, Test } from "@/lib/perf";
 import { fmtKpi } from "@/lib/perf-format";
 import RetentionChart from "./RetentionChart";
+import SetupNeeds from "@/components/SetupNeeds";
 
 type Kind = "organic" | "paid";
 const PLATFORM: Record<string, string> = { youtube: "YouTube", instagram: "Instagram", facebook: "Meta", tiktok: "TikTok" };
@@ -33,6 +34,7 @@ export default function PerformanceView({ perf, local }: { perf: Perf; local: bo
     <div className="space-y-6">
       <Header perf={perf} kinds={kinds} kind={kind} setKind={setKind} />
 
+      {!perf.records.length && local && <SetupNeeds profile={perf.name} sections={["performance"]} title="Your performance: to set up" showDone />}
       {!perf.records.length && <EmptyState name={perf.name} />}
 
       {acc && (

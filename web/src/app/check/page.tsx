@@ -1,6 +1,7 @@
 import { isLocal, loadIndex, loadProfile } from "@/lib/data";
 import CheckVideo from "@/components/CheckVideo";
 import type { Check } from "@/lib/types";
+import SetupNeeds from "@/components/SetupNeeds";
 
 export const metadata = { title: "Check a video" };
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function CheckPage() {
         interrupts, how fast the talking starts and whether there&apos;s a call to action, then saves frames so the AI step
         can score the 20 criteria (100 points).
       </p>
+      {isLocal && <div className="mt-4"><SetupNeeds tools title="Tools this page uses" /></div>}
       {isLocal ? <CheckVideo profiles={profiles.map((p) => p.name)} past={past} /> : (
         <div className="mt-6 rounded-xl border border-dashed border-line p-8 text-center text-muted">
           Checks run on your PC: open the local dashboard, or run <code className="text-text">python -m viral_scout check &lt;profile&gt; &lt;file&gt;</code>.

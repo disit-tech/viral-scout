@@ -63,6 +63,10 @@ To publish automatically after the scheduled run, pass `-Publish` to `scripts/sc
 - Vercel's own "Password Protection" is a paid feature, so this app has its own login: an HMAC-signed cookie, valid 30 days. It runs in `src/proxy.ts`, Next 16's replacement for middleware.
 - Every page is pre-rendered at build time. The only server code that runs is the login check, which fits comfortably in the free limits.
 
+## Setup checklists
+
+On the local dashboard, everything that still needs setting up shows where it's needed, with a shortcut per item: **Get started** on the Businesses page (shared tools and each business at a glance), **Setup** on each business overview (every feature: business, videos, ads, search demand, your performance, local competitors, ideas and Telegram, paid ads, alerts), and a "to set up" box on the Videos, Ads, Search demand, Your performance, Ideas and Check a video pages when something is missing. A shortcut opens the exact field in Settings (`/p/<profile>/settings#f-<path>`, also inside Advanced), the key on Setup (`/setup?use=<feature>#key-<NAME>`), a page (Schedule, Bots, Paid ads), or copies the command. Optional items stay folded away. Source: `python -m viral_scout setup-check [profile]` (`viral_scout/setup_check.py`): env vars, the profile, files and programs on PATH only, no API calls (the Setup page's Test buttons do those). The Runs page's "needs a key" links go straight to that key.
+
 ## Pages
 
 - `/search` (**Search posts** in the nav; it creates nothing): searches titles, hooks, endings, transcripts and captions. Locally it covers the full history of every business through the Python CLI; the published site searches the latest runs in the browser.

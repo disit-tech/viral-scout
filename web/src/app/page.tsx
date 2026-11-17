@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { loadIndex } from "@/lib/data";
+import { isLocal, loadIndex } from "@/lib/data";
+import { GetStarted } from "@/components/SetupOverview";
 import { when } from "@/lib/format";
 import BusinessGrid from "@/components/BusinessGrid";
 
@@ -20,9 +21,11 @@ export default async function Home() {
         </div>
       </div>
 
+      {isLocal && <GetStarted />}
       {profiles.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line p-10 text-center text-muted">
-          No data yet. Run <code className="text-text">python -m viral_scout run &lt;profile&gt;</code>, then{" "}
+          No business yet. <Link href="/new" className="text-rise underline">+ New business</Link> describes it and starts the first run;
+          or run <code className="text-text">python -m viral_scout run &lt;profile&gt;</code>, then{" "}
           <code className="text-text">python -m viral_scout export</code>.
         </div>
       ) : (

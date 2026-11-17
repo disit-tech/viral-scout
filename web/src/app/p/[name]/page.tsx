@@ -8,6 +8,7 @@ import { loadPaid, usd } from "@/lib/paid";
 import { ago, num, times, when } from "@/lib/format";
 import { studyPicks } from "@/lib/ads";
 import RunButton from "@/components/RunButton";
+import { BusinessSetup } from "@/components/SetupOverview";
 
 export async function generateStaticParams() {
   return (await profileNames()).map((name) => ({ name }));
@@ -94,6 +95,8 @@ export default async function Overview({ params }: { params: Promise<{ name: str
           </Link>
         </div>
       </section>
+
+      {isLocal && <BusinessSetup profile={name} />}
 
       {/* this week */}
       {(todo.length > 0 || warnings.length > 0) && (

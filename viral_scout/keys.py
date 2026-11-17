@@ -153,6 +153,15 @@ KEYS = [
      "unlocks": "Only when you reach the businesses' Google Ads accounts through a manager (MCC) account: its id.",
      "get": "Google Ads → the manager account's id in the top bar (with or without dashes).",
      "docs": "https://developers.google.com/google-ads/api/rest/auth"},
+    {"name": "STUDIO_SERVICE_URL", "group": "Ideas bot service", "cost": "free", "secret": False,
+     "unlocks": "Ideas board, the idea generator, notes and films: the address of the Telegram bot service "
+                "(the studio-ideas-service deployment).",
+     "get": "The service's production URL, e.g. https://<your-service>.vercel.app (docs/telegram-service.md).",
+     "docs": "https://github.com/disit-tech/viral-scout/blob/main/docs/telegram-service.md"},
+    {"name": "IDEAS_API_SECRET", "group": "Ideas bot service", "cost": "",
+     "unlocks": "Read and change every business's ideas (ideas board, generator, notes, content packs).",
+     "get": "The same value as IDEAS_API_SECRET in the service's Vercel environment variables.",
+     "docs": "https://github.com/disit-tech/viral-scout/blob/main/docs/telegram-service.md"},
     {"name": "VIRAL_SCOUT_YTDLP", "group": "Tools", "cost": "free",
      "unlocks": "Path to a yt-dlp clone with newer extractors than the pip package.",
      "get": "git clone https://github.com/yt-dlp/yt-dlp",
@@ -179,6 +188,7 @@ TIER = {
     "IG_GRAPH_TOKEN": "recommended", "IG_GRAPH_USER_ID": "recommended", "META_ADS_TOKEN": "recommended",
     "META_AD_ACCOUNT_ID": "recommended", "TELEGRAM_BOT_TOKEN": "recommended", "TELEGRAM_CHAT_ID": "recommended",
     "YT_OAUTH_CLIENT_ID": "recommended", "YT_OAUTH_CLIENT_SECRET": "recommended", "YT_OAUTH_REFRESH_TOKEN": "recommended",
+    "STUDIO_SERVICE_URL": "recommended", "IDEAS_API_SECRET": "recommended",
     "GOOGLE_ADS_CLIENT_ID": "optional", "GOOGLE_ADS_CLIENT_SECRET": "optional", "GOOGLE_ADS_REFRESH_TOKEN": "optional",
     "GOOGLE_ADS_DEVELOPER_TOKEN": "optional", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "advanced",
     "GOOGLE_PLACES_API_KEY": "optional", "TIKTOK_ADS_TOKEN": "optional", "TIKTOK_ADVERTISER_ID": "optional",
@@ -209,6 +219,7 @@ USES = {
     "VIRAL_SCOUT_MCP_PAID": ["tools"], "GOOGLE_PLACES_API_KEY": ["local"],
     "TELEGRAM_BOT_TOKEN": ["alerts"], "TELEGRAM_CHAT_ID": ["alerts"],
     "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
+    "STUDIO_SERVICE_URL": ["ideas"], "IDEAS_API_SECRET": ["ideas"],
     "GOOGLE_ADS_CLIENT_ID": ["paid"], "GOOGLE_ADS_CLIENT_SECRET": ["paid"], "GOOGLE_ADS_REFRESH_TOKEN": ["paid"],
     "GOOGLE_ADS_DEVELOPER_TOKEN": ["paid"], "GOOGLE_ADS_LOGIN_CUSTOMER_ID": ["paid"],
     "META_ADS_TOKEN": ["performance", "paid"], "META_AD_ACCOUNT_ID": ["performance"],
@@ -347,6 +358,17 @@ def test(name):
                                                           "access_token": os.environ.get("META_ADS_TOKEN", "")}, timeout=20)
             d = r.json()
             return r.ok, f"ok: {d.get('name')} ({d.get('currency')})" if r.ok else d.get("error", {}).get("message", "")
+        if name in ("STUDIO_SERVICE_URL", "IDEAS_API_SECRET"):
+            base = (os.environ.get("STUDIO_SERVICE_URL") or "").rstrip("/")
+            if not base or not os.environ.get("IDEAS_API_SECRET"):
+                return False, "set both STUDIO_SERVICE_URL and IDEAS_API_SECRET"
+            r = requests.get(f"{base}/api/board", headers={"Authorization": f"Bearer {os.environ['IDEAS_API_SECRET']}"}, timeout=30)
+            if r.status_code == 401:
+                return False, "the service refused the secret (401)"
+            if not r.ok:
+                return False, f"HTTP {r.status_code} from {base}/api/board"
+            d = r.json()
+            return True, f"ok: {len(d.get('ideas') or [])} ideas from {len(d.get('projects') or [])} businesses"
         if name.startswith("GOOGLE_ADS_"):
             from .paid import google as gads
             if gads.missing():

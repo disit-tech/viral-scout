@@ -33,6 +33,9 @@ def main(argv=None):
         sys.stdout.reconfigure(encoding="utf-8")
     config.load_env()
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "setup-check":          # what still needs setting up, per feature (dashboard checklists)
+        from .setup_check import cli as setup_cli
+        return setup_cli(argv[1:])
     if argv and argv[0] == "activity":             # live jobs + Apify runs (the dashboard's Activity page)
         from .activity import cli as activity_cli
         return activity_cli(argv[1:])

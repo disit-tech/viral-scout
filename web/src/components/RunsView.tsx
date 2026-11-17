@@ -22,7 +22,7 @@ const usageText = (u?: Record<string, number>) =>
   Object.entries(u ?? {}).filter(([, v]) => v).map(([k, v]) => (USAGE[k] ? USAGE[k](v) : `${num(v)} ${k.replace(/_/g, " ")}`));
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
-type Kind = { title: string; tag: string; cls: string; note: string; needsSetup?: boolean };
+type Kind = { title: string; tag: string; cls: string; note: string; needsSetup?: boolean; key?: string };
 const KEYISH = /\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/g;     // APIFY_TOKEN, META_AD_LIBRARY_TOKEN, …
 
 /** Plain-language reading of a "skipped" line. setKeys: keys set now (local dashboard), to spot ones added since. */
@@ -34,8 +34,8 @@ function classify(s: string, setKeys: Set<string> | null): Kind {
   if (keys.length && setKeys && keys.every((k) => setKeys.has(k)))
     return { title, tag: "key added since", cls: "border-above/50 text-above", note: `${keys.join(" and ")} ${keys.length > 1 ? "are" : "is"} set now, so the next run includes this.` };
   if (keys.length && /\bEU\b|\bEEA\b/.test(s))
-    return { title, tag: "optional", cls: "border-line text-muted", note: "Only covers ads shown in the EU. Not needed while this business targets the US.", needsSetup: true };
-  if (keys.length) return { title, tag: "needs a key", cls: "border-viral/60 text-viral", note: `Add ${keys.join(" and ")} on the Setup page to turn this on.`, needsSetup: true };
+    return { title, tag: "optional", cls: "border-line text-muted", note: "Only covers ads shown in the EU. Not needed while this business targets the US.", needsSetup: true, key: keys[0] };
+  if (keys.length) return { title, tag: "needs a key", cls: "border-viral/60 text-viral", note: `Add ${keys.join(" and ")} on the Setup page to turn this on.`, needsSetup: true, key: keys[0] };
   if (/429|rate.?limit|bot check/i.test(s))
     return { title, tag: "temporary", cls: "border-rise/50 text-rise", note: "The platform slowed this kind of request down for a while. Nothing to fix; it is retried on the next run." };
   return { title, tag: "note", cls: "border-line text-muted", note: "" };
@@ -134,7 +134,7 @@ function Skipped({ lines, setKeys, text }: { lines: string[]; setKeys: Set<strin
                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${k.cls}`}>{k.tag}</span>
                   <span className="text-text">{k.title}</span>
                 </div>
-                {k.note && <p className="mt-0.5 text-xs">{k.note}{k.needsSetup && <> <Link href="/setup" className="text-rise hover:underline">Setup →</Link></>}</p>}
+                {k.note && <p className="mt-0.5 text-xs">{k.note}{k.needsSetup && <> <Link href={k.key ? `/setup#key-${k.key}` : "/setup"} className="whitespace-nowrap rounded border border-line px-2 py-0.5 text-rise hover:bg-panel-2">Set {k.key ?? "the key"} →</Link></>}</p>}
                 <p className="mt-0.5 text-[11px] text-muted/80">{s}</p>
               </li>
             );

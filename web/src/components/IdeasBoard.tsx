@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ago, when } from "@/lib/format";
 
@@ -84,7 +85,24 @@ export default function IdeasBoard({ initialProject }: { initialProject: string 
     return sort === "score" ? [...list].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)) : list;
   }, [data, project, kind, status, q, sort]);
 
-  if (err && !data) return <div className="space-y-3"><h1 className="text-2xl font-semibold">Ideas</h1><p className="text-mega">{err}</p><button onClick={load} className="rounded-lg border border-line px-3 py-1.5 text-sm">Try again</button></div>;
+  if (err && !data) {
+    const btn = "rounded border border-line px-2 py-0.5 text-xs text-rise hover:bg-panel-2";
+    return (
+      <div className="space-y-3">
+        <h1 className="text-2xl font-semibold">Ideas</h1>
+        <p className="text-mega">{err}</p>
+        <section className="rounded-2xl border border-viral/50 bg-panel p-4 text-sm">
+          <h2 className="font-semibold">To see the ideas here</h2>
+          <ul className="mt-2 divide-y divide-line">
+            <li className="flex flex-wrap items-center gap-3 py-1.5"><span>The bot service&apos;s address (<code>STUDIO_SERVICE_URL</code>)</span><Link href="/setup?use=ideas#key-STUDIO_SERVICE_URL" className={`ml-auto ${btn}`}>Set the key →</Link></li>
+            <li className="flex flex-wrap items-center gap-3 py-1.5"><span>The ideas API secret (<code>IDEAS_API_SECRET</code>), the same as on the service</span><Link href="/setup?use=ideas#key-IDEAS_API_SECRET" className={`ml-auto ${btn}`}>Set the key →</Link></li>
+            <li className="flex flex-wrap items-center gap-3 py-1.5"><span>At least one business with the idea generator set up</span><Link href="/schedule" className={`ml-auto ${btn}`}>Open Schedule →</Link></li>
+          </ul>
+        </section>
+        <button onClick={load} className="rounded-lg border border-line px-3 py-1.5 text-sm">Try again</button>
+      </div>
+    );
+  }
   if (!data) return <div><h1 className="text-2xl font-semibold">Ideas</h1><p className="mt-3 text-muted">Loading every business&apos;s ideas…</p></div>;
 
   const count = (f: (i: Idea) => boolean) => data.ideas.filter((i) => (!project || i.project === project) && f(i)).length;
