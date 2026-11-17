@@ -56,9 +56,20 @@ export async function POST(req: NextRequest) {
   if (b.research) args.push("--research");
   const r = await runCli(args);
   const m = r.output.match(/created profile ([\w.-]+)/);
-  if (r.code !== 0 || !m) return NextResponse.json({ ok: false, output: r.output.slice(-400) }, { status: 500 });
+  const dup = r.output.match(/profile ([\w.-]+) already exists/);
+  if (dup) {
+    return NextResponse.json({ ok: false, exists: dup[1],
+      output: `A business called "${dup[1]}" already exists. Open it, or pick another name.` }, { status: 409 });
+  }
+  if (r.code !== 0 || !m) {                     // the last line of a Python error, not the whole traceback
+    const last = r.output.trim().split("\n").filter(Boolean).pop() ?? "failed";
+    return NextResponse.json({ ok: false, output: last.slice(0, 300) }, { status: 500 });
+  }
   const profile = m[1];
-  if (b.run === false) return NextResponse.json({ ok: true, profile, started: false });   // "Create only": nothing runs yet
+  if (b.run === false) {                       // "Create only": nothing runs yet, but its pages exist right away
+    await runCli(["export", profile]);
+    return NextResponse.json({ ok: true, profile, started: false });
+  }
   startDetached(["run", profile, "--quiet", "--status-file", jobFile(profile)]);
   return NextResponse.json({ ok: true, profile, started: true });
 }

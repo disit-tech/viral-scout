@@ -56,9 +56,9 @@ def _sections(items, top):
 
 def profile(cfg):
     latest_path = Path(cfg["db"]).parent / f"{cfg['name']}-latest.json"
-    if not latest_path.exists():
-        return None
-    latest = json.loads(latest_path.read_text(encoding="utf-8"))
+    # A business created without a run ("Create only") still gets its pages: empty, date null ("never"), and the
+    # setup hints say what's needed before the first run.
+    latest = json.loads(latest_path.read_text(encoding="utf-8")) if latest_path.exists() else {"items": [], "date": None}
     for it in latest["items"]:
         it.setdefault("key", f"{it['platform']}:{it['id']}")
 

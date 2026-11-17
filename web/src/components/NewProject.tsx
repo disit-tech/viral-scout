@@ -30,7 +30,8 @@ export default function NewProject() {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF({ ...f, [k]: e.target.value });
 
-  const [run, setRun] = useState(true);   // which button was pressed: create and run, or create only
+  const [run, setRun] = useState(true);
+  const [exists, setExists] = useState<string | null>(null);   // a business with that name is already there   // which button was pressed: create and run, or create only
   const post = (body: object) => fetch("/api/new", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
     .then((x) => x.json()).catch(() => ({ ok: false, output: "request failed" }));
 
@@ -43,7 +44,8 @@ export default function NewProject() {
     setErr(null);
     const r = await post({ ...f, run: go, research: mode === "research", vaultProject: mode === "project" ? f.vaultProject : "" });
     setBusy(false);
-    if (!r.ok) return setErr(r.output);
+    if (!r.ok) { setExists(r.exists ?? null); return setErr(r.output); }
+    setExists(null);
     setProfile(r.profile);
     setJob(r.started ? { status: "running" } : null);
   }
@@ -132,7 +134,9 @@ export default function NewProject() {
           </Field>
         )}
       </div>
-      {err && <p className="text-sm text-mega">{err}</p>}
+      {err && (
+        <p className="text-sm text-mega">{err}{exists && <> <Link href={`/p/${exists}`} className="text-rise underline">Open {exists} →</Link></>}</p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <button disabled={busy} data-run="yes" className="rounded-lg bg-accent px-4 py-2 font-semibold text-ink hover:brightness-110 disabled:opacity-50">
           {busy && run ? "Creating…" : "Create and start the first run"}
