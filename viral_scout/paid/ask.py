@@ -1,7 +1,7 @@
 """`paid <profile> ask ["extra"]`: Claude (headless, the owner's subscription) builds and, within the cap, launches one
 campaign from the profile's brief, following the /ads skill. Started by the dashboard's "Build campaign with Claude".
 
-Claude can only: read files, search the web, use the official `meta-ads` and `google-ads` connectors and the
+Claude can only: read files, search the web, use the official `meta-ads`, `tiktok-ads`, `google-ads` and `analytics-mcp` connectors and the
 viral-scout MCP's read tools, and run `python -m viral_scout paid <profile> …`. The skill makes it check the cap
 before launching. The backstop doesn't trust that: after the run, `enforce` reads the accounts again and, if the
 projected month is over the cap (or can't be totalled), pauses every campaign created during the run, newest
@@ -21,7 +21,8 @@ READ_MCP = ["mcp__viral-scout__ads_results", "mcp__viral-scout__demand_results",
 
 
 def tools(profile):
-    return ["Read", "Glob", "Grep", "Write", "WebSearch", "WebFetch", "mcp__meta-ads", "mcp__google-ads", *READ_MCP,
+    return ["Read", "Glob", "Grep", "Write", "WebSearch", "WebFetch", "mcp__meta-ads", "mcp__tiktok-ads", "mcp__google-ads",
+            "mcp__analytics-mcp", *READ_MCP,
             f"Bash(python -m viral_scout paid {profile}:*)"]
 
 

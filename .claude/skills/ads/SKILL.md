@@ -1,6 +1,6 @@
 ---
 name: ads
-description: Run a business's own paid ads (Meta Facebook/Instagram, Google Ads, TikTok Ads) from viral-scout - read the ad accounts, review what's running and what each result costs, plan a campaign from a brief (goal, budget, area, audience), check it against the business's monthly cap, then build and launch it through Meta's official ads connector, and pause or rebudget campaigns. Use when the user asks to launch, set up, check, pause, scale or fix ads or a campaign, asks what their ads cost or return, or names a goal, budget, geo or audience for ads. Args - /ads <profile> [brief or request].
+description: Run a business's own paid ads (Meta Facebook/Instagram, Google Ads, TikTok Ads) from viral-scout - read the ad accounts, review what's running and what each result costs, plan a campaign from a brief (goal, budget, area, audience), check it against the business's monthly cap, then build and launch it through Meta's official ads connector, and pause or rebudget campaigns. Use when the user asks to launch, set up, check, pause, scale or fix ads or a campaign, asks what their ads cost or return, or names a goal, budget, geo or audience for ads. Also audits an ad account (read-only checklist: tracking, structure, creative, budget). Args - /ads <profile> [audit | brief or request].
 ---
 
 # Ads (your own ad accounts)
@@ -32,6 +32,11 @@ Competitors' ads are the ads scout (`/viral-scout <profile> ads`); this skill is
 7. **Ask when the brief is thin.** Missing goal, daily budget, area or audience → ask (in a live session) or stop
    and say what's missing (headless). Never guess the budget.
 
+## Audit (`/ads <profile> audit`)
+
+Read-only. Follow `audit.md` in this skill's folder: measurement first, then each platform, every check pass / fail /
+unknown / n/a with its evidence, the 3 most important fixes, saved to the vault. Change nothing.
+
 ## Steps
 
 1. **State.** `python -m viral_scout paid <profile> status` (pull first if the snapshot is older than a day):
@@ -61,5 +66,10 @@ Competitors' ads are the ads scout (`/viral-scout <profile> ads`); this skill is
   read-only: reports, keywords, search terms). Pause / resume / daily budget with the `paid` CLI (official API; a
   shared budget is refused). Creating a Google campaign: give the owner the exact setup to enter in Google Ads;
   don't use unofficial write servers.
-- **TikTok Ads**: no official MCP. Read with `paid <profile> status`; pause / resume / budget with the `paid` CLI.
-  Creating TikTok campaigns: give the owner the exact setup to enter in TikTok Ads Manager.
+- **TikTok Ads** (`tiktok-ads` MCP, TikTok's own hosted server, registered 2026-11-16; its tools and write access
+  are only documented by third parties so far): read through it; before creating anything, list its tools and
+  read back what each one did. Build paused, cap check and log exactly as for Meta. If it fails, fall back to
+  `paid <profile> status` for reading, the `paid` CLI for pause / resume / budget, and give the owner the exact
+  setup for TikTok Ads Manager.
+- **Google Analytics 4** (`analytics-mcp`, Google's official server, read-only): sessions and key events on the
+  business's site by source / medium / campaign. This is how a campaign is judged by leads, not clicks.

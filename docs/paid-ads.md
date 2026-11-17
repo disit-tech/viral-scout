@@ -17,7 +17,8 @@ Claude and the dashboard reach the accounts differently, because the dashboard c
 |---|---|---|
 | Meta | official **Meta Ads MCP** (`meta-ads`, hosted at `https://mcp.facebook.com/ads`, open beta): read, create, update, pause | Marketing API with `META_ADS_TOKEN` (`ads_read` + `ads_management`) |
 | Google Ads | official **google-ads-mcp** (`googleads/google-ads-mcp`, runs locally): read-only reports; changes through the `paid` CLI | official Google Ads API (REST v26) with OAuth: campaigns, budgets, spend, conversions; pause / resume / daily budget |
-| TikTok | no official MCP: the `paid` CLI | TikTok API for Business with `TIKTOK_ADS_TOKEN` |
+| TikTok | TikTok's hosted **Ads MCP** (`tiktok-ads`, `https://business-api.tiktok.com/open_mcp/tt-ads-mcp-layer`): TikTok has a doc page for it; its tools and write access are only described by third parties so far | TikTok API for Business with `TIKTOK_ADS_TOKEN` |
+| Site analytics | Google's official **GA4 MCP** (`analytics-mcp`, read-only): sessions and key events by source / campaign, to judge ads by leads | — |
 
 ### Connect Meta (Claude)
 
@@ -32,6 +33,22 @@ Registered at user scope: `claude mcp add --transport http --scope user meta-ads
 5. The customer id (`123-456-7890`) goes into each business's Paid ads page.
 
 For Claude, Google's own read-only server (`googleads/google-ads-mcp`, runs on this PC) can be added as `google-ads` (`claude mcp add --scope user google-ads …`, see its README). It isn't required: the skill reads Google through `paid <profile> status` too. Creating a Google campaign isn't automated (Google's connector can't, and unofficial write servers aren't used): the skill gives the exact setup to enter in Google Ads.
+
+### Connect TikTok (Claude)
+
+Registered: `claude mcp add --transport http --scope user tiktok-ads https://business-api.tiktok.com/open_mcp/tt-ads-mcp-layer` (the "layer" server, about 40 tools; TikTok also lists a "flat" one with about 400). In Claude Code `/mcp` → `tiktok-ads` → sign in with the TikTok for Business account (authorization lasts about 30 days, per third-party docs). If the sign-in fails, the address is wrong or not open yet: remove it with `claude mcp remove tiktok-ads --scope user`.
+
+### Connect Google Analytics (Claude, read-only)
+
+Google's server (`analytics-mcp`, PyPI, Apache 2.0) is installed in its own environment at `~/.local/mcp/analytics-mcp` and registered at user scope with `GOOGLE_APPLICATION_CREDENTIALS` (gcloud's default credentials file) and `GOOGLE_CLOUD_PROJECT`. One-time: enable the Google Analytics Admin API and Data API in that Cloud project, then sign in with the Google account that can see the sites' GA4 properties:
+
+```
+gcloud auth application-default login --scopes https://www.googleapis.com/auth/analytics.readonly,https://www.googleapis.com/auth/cloud-platform
+```
+
+### Audit
+
+`/ads <profile> audit` runs a read-only checklist (`.claude/skills/ads/audit.md`, condensed from the MIT-licensed claude-ads control catalogs): measurement first (pixels, server-side events, no double counting, the real lead event, UTMs, platform vs GA4 vs real leads), then Meta, Google and TikTok structure, creative, audiences, bidding and budget. Every check is pass / fail / unknown / n/a with its evidence; the 3 most important fixes come first; the result goes to the vault.
 
 ### Keys for the dashboard
 
