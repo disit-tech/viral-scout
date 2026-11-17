@@ -20,16 +20,11 @@ What the sign-in does:
   4. META_AD_LIBRARY_TOKEN gets the user token when it's empty and the Ad Library accepts it (identity-verified accounts).
 With exactly one Instagram account or one ad account it's picked on its own; with several, pick with `keys meta use`.
 """
-import json
 import os
 import secrets
-import threading
-import time
 import urllib.parse
 import webbrowser
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from pathlib import Path
 
 import requests
 
@@ -232,40 +227,15 @@ def status():
 
 def connect(open_browser=True, port=PORT, timeout=300, status_file=None):
     """Sign-in on a loopback port, then save META_USER_TOKEN and auto-pick single accounts. Returns lines to print."""
-    from . import keys
-    sf = Path(status_file) if status_file else None
-
-    def note(state, message, **kw):
-        if sf:
-            sf.parent.mkdir(parents=True, exist_ok=True)
-            sf.write_text(json.dumps({"state": state, "message": message, "updated": time.time(), **kw}), encoding="utf-8")
-
+    from . import keys, loopback
+    note = loopback.Status(status_file)
     try:
         aid, sec = _app()
-        state, got = secrets.token_urlsafe(16), {}
-
-        class H(BaseHTTPRequestHandler):
-            def do_GET(self):
-                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-                if q.get("state", [""])[0] != state:
-                    self.send_response(404)
-                    self.end_headers()
-                    return
-                got["code"] = q.get("code", [None])[0]
-                got["error"] = q.get("error_description", q.get("error", [None]))[0]
-                self.send_response(200)
-                self.send_header("content-type", "text/html; charset=utf-8")
-                self.end_headers()
-                self.wfile.write("<h3>viral-scout: signed in, you can close this tab.</h3>".encode())
-
-            def log_message(self, *a):
-                pass
-
+        state = secrets.token_urlsafe(16)
         try:
-            srv = HTTPServer(("127.0.0.1", port), H)
-        except OSError as e:
-            raise MetaError(f"Port {port} is busy ({e}); another sign-in may be open. Use --port N and add "
-                            f"http://localhost:N/ to the app's redirect URIs.") from e
+            srv, got = loopback.server(port, state)
+        except loopback.CallbackError as e:
+            raise MetaError(str(e)) from e
         redirect = f"http://localhost:{port}/"
         url = login_url(aid, redirect, state)
         note("waiting", "Waiting for the Facebook sign-in in the browser…", url=url)
@@ -273,13 +243,12 @@ def connect(open_browser=True, port=PORT, timeout=300, status_file=None):
               flush=True)
         if open_browser:
             webbrowser.open(url)
-        srv.timeout = 5
-        end = time.time() + timeout
-        while time.time() < end and "code" not in got:
-            srv.handle_request()
-        srv.server_close()
+        try:
+            got = loopback.wait(srv, got, timeout)
+        except loopback.CallbackError as e:
+            raise MetaError(str(e)) from e
         if not got.get("code"):
-            raise MetaError(f"No sign-in received ({got.get('error') or 'timed out'}).")
+            raise MetaError(f"No sign-in received ({got.get('error_description') or got.get('error') or 'no code'}).")
         token, _ = exchange(aid, sec, got["code"], redirect)
         keys.set_key("META_USER_TOKEN", token)
         info = describe(token)

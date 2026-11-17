@@ -45,7 +45,7 @@ Usage is counted per run (`ig_insights_requests`, `youtube_analytics_requests`, 
    python -m viral_scout keys set YT_OAUTH_CLIENT_ID <client id>
    python -m viral_scout keys set YT_OAUTH_CLIENT_SECRET -
    ```
-5. `python -m viral_scout perf auth youtube`. It prints Google's consent URL and opens it; sign in with the account that owns the channel. Google redirects to `http://127.0.0.1:<port>` where the tool is listening, and the refresh token is written to `.env` as `YT_OAUTH_REFRESH_TOKEN`. Use `--no-browser` to open the URL yourself, `--port N` for a fixed port.
+5. `python -m viral_scout perf auth youtube` (or `keys connect google`, one sign-in for YouTube Analytics and Google Ads; see [setup.md](setup.md#connect-google)). It prints Google's consent URL and opens it; sign in with the account that owns the channel. Google redirects to `http://127.0.0.1:<port>` where the tool is listening, and the refresh token is written to `.env` as `YT_OAUTH_REFRESH_TOKEN`. Use `--no-browser` to open the URL yourself, `--port N` for a fixed port.
 6. Check it: `python -m viral_scout keys test YT_OAUTH_REFRESH_TOKEN`.
 
 This is Google's installed-app flow with a loopback redirect and PKCE. The old copy-paste ("out-of-band") flow is no longer supported by Google. With the consent screen in "Testing", Google expires refresh tokens after 7 days; publish the app (it only reads your own data) to keep the token.

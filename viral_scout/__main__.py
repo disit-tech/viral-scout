@@ -11,7 +11,7 @@
   python -m viral_scout new <name> --business ... --keywords "a; b" [--research] [--run]
   python -m viral_scout competitors <profile> ["query"] [--near "City, ST"]
   python -m viral_scout keys [status | test [NAME] | set NAME [VALUE|-]]
-  python -m viral_scout keys connect meta | keys meta [accounts | use --ig @user --ad-account ID | status]
+  python -m viral_scout keys connect meta|google|tiktok   one sign-in per platform fills its keys (docs/setup.md)
   python -m viral_scout perf <profile> [--no-pull]               own performance (your videos and ads) → report
   python -m viral_scout perf import <profile> <file.csv> --source meta|tiktok|youtube|generic
   python -m viral_scout perf auth youtube                         OAuth for the YouTube Analytics API
@@ -92,7 +92,8 @@ def main(argv=None):
             with activity.track(argv[1], f"paid {argv[2]}", argv):
                 return paid_main(argv[1:])
         return paid_main(argv[1:])
-    if argv[:3] == ["keys", "connect", "meta"] or argv[:2] == ["keys", "meta"]:   # Facebook sign-in (own flags)
+    if argv[:1] == ["keys"] and (argv[1:2] in (["meta"], ["google"], ["tiktok"]) or argv[1:2] == ["connect"]):
+        # the sign-ins have their own flags
         from . import keys
         return keys.cli(argv[1:])
     if argv and argv[0] == "perf":                 # own performance has its own sub-commands

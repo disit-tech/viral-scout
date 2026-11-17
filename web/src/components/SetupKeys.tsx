@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PRICE, USES, byTier, costDetail, priceOf, useLabel } from "@/lib/keys-ui";
-import ConnectMeta from "./ConnectMeta";
+import Connections from "./Connections";
 
 type Key = {
   name: string; group: string; set: boolean; masked: string; cost: string; unlocks: string; get: string; docs: string;
@@ -46,7 +46,7 @@ export default function SetupKeys() {
   const isSet = (n: string) => keys.some((k) => k.name === n && k.set);
   return (
     <div className="mt-6 space-y-8">
-      <ConnectMeta appSet={isSet("META_APP_ID") && isSet("META_APP_SECRET")} signedIn={isSet("META_USER_TOKEN")} onDone={load} />
+      <Connections isSet={isSet} onDone={load} />
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-line bg-panel px-4 py-3 text-sm">
         {tiers.map((t) => {
           const done = t.keys.filter((k) => k.set || k.has_default).length;   // some settings work on their defaults

@@ -42,7 +42,75 @@ For test runs, point `OBSIDIAN_VAULT` at a scratch folder so reports don't land 
 
 Each key unlocks one source. When a key is missing, that source is listed under **Skipped sources** and the rest still runs.
 
-**The easy way:** on the local dashboard, open **/setup**. Every key is listed with what it unlocks, its cost, how to get it and its docs link, and you can save and test each one. The CLI equivalent is `python -m viral_scout keys`, `keys test` and `keys set NAME -` (the value is read from stdin). Keys go into `.env`, which is git-ignored.
+**The easy way:** on the local dashboard, open **/setup**. [Connect accounts](#connect-accounts) signs in to Meta, Google and TikTok and fills their keys. Every key is listed with what it unlocks, its cost, how to get it and its docs link, and you can save and test each one. The CLI equivalent is `python -m viral_scout keys`, `keys test` and `keys set NAME -` (the value is read from stdin). Keys go into `.env`, which is git-ignored.
+
+### Connect accounts
+Instead of copying tokens and account ids by hand, sign in once per platform. The **Connect accounts** cards at the top of the Setup page do it, or `python -m viral_scout keys connect meta|google|tiktok`. Each one opens the official sign-in in your browser. The browser then returns to a small server on this PC, and the keys land in `.env`.
+
+What a sign-in can't do: create the developer app. Meta, Google and TikTok have no API for that, so each platform needs one app made by hand, once (steps below). App reviews are also manual: Google's developer token for Google Ads, TikTok's approval of the app, and Meta's identity check for the Ad Library. Apify, Telegram, Google Places and the YouTube API key are still pasted.
+
+| Card | Made once by hand | Sign-in fills |
+|---|---|---|
+| Meta | Meta app: `META_APP_ID`, `META_APP_SECRET` | `IG_GRAPH_TOKEN`, `IG_GRAPH_USER_ID`, `META_AD_ACCOUNT_ID`, `META_ADS_TOKEN`, `META_AD_LIBRARY_TOKEN` |
+| Google | Desktop OAuth client: `YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET` | `YT_OAUTH_REFRESH_TOKEN`, `GOOGLE_ADS_REFRESH_TOKEN` |
+| TikTok Ads | TikTok for Business app: `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET` | `TIKTOK_ADS_TOKEN`, `TIKTOK_ADVERTISER_ID` |
+
+Each business's own ad account ids still go on its Paid ads page. The sign-in sets the default account and lists the others.
+
+#### Connect Meta
+One Facebook sign-in fills every Meta key: `IG_GRAPH_TOKEN` (a Page token, which doesn't expire), `IG_GRAPH_USER_ID`, `META_AD_ACCOUNT_ID`, `META_ADS_TOKEN`, and `META_AD_LIBRARY_TOKEN` when your account has confirmed its identity. It uses the official Facebook Login with a callback on this PC.
+
+Once, by hand (Meta has no API for creating apps):
+1. [Meta for Developers](https://developers.facebook.com/apps) → **Create app** → type **Business**. An existing app works too.
+2. Add the product **Facebook Login for Business** (or **Facebook Login**). Under its settings → **Valid OAuth Redirect URIs** add `http://localhost:8765/`.
+3. **App settings → Basic**: save the App ID as `META_APP_ID` and the App secret as `META_APP_SECRET` (Setup page, or `keys set`).
+4. Leave the app in **Development** mode. People with a role on the app (you) get every permission without App Review. If the login product makes you create a configuration, put its id in `META_LOGIN_CONFIG_ID`.
+
+Then press **Sign in with Facebook** on the dashboard's Setup page, or run:
+
+```
+python -m viral_scout keys connect meta          # opens the sign-in, saves the keys
+python -m viral_scout keys meta accounts         # with several Instagram or ad accounts: list them
+python -m viral_scout keys meta use --ig @brand --ad-account 1234567890
+python -m viral_scout keys meta status           # each Meta token's type and expiry date
+```
+
+Sign in with the Facebook account that manages the Pages and ad accounts, and allow every permission it asks for. With one Instagram account and one ad account, both are picked on their own.
+
+What expires: the sign-in token (`META_USER_TOKEN`, and `META_ADS_TOKEN` when it's made from it) lasts about 60 days. Sign in again before then; **Test** on the Setup page shows the date. The Instagram Page token doesn't expire. `META_ADS_TOKEN` that already holds a system-user token (which never expires) is kept, unless you pass `--replace-ads-token`.
+
+#### Connect Google
+One consent covers YouTube Analytics (your channel) and the Google Ads API. The same refresh token is saved as `YT_OAUTH_REFRESH_TOKEN` and `GOOGLE_ADS_REFRESH_TOKEN`. The old `perf auth youtube` and `paid auth google` still work, but they need two sign-ins.
+
+Once, by hand:
+1. Google Cloud console → a project → enable **YouTube Analytics API**, **YouTube Data API v3** and **Google Ads API**.
+2. **OAuth consent screen**: External, add yourself as a test user, then **Publish app**. A consent screen left in Testing makes the refresh token stop after 7 days.
+3. **Credentials → Create credentials → OAuth client ID → Desktop app**. Save the id and secret as `YT_OAUTH_CLIENT_ID` and `YT_OAUTH_CLIENT_SECRET`. Desktop clients accept any `127.0.0.1` port, so there's no redirect URL to register.
+4. Google Ads only: a developer token from a manager account (Tools → API Center) as `GOOGLE_ADS_DEVELOPER_TOKEN`, if calls are refused without it.
+
+```
+python -m viral_scout keys connect google           # both; --only youtube or --only ads for one
+python -m viral_scout keys google accounts          # your channel and the Google Ads accounts it reaches
+```
+
+Pick the Google account that owns the channel and manages the Google Ads accounts, and tick every box.
+
+#### Connect TikTok
+The advertiser authorization of TikTok API for Business returns a long-term token, with no expiry date, and the advertiser accounts you ticked.
+
+Once, by hand (TikTok reviews the app, which takes a few days):
+1. [TikTok API for Business](https://business-api.tiktok.com/portal) → **My apps → Create** with the **Ad Account Management**, **Campaign Management** and **Reporting** permissions.
+2. **Advertiser redirect URL**: `http://localhost:8766/`. If TikTok only accepts https, enter any https address you control and save the same address as `TIKTOK_APP_REDIRECT_URI`.
+3. After approval, save the App ID and Secret as `TIKTOK_APP_ID` and `TIKTOK_APP_SECRET`.
+
+```
+python -m viral_scout keys connect tiktok                                     # callback on this PC
+python -m viral_scout keys connect tiktok --paste "https://…?auth_code=…"     # https redirect: the address you landed on
+python -m viral_scout keys tiktok accounts                                    # authorized advertiser accounts
+python -m viral_scout keys tiktok use --advertiser 7001234567890
+```
+
+With an https redirect, the browser lands on that address after the sign-in (a "not found" page is fine). Paste the whole address into the TikTok card or `--paste`; it holds the one-time code.
 
 ### YouTube Data API (free, recommended)
 Unlocks **keyword search for Shorts**, with a time window, sorted by views, per language. yt-dlp can't read YouTube's Shorts search results.
@@ -62,29 +130,7 @@ What you need:
 - a Meta app with `instagram_basic` and `pages_read_engagement`,
 - a long-lived access token.
 
-The easy way is [Connect Meta](#connect-meta) below: one Facebook sign-in fills `IG_GRAPH_TOKEN` and `IG_GRAPH_USER_ID`. By hand: add `IG_GRAPH_TOKEN=...` and `IG_GRAPH_USER_ID=...` (your Instagram business account id) to `.env`.
-
-### Connect Meta
-One Facebook sign-in fills every Meta key: `IG_GRAPH_TOKEN` (a Page token, which doesn't expire), `IG_GRAPH_USER_ID`, `META_AD_ACCOUNT_ID`, `META_ADS_TOKEN`, and `META_AD_LIBRARY_TOKEN` when your account has confirmed its identity. It uses the official Facebook Login with a callback on this PC.
-
-Once, by hand (Meta has no API for creating apps):
-1. [Meta for Developers](https://developers.facebook.com/apps) → **Create app** → type **Business**. An existing app works too.
-2. Add the product **Facebook Login for Business** (or **Facebook Login**). Under its settings → **Valid OAuth Redirect URIs** add `http://localhost:8765/`.
-3. **App settings → Basic**: save the App ID as `META_APP_ID` and the App secret as `META_APP_SECRET` (Setup page, or `keys set`).
-4. Leave the app in **Development** mode. People with a role on the app (you) get every permission without App Review. If the login product makes you create a configuration, put its id in `META_LOGIN_CONFIG_ID`.
-
-Then press **Sign in with Facebook** at the top of the dashboard's Setup page, or run:
-
-```
-python -m viral_scout keys connect meta          # opens the sign-in, saves the keys
-python -m viral_scout keys meta accounts         # with several Instagram or ad accounts: list them
-python -m viral_scout keys meta use --ig @brand --ad-account 1234567890
-python -m viral_scout keys meta status           # each Meta token's type and expiry date
-```
-
-Sign in with the Facebook account that manages the Pages and ad accounts, and allow every permission it asks for. With one Instagram account and one ad account, both are picked on their own.
-
-What expires: the sign-in token (`META_USER_TOKEN`, and `META_ADS_TOKEN` when it's made from it) lasts about 60 days. Sign in again before then; **Test** on the Setup page shows the date. The Instagram Page token doesn't expire. `META_ADS_TOKEN` that already holds a system-user token (which never expires) is kept, unless you pass `--replace-ads-token`.
+The easy way is [Connect Meta](#connect-meta) above: one Facebook sign-in fills `IG_GRAPH_TOKEN` and `IG_GRAPH_USER_ID`. By hand: add `IG_GRAPH_TOKEN=...` and `IG_GRAPH_USER_ID=...` (your Instagram business account id) to `.env`.
 
 Limits: it only reads **professional** accounts, and it returns likes, not views.
 
@@ -117,9 +163,9 @@ Unlocks **local competitors**: `python -m viral_scout competitors <profile> "gut
 ### Your own performance (optional, free)
 Reads **your own** accounts' private metrics for the [Your performance](performance.md) report. Each pair is optional:
 - **Instagram insights:** the `IG_GRAPH_TOKEN` above, with `instagram_manage_insights` (and `instagram_manage_comments` for comment sentiment) added.
-- **YouTube Analytics:** a Desktop OAuth client (`YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`), then `python -m viral_scout perf auth youtube` once; it saves `YT_OAUTH_REFRESH_TOKEN`. Step by step in [performance.md](performance.md#youtube-oauth-setup-once).
+- **YouTube Analytics:** a Desktop OAuth client (`YT_OAUTH_CLIENT_ID`, `YT_OAUTH_CLIENT_SECRET`), then [Connect Google](#connect-google) (or `python -m viral_scout perf auth youtube`) once; it saves `YT_OAUTH_REFRESH_TOKEN`. Step by step in [performance.md](performance.md#youtube-oauth-setup-once).
 - **Meta ads:** `META_ADS_TOKEN` (system-user token with `ads_read`, or the [Connect Meta](#connect-meta) sign-in) and `META_AD_ACCOUNT_ID`.
-- **TikTok ads:** `TIKTOK_ADS_TOKEN` (TikTok for Business developer app with Reporting) and `TIKTOK_ADVERTISER_ID`.
+- **TikTok ads:** `TIKTOK_ADS_TOKEN` (TikTok for Business developer app with Reporting) and `TIKTOK_ADVERTISER_ID`, both filled by [Connect TikTok](#connect-tiktok).
 - **No keys at all:** `python -m viral_scout perf import <profile> export.csv --source meta|tiktok|youtube|generic`.
 
 ### Telegram alerts (free)

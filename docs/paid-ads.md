@@ -28,7 +28,7 @@ Registered at user scope: `claude mcp add --transport http --scope user meta-ads
 
 1. Google Cloud console (the same project as YouTube Analytics is fine): enable the **Google Ads API**, create an OAuth client ID of type **Desktop app**, and publish the consent screen (**In production**; in Testing the refresh token dies after 7 days).
 2. Setup page → `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET` (they fall back to the YouTube Analytics client).
-3. `python -m viral_scout paid auth google` → sign in with the Google account that manages the businesses' Google Ads accounts → `GOOGLE_ADS_REFRESH_TOKEN` lands in `.env`.
+3. `python -m viral_scout keys connect google` (one sign-in for Google Ads and YouTube Analytics; `paid auth google` does Google Ads alone) → sign in with the Google account that manages the businesses' Google Ads accounts → `GOOGLE_ADS_REFRESH_TOKEN` lands in `.env`.
 4. Only if needed: `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (you reach the accounts through a manager account) and `GOOGLE_ADS_DEVELOPER_TOKEN` (Google Ads → Tools → API Center). Google's REST auth page now lists only `Authorization` and `login-customer-id`; older guides require the developer token, so it's sent whenever it's set. **Test** on the Setup page lists the accounts the login reaches.
 5. The customer id (`123-456-7890`) goes into each business's Paid ads page.
 

@@ -4,6 +4,8 @@
   python -m viral_scout keys test [NAME]     # live test
   python -m viral_scout keys set NAME VALUE  # write to .env
   python -m viral_scout keys connect meta    # Facebook sign-in fills every Meta key (connect_meta.py)
+  python -m viral_scout keys connect google  # one Google sign-in: YouTube Analytics + Google Ads (connect_google.py)
+  python -m viral_scout keys connect tiktok  # TikTok advertiser authorization (connect_tiktok.py)
 Values are never printed in full.
 """
 import json
@@ -141,6 +143,23 @@ KEYS = [
      "unlocks": "Which ad account to read (act_123… or the number).",
      "get": "Ads Manager → account dropdown, or Business Settings → Ad accounts.",
      "docs": "https://developers.facebook.com/documentation/ads-commerce/marketing-api/insights"},
+    {"name": "TIKTOK_APP_ID", "group": "Connect TikTok (advertiser sign-in)", "cost": "free (after TikTok approves the app)",
+     "secret": False,
+     "unlocks": "Authorize your TikTok advertiser accounts once and TIKTOK_ADS_TOKEN (no expiry) and TIKTOK_ADVERTISER_ID "
+                "are filled for you.",
+     "get": "Once: TikTok API for Business → My apps → create an app with Ad Account Management, Campaign Management "
+            "and Reporting → Advertiser redirect URL http://localhost:8766/ → wait for approval → App ID. Then press "
+            "Sign in with TikTok at the top of this page, or run: python -m viral_scout keys connect tiktok",
+     "docs": "https://business-api.tiktok.com/portal/docs?id=1738373164380162"},
+    {"name": "TIKTOK_APP_SECRET", "group": "Connect TikTok (advertiser sign-in)", "cost": "",
+     "unlocks": "The app's secret: swaps the authorization code for the long-term token.",
+     "get": "Same app → Basic information → Secret.",
+     "docs": "https://business-api.tiktok.com/portal/docs?id=1738373141733378"},
+    {"name": "TIKTOK_APP_REDIRECT_URI", "group": "Connect TikTok (advertiser sign-in)", "cost": "", "secret": False,
+     "unlocks": "The Advertiser redirect URL registered on the app. Default http://localhost:8766/ (the callback runs "
+                "on this PC). If TikTok only accepts https, put that address here and paste where the browser lands.",
+     "get": "Exactly what's in the app's Advertiser redirect URL field.",
+     "docs": "https://business-api.tiktok.com/portal/docs?id=1738373164380162"},
     {"name": "TIKTOK_ADS_TOKEN", "group": "TikTok API for Business (your ads)", "cost": "free",
      "unlocks": "Your performance: your TikTok ads' 2-s/6-s views, 25–100% views, avg play time, CTR, CPC, CPM, "
                 "conversions, CPA, ROAS, daily frequency. Paid ads page: campaigns, budgets, spend, Pause / Resume / Budget.",
@@ -215,6 +234,7 @@ TIER = {
     "STUDIO_SERVICE_URL": "recommended", "IDEAS_API_SECRET": "recommended",
     "GOOGLE_ADS_CLIENT_ID": "optional", "GOOGLE_ADS_CLIENT_SECRET": "optional", "GOOGLE_ADS_REFRESH_TOKEN": "optional",
     "GOOGLE_ADS_DEVELOPER_TOKEN": "optional", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "advanced",
+    "TIKTOK_APP_ID": "optional", "TIKTOK_APP_SECRET": "optional", "TIKTOK_APP_REDIRECT_URI": "advanced",
     "GOOGLE_PLACES_API_KEY": "optional", "TIKTOK_ADS_TOKEN": "optional", "TIKTOK_ADVERTISER_ID": "optional",
     "META_AD_LIBRARY_TOKEN": "optional", "TIKTOK_RESEARCH_CLIENT_KEY": "optional",
     "TIKTOK_RESEARCH_CLIENT_SECRET": "optional", "APIFY_TRENDS_ACTOR": "optional",
@@ -231,7 +251,7 @@ PRICE = {
     "APIFY_MAX_USD_PER_RUN": "control", "VIRAL_SCOUT_MCP_PAID": "control",
 }
 # Settings that work unset (the code has a default): the Setup pages count them as done.
-HAS_DEFAULT = {"META_LOGIN_CONFIG_ID", "APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID",
+HAS_DEFAULT = {"META_LOGIN_CONFIG_ID", "TIKTOK_APP_REDIRECT_URI", "APIFY_GOOGLE_TRENDS_ACTOR", "APIFY_MAX_USD_PER_RUN", "VIRAL_SCOUT_MCP_PAID",
                "GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID"}   # optional: only some setups need them
 # What each key is for (tags and filters on the Setup pages).
 USES = {
@@ -249,6 +269,8 @@ USES = {
     "GOOGLE_ADS_CLIENT_ID": ["paid"], "GOOGLE_ADS_CLIENT_SECRET": ["paid"], "GOOGLE_ADS_REFRESH_TOKEN": ["paid"],
     "GOOGLE_ADS_DEVELOPER_TOKEN": ["paid"], "GOOGLE_ADS_LOGIN_CUSTOMER_ID": ["paid"],
     "META_ADS_TOKEN": ["performance", "paid"], "META_AD_ACCOUNT_ID": ["performance"],
+    "TIKTOK_APP_ID": ["performance", "paid"], "TIKTOK_APP_SECRET": ["performance", "paid"],
+    "TIKTOK_APP_REDIRECT_URI": ["performance", "paid"],
     "TIKTOK_ADS_TOKEN": ["performance", "paid"], "TIKTOK_ADVERTISER_ID": ["performance"], "VIRAL_SCOUT_YTDLP": ["videos"],
     "OBSIDIAN_VAULT": ["tools"],
 }
@@ -423,6 +445,17 @@ def test(name):
                 return False, (d.get("error") or {}).get("message", r.text[:160])
             n = len(d.get("resourceNames") or [])
             return True, f"ok: {n} Google Ads account{'s' if n != 1 else ''} reachable"
+        if name in ("TIKTOK_APP_ID", "TIKTOK_APP_SECRET", "TIKTOK_APP_REDIRECT_URI"):
+            if not (os.environ.get("TIKTOK_APP_ID") and os.environ.get("TIKTOK_APP_SECRET")):
+                return False, "set both TIKTOK_APP_ID and TIKTOK_APP_SECRET"
+            if not os.environ.get("TIKTOK_ADS_TOKEN"):
+                return True, "set (checked on Sign in with TikTok: TikTok has no app-only test call)"
+            from . import connect_tiktok as ct
+            try:
+                n = len(ct.accounts())
+            except ct.TikTokError as e:
+                return False, str(e)
+            return True, f"ok: {n} advertiser account{'s' if n != 1 else ''} authorized"
         if name in ("TIKTOK_ADS_TOKEN", "TIKTOK_ADVERTISER_ID"):
             r = requests.get("https://business-api.tiktok.com/open_api/v1.3/advertiser/info/",
                              params={"advertiser_ids": json.dumps([os.environ.get("TIKTOK_ADVERTISER_ID", "")])},
@@ -500,9 +533,69 @@ def _meta_cli(args):
     return 2
 
 
+def _google_cli(args):
+    import argparse
+    from . import connect_google as cg
+    try:
+        if args[0] == "connect":
+            a = argparse.ArgumentParser(prog="viral_scout keys connect google")
+            a.add_argument("--no-browser", action="store_true")
+            a.add_argument("--port", type=int, default=0, help="loopback port (default: any free port)")
+            a.add_argument("--timeout", type=int, default=300)
+            a.add_argument("--only", choices=["youtube", "ads"])
+            a.add_argument("--status-file")
+            o = a.parse_args(args[2:])
+            print("\n".join(cg.connect(not o.no_browser, o.port, o.timeout, o.only, o.status_file)))
+            return 0
+        if (args[1:2] or ["accounts"])[0] == "accounts":
+            print(json.dumps(cg.accounts(), indent=1, ensure_ascii=False))
+            return 0
+    except cg.GoogleError as e:
+        print(f"error: {e}")
+        return 1
+    print(cg.__doc__)
+    return 2
+
+
+def _tiktok_cli(args):
+    import argparse
+    from . import connect_tiktok as ct
+    try:
+        if args[0] == "connect":
+            a = argparse.ArgumentParser(prog="viral_scout keys connect tiktok")
+            a.add_argument("--no-browser", action="store_true")
+            a.add_argument("--port", type=int)
+            a.add_argument("--timeout", type=int, default=300)
+            a.add_argument("--paste", help="the address the browser landed on (or '-' to read it from stdin)")
+            a.add_argument("--status-file")
+            o = a.parse_args(args[2:])
+            paste = input() if o.paste == "-" else o.paste
+            print("\n".join(ct.connect(not o.no_browser, o.port, o.timeout, paste, o.status_file)))
+            return 0
+        sub = args[1] if len(args) > 1 else "accounts"
+        if sub == "accounts":
+            print(json.dumps(ct.accounts(), indent=1, ensure_ascii=False))
+            return 0
+        if sub == "use":
+            a = argparse.ArgumentParser(prog="viral_scout keys tiktok use")
+            a.add_argument("--advertiser", required=True)
+            o = a.parse_args(args[2:])
+            print("\n".join(ct.use(o.advertiser)))
+            return 0
+    except ct.TikTokError as e:
+        print(f"error: {e}")
+        return 1
+    print(ct.__doc__)
+    return 2
+
+
 def cli(args):
     if args[:2] == ["connect", "meta"] or args[:1] == ["meta"]:
         return _meta_cli(args)
+    if args[:2] == ["connect", "google"] or args[:1] == ["google"]:
+        return _google_cli(args)
+    if args[:2] == ["connect", "tiktok"] or args[:1] == ["tiktok"]:
+        return _tiktok_cli(args)
     if not args or args[0] == "status":
         print(json.dumps(status(), indent=1))
         return 0
@@ -515,6 +608,6 @@ def cli(args):
         set_key(args[1], args[2] if len(args) == 3 else "")
         print(f"{args[1]} {'saved' if len(args) == 3 and args[2] else 'cleared'} ({mask(args[2] if len(args) == 3 else '')})")
         return 0
-    print("usage: keys [status] | keys test [NAME...] | keys set NAME [VALUE] | keys connect meta | "
-          "keys meta [accounts | use | status]")
+    print("usage: keys [status] | keys test [NAME...] | keys set NAME [VALUE] | keys connect meta|google|tiktok | "
+          "keys meta [accounts | use | status] | keys google accounts | keys tiktok [accounts | use]")
     return 2
