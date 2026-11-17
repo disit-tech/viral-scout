@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Scorecard } from "@/lib/types";
 
 const LABELS: Record<string, string> = {
@@ -13,9 +14,16 @@ function color(score: number | null) {
   return score >= 70 ? "var(--color-above)" : score >= 55 ? "var(--color-viral)" : "var(--color-mega)";
 }
 
-export default function ScorecardView({ card, cmd }: { card?: Scorecard | null; cmd: string }) {
+/** `action` (the local dashboard's Score button) replaces the Claude Code command in the empty state and is shown
+ *  under a finished card to score it again. */
+export default function ScorecardView({ card, cmd, action }: { card?: Scorecard | null; cmd: string; action?: ReactNode }) {
   if (!card) {
-    return (
+    return action ? (
+      <div className="space-y-2 text-sm text-muted">
+        <p>Not scored yet. Claude rates this post on 20 criteria (100 points).</p>
+        {action}
+      </div>
+    ) : (
       <div className="text-sm text-muted">
         Not scored yet. The AI step scores the strongest posts on 20 criteria (100 points). In Claude Code run{" "}
         <code className="text-text">{cmd}</code>.
@@ -73,6 +81,7 @@ export default function ScorecardView({ card, cmd }: { card?: Scorecard | null; 
           </tbody>
         </table>
       </details>
+      {action}
     </div>
   );
 }

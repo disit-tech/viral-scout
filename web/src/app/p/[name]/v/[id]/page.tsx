@@ -7,6 +7,7 @@ import { age, deObsidian, num, tier, times } from "@/lib/format";
 import GrowthChart from "@/components/GrowthChart";
 import PostActions from "@/components/PostActions";
 import ScorecardView from "@/components/ScorecardView";
+import ScoreButton from "@/components/ScoreButton";
 import FiveTests from "@/components/FiveTests";
 
 export async function generateStaticParams() {
@@ -99,7 +100,8 @@ export default async function VideoPage({ params }: { params: Promise<{ name: st
           </Section>
 
           <Section title="Creative scorecard (100 points)">
-            <ScorecardView card={item.scorecard} cmd={`/viral-scout ${name} score ${item.id}`} />
+            <ScorecardView card={item.scorecard} cmd={`/viral-scout ${name} score ${item.id}`}
+              action={isLocal ? <ScoreButton profile={name} id={item.id} scored={!!item.scorecard} /> : undefined} />
           </Section>
 
           <Section title="Numbers">

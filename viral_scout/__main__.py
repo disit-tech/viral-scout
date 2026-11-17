@@ -65,6 +65,19 @@ def main(argv=None):
         cfg = config.load(argv[1])
         with activity.track(cfg["name"], f"ad {argv[3]}", argv):
             return extra.cli(cfg, argv[2], argv[3], force="--force" in argv)
+    if argv[:2] == ["score", "run"]:              # one post scored by Claude headless (dashboard button)
+        if len(argv) < 4:
+            print("usage: python -m viral_scout score run <profile> <post_id> [--force]")
+            return 2
+        from . import activity, score_ai
+        cfg = config.load(argv[2])
+        with activity.track(cfg["name"], "score", argv):
+            try:
+                score_ai.run(cfg, argv[3], force="--force" in argv)
+            except (ValueError, RuntimeError) as err:
+                print(f"ERROR: {err}")
+                return 1
+        return 0
     if argv and argv[0] == "ideas":                # ideas API: pull ratings, push batches, content packs
         from .ideas import main as ideas_main
         return ideas_main(argv[1:])
@@ -132,7 +145,7 @@ def main(argv=None):
     ck.add_argument("profile")
     ck.add_argument("file")
     ck.add_argument("--platform", default="any", choices=["any", "tiktok", "reels", "shorts"])
-    sc = sub.add_parser("score", help="creative scorecard: show, template, or set (JSON on stdin)")
+    sc = sub.add_parser("score", help="creative scorecard: show, template, set (JSON on stdin), or run <profile> <post_id> (Claude scores it)")
     sc.add_argument("action", choices=["show", "set", "template"])
     sc.add_argument("profile", nargs="?")
     sc.add_argument("post_id", nargs="?")

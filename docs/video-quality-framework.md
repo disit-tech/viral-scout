@@ -16,7 +16,7 @@ The video page shows these as pass / warn / fail / n/a. For other people's video
 
 ## The 20 creative criteria and the 100-point score
 
-The AI step rates each criterion 1–5 with a reason (`viral_scout/scorecard.py`; the `/viral-scout` skill fills it in). Criteria roll up into 9 weighted groups:
+The AI step rates each criterion 1–5 with a reason (`viral_scout/scorecard.py`; the `/viral-scout` skill fills it in for the top posts). For any other post, the local dashboard's video page has a **Score with AI** button (**Score again** once scored): it runs `python -m viral_scout score run <profile> <post_id> [--force]`, which gives the Claude Code CLI, headless on your subscription and allowed only to Read, the post's numbers, hook, transcript, comments and cached first frame, checks the reply and saves it like the skill does. About a minute; it shows on the Activity page. Criteria roll up into 9 weighted groups:
 
 | Group (points) | Criteria |
 |---|---|
