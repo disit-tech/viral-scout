@@ -446,8 +446,17 @@ def set_fields(name, patch, base=None):
 
 
 def cli(argv):
+    if len(argv) >= 2 and argv[1] == "delete":      # Settings → Delete business (moves everything to data/deleted/)
+        from .profile_delete import delete
+        confirm = argv[argv.index("--confirm") + 1] if "--confirm" in argv[:-1] else ""
+        try:
+            print(json.dumps(delete(argv[0], confirm), ensure_ascii=False))
+            return 0
+        except ValueError as e:
+            print(json.dumps({"error": str(e)}, ensure_ascii=False))
+            return 1
     if len(argv) < 2 or argv[1] not in ("get", "set"):
-        print("usage: python -m viral_scout profile <name> get | set  (set reads JSON from stdin)")
+        print("usage: python -m viral_scout profile <name> get | set | delete --confirm <name>  (set reads JSON from stdin)")
         return 2
     try:
         if argv[1] == "get":

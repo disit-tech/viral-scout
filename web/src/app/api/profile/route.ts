@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
   if (deny) return deny;
   const b = await req.json().catch(() => ({}));
   const profile = String(b.profile ?? "");
+  if (b.delete === true && /^[\w.-]+$/.test(profile)) {   // Settings → Delete business: moved to data/deleted/, tasks removed
+    const r = await runCli(["profile", profile, "delete", "--confirm", String(b.confirm ?? "")], undefined, 240_000);
+    let out: { ok?: boolean; error?: string; folder?: string; tasks_removed?: string[] } = {};
+    try { out = JSON.parse(r.output.split("\n").filter((l) => l.startsWith("{")).pop() ?? "{}"); } catch { out = { error: r.output.slice(-300) }; }
+    return NextResponse.json(out.error ? { ok: false, error: out.error } : { ok: true, ...out }, { status: out.error ? 400 : 200 });
+  }
   if (!/^[\w.-]+$/.test(profile) || typeof b.set !== "object" || !b.set) {
     return NextResponse.json({ ok: false, error: "bad request" }, { status: 400 });
   }

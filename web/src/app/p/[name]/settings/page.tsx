@@ -3,6 +3,7 @@ import { isLocal } from "@/lib/data";
 import { runCli } from "@/lib/cli";
 import type { ProfileFields } from "@/lib/types";
 import SettingsForm from "@/components/SettingsForm";
+import DeleteBusiness from "@/components/DeleteBusiness";
 
 export const dynamic = "force-dynamic";
 
@@ -30,5 +31,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ name:
       </div>
     );
   }
-  return <SettingsForm initial={data} />;
+  return (
+    <div className="space-y-6">
+      <SettingsForm initial={data} />
+      <DeleteBusiness name={name} />
+    </div>
+  );
 }
