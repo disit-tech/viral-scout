@@ -7,6 +7,7 @@ work waiting (notes only) → tries left (max_tries per day/week) → `claude -p
 import os
 import shutil
 import subprocess
+import time
 from datetime import datetime
 
 from .. import config
@@ -41,8 +42,16 @@ def _execute(cmd, prompt, log, cwd):
     return p.returncode
 
 
-def run(cfg, job, now=None, force=False, dry=False, execute=None, pending=None, which=shutil.which):
-    """Returns (exit code, message). execute(cmd, prompt, log_path, cwd) and pending(cfg) are injectable for tests."""
+# A timed job that finds another Claude job running waits for it instead of giving up: when the PC wakes late, every
+# missed task starts at the same minute, and a quiet "busy" exit lost the day for all but one of them (2026-11-16).
+# Below the hourly retry interval, so a waiting run never overlaps the next try of the same task. Notes don't wait:
+# they run every 15 minutes anyway.
+LOCK_WAIT_MINUTES = 50
+
+
+def run(cfg, job, now=None, force=False, dry=False, execute=None, pending=None, which=shutil.which,
+        wait_minutes=None, sleep=time.sleep):
+    """Returns (exit code, message). execute(cmd, prompt, log_path, cwd), pending(cfg) and sleep are injectable for tests."""
     if job not in S.JOBS:
         return 2, f"unknown job {job!r} (jobs: {', '.join(S.JOBS)})"
     s = S.settings(cfg)
@@ -62,8 +71,18 @@ def run(cfg, job, now=None, force=False, dry=False, execute=None, pending=None, 
     if m.done() and not force:
         return 0, f"{job} already done ({m.key})"
     lock = Lock(S.lock_path(), s["lock_hours"], f"{cfg['name']}:{job}")
-    if not lock.acquire():
-        return 0, f"busy: {(lock.info() or {}).get('owner', 'another job')} holds the lock"
+    wait = 0 if dry or job == "notes" else (LOCK_WAIT_MINUTES if wait_minutes is None else wait_minutes) * 60
+    waited, owner = 0, None
+    while not lock.acquire():
+        owner = (lock.info() or {}).get("owner", "another job")
+        if waited >= wait:
+            if waited:
+                return 0, note(f"busy: {owner} still holds the lock after {waited // 60} min; next hourly try")
+            return 0, f"busy: {owner} holds the lock"
+        sleep(30)
+        waited += 30
+    if waited:
+        note(f"=== waited {waited // 60} min for {owner}")
     try:
         if job == "notes":
             from .. import notes

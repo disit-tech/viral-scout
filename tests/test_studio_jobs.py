@@ -145,10 +145,40 @@ class RunnerTest(Base):
     def test_busy_lock_skips(self):
         cfg = self.profile({"ideas": {"enabled": True}})
         S.lock_path().write_text('{"owner": "other:film"}', encoding="utf-8")
-        (code, msg), calls = self.run_job(cfg, "ideas")
+        (code, msg), calls = self.run_job(cfg, "ideas", wait_minutes=0)
         self.assertEqual((code, calls), (0, []))
         self.assertIn("other:film", msg)
         self.assertTrue(S.lock_path().exists())
+
+    def test_busy_lock_waits_then_runs(self):
+        cfg = self.profile({"ideas": {"enabled": True}})
+        lock = S.lock_path()
+        lock.write_text('{"owner": "other:ideas"}', encoding="utf-8")
+        slept = []
+
+        def sleep(sec):                          # the other job finishes after two polls
+            slept.append(sec)
+            if len(slept) == 2:
+                lock.unlink()
+        (code, msg), calls = self.run_job(cfg, "ideas", sleep=sleep)
+        self.assertEqual((code, len(calls), len(slept)), (0, 1, 2))
+        self.assertFalse(lock.exists())
+
+    def test_busy_lock_gives_up_after_wait(self):
+        cfg = self.profile({"ideas": {"enabled": True}})
+        S.lock_path().write_text('{"owner": "other:film"}', encoding="utf-8")
+        slept = []
+        (code, msg), calls = self.run_job(cfg, "ideas", wait_minutes=2, sleep=slept.append)
+        self.assertEqual((code, calls, len(slept)), (0, [], 4))
+        self.assertIn("after 2 min", msg)
+
+    def test_notes_never_wait_for_lock(self):
+        cfg = self.profile({"notes": {"enabled": True}})
+        S.lock_path().write_text('{"owner": "other:film"}', encoding="utf-8")
+        slept = []
+        (_, msg), calls = self.run_job(cfg, "notes", pending=lambda c: 1, sleep=slept.append)
+        self.assertEqual((calls, slept), ([], []))
+        self.assertIn("busy", msg)
 
     def test_notes_only_when_waiting(self):
         cfg = self.profile({"notes": {"enabled": True}})
@@ -223,7 +253,7 @@ class ScheduleTest(Base):
         tasks = {t["job"]: t for t in schedule.plan(cfg)}
         self.assertEqual(set(tasks), {"ideas", "notes", "film", "blog", "post"})
         self.assertEqual(tasks["film"]["name"], "viral-scout demo.film")
-        self.assertEqual(tasks["film"]["trigger"], {"type": "daily", "days": None, "at": "06:00", "repeat_minutes": 60, "repeat_hours": 16})
+        self.assertEqual(tasks["film"]["trigger"], {"type": "daily", "days": None, "at": "06:00", "repeat_minutes": 60, "repeat_hours": 17})
         self.assertEqual(tasks["notes"]["trigger"], {"type": "every", "minutes": 15})
         self.assertEqual(tasks["blog"]["trigger"]["type"], "weekly")
         self.assertEqual(tasks["blog"]["trigger"]["days"], ["Monday"])

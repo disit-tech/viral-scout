@@ -13,9 +13,12 @@ DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 
 
 def _hours_between(a, b):
+    """Repetition window for hourly tries from a up to and including b. Task Scheduler's window end is exclusive,
+    so one hour more: 07:15 → 20:00 gives 13 h (last try 19:15; 12 h dropped it), 06:00 → 22:00 gives 17 h (22:00 runs)."""
     ha, ma = map(int, a.split(":"))
     hb, mb = map(int, b.split(":"))
-    return max(0, (hb * 60 + mb - ha * 60 - ma) // 60)
+    d = hb * 60 + mb - ha * 60 - ma
+    return d // 60 + 1 if d >= 60 else 0
 
 
 def _days(v):
