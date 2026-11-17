@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ago, when } from "@/lib/format";
 import { PLATFORM_NAMES, usd, type Account, type Brief, type Campaign, type Paid, type PaidPlatform } from "@/lib/paid-format";
 
 const GOALS = ["leads", "sales", "traffic", "awareness", "messages", "calls"];
 type Msg = { ok: boolean; text: string } | null;
+
+/** Scroll to a field of this page, focus it and flash it, so a "fill this in" message is one click away. */
+function jump(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  (el as HTMLElement).focus?.({ preventScroll: true });
+  el.classList.add("ring-2", "ring-accent");
+  setTimeout(() => el.classList.remove("ring-2", "ring-accent"), 1800);
+}
+const KEY_OF: Record<PaidPlatform, string> = { meta: "META_ADS_TOKEN", google: "GOOGLE_ADS_CLIENT_ID", tiktok: "TIKTOK_ADS_TOKEN" };
+const setupLink = (key: string) => `/setup?use=paid#key-${key}`;
+const FIELD = { goal: "brief-goal", daily_budget_usd: "brief-budget", geo: "brief-geo", audience: "brief-audience" } as const;
+const FIELD_NAME: Record<keyof typeof FIELD, string> = { goal: "goal", daily_budget_usd: "daily budget", geo: "area", audience: "audience" };
 
 async function post(body: object) {
   return fetch("/api/paid", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
@@ -70,6 +84,8 @@ export default function PaidView({ paid, local }: { paid: Paid; local: boolean }
         {msg && <p className={`mt-2 text-sm ${msg.ok ? "text-above" : "text-mega"}`}>{msg.text}</p>}
       </section>
 
+      {local && <SetupChecklist paid={paid} onRead={() => act("pull", { action: "pull" })} busy={busy} />}
+
       <AskClaude paid={paid} local={local} busy={busy} onAsk={(extra) => act("ask", { action: "ask", extra })} />
 
       {paid.platforms.map((pl) => (
@@ -104,6 +120,83 @@ export default function PaidView({ paid, local }: { paid: Paid; local: boolean }
   );
 }
 
+type Conn = { state: "ok" | "sign-in" | "failed" | "missing"; label: string; fix: string; optional?: boolean };
+type Item = { done: boolean; label: string; detail?: string; fix?: React.ReactNode; optional?: boolean };
+
+/** Everything this business still needs before Claude can build campaigns, each with a shortcut to where it's set. */
+function SetupChecklist({ paid, onRead, busy }: { paid: Paid; onRead: () => void; busy: string }) {
+  const [conn, setConn] = useState<Record<string, Conn> | null>(null);
+  const [connErr, setConnErr] = useState("");
+  const [open, setOpen] = useState(true);
+  const [copied, setCopied] = useState("");
+  useEffect(() => {
+    fetch("/api/paid").then((r) => r.json()).then((d) => (d.error ? setConnErr(String(d.error)) : setConn(d))).catch(() => setConnErr("couldn't ask Claude Code"));
+  }, []);
+  const btn = "rounded border border-line px-2 py-0.5 text-xs text-rise hover:bg-panel-2";
+  const go = (id: string, text = "Set it →") => <button onClick={() => jump(id)} className={btn}>{text}</button>;
+  const copy = (text: string) => (
+    <button className={btn} onClick={() => { navigator.clipboard?.writeText(text); setCopied(text); setTimeout(() => setCopied(""), 1500); }}>
+      {copied === text ? "copied ✓" : "Copy the steps"}
+    </button>
+  );
+
+  const b = paid.brief;
+  const items: Item[] = [
+    { done: paid.cap > 0, label: "Monthly cap", detail: paid.cap > 0 ? usd(paid.cap) : "without one nothing may start", fix: go("brief-cap") },
+    ...(Object.keys(FIELD) as (keyof typeof FIELD)[]).map((k) => ({
+      done: Boolean(b[k]), label: `Brief: ${FIELD_NAME[k]}`, detail: b[k] ? String(b[k]).slice(0, 60) : undefined, fix: go(FIELD[k]),
+    })),
+  ];
+  for (const pl of paid.platforms) {
+    const acc = paid.snapshot?.platforms[pl];
+    const id = paid.accounts[pl];
+    items.push({ done: Boolean(id), label: `${PLATFORM_NAMES[pl]}: account id`, detail: id, fix: go(`acc-${pl}`, "Add it →") });
+    if (!id) continue;
+    const keyMissing = acc?.missing === "key" || /token|oauth|session|credential/i.test(acc?.error ?? "");
+    items.push({
+      done: Boolean(acc?.ok), label: `${PLATFORM_NAMES[pl]}: dashboard key`,
+      detail: acc?.ok ? `reads ${acc.name ?? acc.account}` : acc ? acc.error : "not read yet",
+      fix: !acc ? <button onClick={onRead} disabled={!!busy} className={btn}>Read accounts →</button>
+        : keyMissing ? <Link href={setupLink(KEY_OF[pl])} className={btn}>Open Setup →</Link>
+          : <button onClick={onRead} disabled={!!busy} className={btn}>Read again →</button>,
+    });
+  }
+  const want = ["analytics-mcp", ...(paid.platforms.includes("meta") ? ["meta-ads"] : []), ...(paid.platforms.includes("tiktok") ? ["tiktok-ads"] : []), ...(paid.platforms.includes("google") ? ["google-ads"] : [])];
+  for (const name of want) {
+    const c = conn?.[name];
+    items.push({
+      done: c?.state === "ok", optional: c?.optional, label: c?.label ?? name,
+      detail: !conn ? (connErr || "checking…") : c?.state === "sign-in" ? "needs you to sign in" : c?.state === "missing" ? "not installed" : c?.state === "failed" ? "doesn't start" : "signed in",
+      fix: c && c.state !== "ok" ? <span className="flex flex-wrap items-center gap-1.5"><span className="text-muted">{c.fix}</span>{copy(c.fix)}</span> : undefined,
+    });
+  }
+  const needed = items.filter((i) => !i.optional);
+  const done = needed.filter((i) => i.done).length;
+  const all = done === needed.length;
+
+  return (
+    <section className={`rounded-2xl border bg-panel p-4 text-sm ${all ? "border-above/40" : "border-viral/50"}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-semibold">Setup checklist</h2>
+        <span className={all ? "text-above" : "text-muted"}>{all ? "✓ everything is set up" : `${done} of ${needed.length} done`}</span>
+        <button onClick={() => setOpen(!open)} className="ml-auto text-xs text-muted hover:text-text">{open ? "hide" : "show"}</button>
+      </div>
+      {open && (
+        <ul className="mt-2 divide-y divide-line">
+          {items.map((i) => (
+            <li key={i.label} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5">
+              <span className={i.done ? "text-above" : i.optional ? "text-muted" : "text-viral"}>{i.done ? "✓" : i.optional ? "○" : "✗"}</span>
+              <span className="font-medium">{i.label}{i.optional ? <span className="text-muted"> (optional)</span> : null}</span>
+              {i.detail && <span className="truncate text-xs text-muted">{i.detail}</span>}
+              {!i.done && i.fix && <span className="ml-auto">{i.fix}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function Stat({ label, value, hint, warn }: { label: string; value: string; hint?: string; warn?: boolean }) {
   return (
     <div className="rounded-lg bg-panel-2 px-3 py-2" title={hint}>
@@ -116,7 +209,7 @@ function Stat({ label, value, hint, warn }: { label: string; value: string; hint
 function AskClaude({ paid, local, busy, onAsk }: { paid: Paid; local: boolean; busy: string; onAsk: (extra: string) => void }) {
   const [extra, setExtra] = useState("");
   const b = paid.brief;
-  const missing = (["goal", "daily_budget_usd", "geo", "audience"] as const).filter((k) => !b[k]);
+  const missing = (Object.keys(FIELD) as (keyof typeof FIELD)[]).filter((k) => !b[k]);
   return (
     <section className="rounded-2xl border border-accent/40 bg-panel p-4 text-sm">
       <h2 className="mb-1 font-semibold">Ask Claude to build a campaign</h2>
@@ -129,7 +222,13 @@ function AskClaude({ paid, local, busy, onAsk }: { paid: Paid; local: boolean; b
         Brief: <b>{b.goal ?? "goal?"}</b> · <b>{b.daily_budget_usd ? `${usd(b.daily_budget_usd)}/day` : "budget?"}</b> · <b>{b.geo ?? "area?"}</b> · <b>{b.audience ?? "audience?"}</b>
         {b.offer ? <> · offer: {b.offer}</> : null}
       </p>
-      {missing.length > 0 && <p className="mt-1 text-mega">Fill in the brief first: {missing.join(", ").replaceAll("_usd", "").replaceAll("_", " ")}.</p>}
+      {missing.length > 0 && (
+        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-mega">Fill in the brief first:
+          {missing.map((k) => (
+            <button key={k} onClick={() => jump(FIELD[k])} className="rounded border border-mega/50 px-2 py-0.5 text-xs hover:bg-mega/10">{FIELD_NAME[k]} →</button>
+          ))}
+        </p>
+      )}
       {local ? (
         <div className="mt-3 space-y-2">
           <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={2} maxLength={2000}
@@ -140,7 +239,11 @@ function AskClaude({ paid, local, busy, onAsk }: { paid: Paid; local: boolean; b
             {busy === "ask" ? "Starting…" : "Build campaign with Claude"} <span className="text-xs opacity-70">Claude subscription · spends ad budget within the cap</span>
           </button>
           <Link href="/activity" target="_blank" className="ml-3 text-xs text-rise hover:underline">watch on Activity ↗</Link>
-          {paid.cap <= 0 && <p className="text-xs text-mega">Set a monthly cap below first: without one nothing may start.</p>}
+          {paid.cap <= 0 && (
+            <p className="text-xs text-mega">No monthly cap yet: without one nothing may start.{" "}
+              <button onClick={() => jump("brief-cap")} className="rounded border border-mega/50 px-2 py-0.5 hover:bg-mega/10">Set the cap →</button>
+            </p>
+          )}
         </div>
       ) : <p className="mt-2 text-xs text-muted">In Claude Code: <code>/ads {paid.profile}</code></p>}
     </section>
@@ -164,8 +267,18 @@ function AccountCard({ platform, account, accountId, local, busy, act }: {
         {account?.name && <span className="text-xs text-muted">{account.name} · {account.account}</span>}
         {account?.manage_url && <a href={account.manage_url} target="_blank" rel="noreferrer" className="ml-auto text-xs text-rise hover:underline">open in the ads app ↗</a>}
       </div>
-      {!accountId && <p className="mt-2 text-muted">Add the account id in the brief below (Meta: act_… · Google: 123-456-7890 · TikTok: advertiser id).</p>}
-      {account && !account.ok && <p className="mt-2 text-muted">{account.error}{account.missing === "key" && <> · <Link href="/setup" className="text-rise hover:underline">Setup →</Link></>}</p>}
+      {!accountId && (
+        <p className="mt-2 text-muted">No account id yet ({platform === "meta" ? "act_…" : platform === "google" ? "123-456-7890" : "advertiser id"}).{" "}
+          <button onClick={() => jump(`acc-${platform}`)} className="rounded border border-line px-2 py-0.5 text-xs text-rise hover:bg-panel-2">Add it →</button>
+        </p>
+      )}
+      {account && !account.ok && accountId && (
+        <p className="mt-2 text-muted">{account.error}{" "}
+          {(account.missing === "key" || /token|oauth|session|credential/i.test(account.error ?? "")) && (
+            <Link href={setupLink(KEY_OF[platform])} className="rounded border border-line px-2 py-0.5 text-xs text-rise hover:bg-panel-2">Set the key on Setup →</Link>
+          )}
+        </p>
+      )}
       {platform === "google" && <p className="mt-1 text-[11px] text-muted">Read and changed through the official Google Ads API (login: <code>python -m viral_scout paid auth google</code>). Campaigns on a shared budget can be paused here; their budget is changed in Google Ads, since it moves every campaign on it.</p>}
       {account?.ok && (
         <>
@@ -255,22 +368,22 @@ function BriefForm({ paid, local }: { paid: Paid; local: boolean }) {
       <h2 className="mb-1 font-semibold">Brief, cap and accounts</h2>
       <p className="mb-3 text-muted">What Claude starts from: goal, budget, area, audience. Saved in this business&apos;s profile (<code>paid:</code>).</p>
       <fieldset disabled={!local} className="grid gap-3 sm:grid-cols-2">
-        <label>Goal<select className={field} value={b.goal ?? ""} onChange={(e) => setB({ ...b, goal: e.target.value })}>
+        <label>Goal<select id="brief-goal" className={field} value={b.goal ?? ""} onChange={(e) => setB({ ...b, goal: e.target.value })}>
           <option value="">—</option>{GOALS.map((g) => <option key={g}>{g}</option>)}</select></label>
-        <label>Daily budget per campaign (USD)<input type="number" min={1} className={field} value={b.daily_budget_usd ?? ""} onChange={(e) => setB({ ...b, daily_budget_usd: Number(e.target.value) })} /></label>
-        <label>Area (geo)<input className={field} value={b.geo ?? ""} placeholder="Chicago metro, 25 mi around 60601" onChange={(e) => setB({ ...b, geo: e.target.value })} /></label>
+        <label>Daily budget per campaign (USD)<input id="brief-budget" type="number" min={1} className={field} value={b.daily_budget_usd ?? ""} onChange={(e) => setB({ ...b, daily_budget_usd: Number(e.target.value) })} /></label>
+        <label>Area (geo)<input id="brief-geo" className={field} value={b.geo ?? ""} placeholder="Chicago metro, 25 mi around 60601" onChange={(e) => setB({ ...b, geo: e.target.value })} /></label>
         <label>Offer<input className={field} value={b.offer ?? ""} placeholder="free outage checklist" onChange={(e) => setB({ ...b, offer: e.target.value })} /></label>
-        <label className="sm:col-span-2">Audience<textarea rows={2} className={field} value={b.audience ?? ""} placeholder="homeowners 35–65 who lost power last winter" onChange={(e) => setB({ ...b, audience: e.target.value })} /></label>
+        <label className="sm:col-span-2">Audience<textarea id="brief-audience" rows={2} className={field} value={b.audience ?? ""} placeholder="homeowners 35–65 who lost power last winter" onChange={(e) => setB({ ...b, audience: e.target.value })} /></label>
         <label>Landing page<input className={field} value={b.landing ?? ""} placeholder="https://…" onChange={(e) => setB({ ...b, landing: e.target.value })} /></label>
         <label>Notes for Claude<input className={field} value={b.notes ?? ""} placeholder="never mention prices" onChange={(e) => setB({ ...b, notes: e.target.value })} /></label>
-        <label>Monthly cap, all platforms (USD)<input type="number" min={0} className={field} value={cap} placeholder="0 = nothing may start" onChange={(e) => setCap(e.target.value)} /></label>
+        <label>Monthly cap, all platforms (USD)<input id="brief-cap" type="number" min={0} className={field} value={cap} placeholder="0 = nothing may start" onChange={(e) => setCap(e.target.value)} /></label>
         <div>Platforms
           <div className="mt-1 flex gap-3">{(["meta", "google", "tiktok"] as const).map((pl) => (
             <label key={pl} className="flex items-center gap-1"><input type="checkbox" checked={plats.includes(pl)}
               onChange={(e) => setPlats(e.target.checked ? [...plats, pl] : plats.filter((x) => x !== pl))} />{pl}</label>))}</div>
         </div>
         {(["meta", "google", "tiktok"] as const).map((pl) => (
-          <label key={pl}>{PLATFORM_NAMES[pl]} account id<input className={field} value={acc[pl] ?? ""} onChange={(e) => setAcc({ ...acc, [pl]: e.target.value })}
+          <label key={pl}>{PLATFORM_NAMES[pl]} account id<input id={`acc-${pl}`} className={field} value={acc[pl] ?? ""} onChange={(e) => setAcc({ ...acc, [pl]: e.target.value })}
             placeholder={pl === "meta" ? "act_1234567890" : pl === "google" ? "123-456-7890" : "7000000000000000000"} /></label>
         ))}
       </fieldset>

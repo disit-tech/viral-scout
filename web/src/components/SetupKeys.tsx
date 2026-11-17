@@ -19,7 +19,22 @@ export default function SetupKeys() {
     if (r?.ok) setKeys(r.keys);
     else setError(r?.output ?? "Could not read key status");
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // Shortcuts from other pages: /setup?use=paid#key-META_ADS_TOKEN opens the filter and jumps to that key.
+    const u = new URLSearchParams(window.location.search).get("use");
+    if (u) setUse(u);
+    load();
+  }, []);
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!keys || !id.startsWith("key-")) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ring-2", "ring-accent");
+    el.querySelector<HTMLElement>("input, textarea")?.focus({ preventScroll: true });
+    setTimeout(() => el.classList.remove("ring-2", "ring-accent"), 2000);
+  }, [keys]);
 
   if (error) return <p className="mt-6 text-mega">{error}</p>;
   if (!keys) return <p className="mt-6 text-muted">Loading…</p>;
@@ -102,7 +117,7 @@ function KeyRow({ k, onSaved }: { k: Key; onSaved: () => void }) {
   }
 
   return (
-    <div className="grid gap-2 md:grid-cols-[1fr_1.2fr]">
+    <div id={`key-${k.name}`} className="grid scroll-mt-24 gap-2 rounded-lg md:grid-cols-[1fr_1.2fr]">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <code className="text-sm text-text">{k.name}</code>

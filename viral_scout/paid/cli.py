@@ -13,6 +13,7 @@
   every change command takes --by <who> (dashboard | claude | cli) for the log.
 """
 import json
+from pathlib import Path
 from datetime import datetime
 
 from .. import config
@@ -66,6 +67,38 @@ def export(cfg, out=None):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{cfg['name']}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     return data
+
+
+CONNECTORS = {   # the Claude connectors the /ads skill uses, and how to fix each
+    "meta-ads": {"label": "Meta ads (Claude)", "fix": "In Claude Code: /mcp → meta-ads → sign in with the Facebook account that manages the ad accounts"},
+    "tiktok-ads": {"label": "TikTok ads (Claude)", "fix": "In Claude Code: /mcp → tiktok-ads → sign in with the TikTok for Business account"},
+    "google-ads": {"label": "Google Ads reports (Claude, optional)", "fix": "Optional: googleads/google-ads-mcp, see docs/paid-ads.md (the dashboard reads Google Ads without it)", "optional": True},
+    "analytics-mcp": {"label": "Google Analytics (Claude)", "fix": "Enable the Analytics Admin + Data APIs in Google Cloud, then run: gcloud auth application-default login --scopes https://www.googleapis.com/auth/analytics.readonly,https://www.googleapis.com/auth/cloud-platform"},
+}
+
+
+def connectors():
+    """{name: {state: ok | sign-in | failed | missing, label, fix}} from `claude mcp list` (takes a few seconds)."""
+    import os
+    import re
+    import subprocess
+    from ..ads.extra import _claude
+    try:
+        out = subprocess.run([_claude(), "mcp", "list"], capture_output=True, text=True, encoding="utf-8", timeout=90).stdout
+    except Exception as err:  # noqa: BLE001
+        return {"error": f"claude mcp list: {err}"[:200]}
+    res = {}
+    for name, meta in CONNECTORS.items():
+        m = re.search(rf"^{re.escape(name)}: .* - (.+)$", out, re.M)
+        line = m.group(1) if m else ""
+        state = ("missing" if not m else "sign-in" if "authentication" in line.lower()
+                 else "ok" if "connected" in line.lower() else "failed")
+        if name == "analytics-mcp" and state == "ok":     # it starts without credentials; the Google sign-in is a file
+            adc = Path(os.environ.get("APPDATA", "")) / "gcloud" / "application_default_credentials.json"
+            if not adc.exists():
+                state = "sign-in"
+        res[name] = {**meta, "state": state}
+    return res
 
 
 def _opt(args, name, cast=str, default=None):
@@ -123,6 +156,9 @@ def change(cfg, cmd, platform, cid, usd=None, by="cli"):
 
 
 def main(argv):
+    if argv[:1] == ["connectors"]:                  # which Claude connectors are signed in (Paid ads setup checklist)
+        print(json.dumps(connectors(), ensure_ascii=False))
+        return 0
     if argv[:2] == ["auth", "google"]:              # OAuth consent → GOOGLE_ADS_REFRESH_TOKEN in .env
         print(google.authorize(open_browser="--no-browser" not in argv))
         return 0

@@ -11,6 +11,18 @@ export const maxDuration = 300;
  *   ask                        Claude builds (and, within the cap, launches) a campaign from the brief, in the
  *                              background; it shows on the Activity page and in the change log
  */
+/** Local only. GET → which Claude connectors (meta-ads, tiktok-ads, google-ads, analytics-mcp) are signed in. */
+export async function GET(req: NextRequest) {
+  const deny = localOnly(req);
+  if (deny) return deny;
+  const r = await runCli(["paid", "connectors"], undefined, 120_000);
+  try {
+    return NextResponse.json(JSON.parse(r.output.split("\n").filter((l) => l.startsWith("{")).pop() ?? "{}"));
+  } catch {
+    return NextResponse.json({ error: r.output.slice(-300) }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const deny = localOnly(req);
   if (deny) return deny;
