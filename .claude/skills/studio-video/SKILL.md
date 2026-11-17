@@ -132,6 +132,8 @@ A mode not in `video.modes` is not offered. Trust videos (who we are, prices, co
 ## film (FILM)
 
 Follow the method in the playbook §8 and the HyperFrames skills (hyperframes, hyperframes-cli). They ship inside the HyperFrames package: `$VIRAL_SCOUT_VIDEO_NODE_MODULES/hyperframes/dist/skills/` when that env var is set (the tools then run from a business's existing install), else `viral_scout/video/node/node_modules/hyperframes/dist/skills/`. A business's first film is built live with the owner and becomes its quality bar; reuse its structure and code, design new scenes each time.
+
+**3D films (cutaway, part tour, what-if) are made in Blender, not in HyperFrames:** a `scene_full.py` Blender script renders the 3D (keyed to `work-words.json`, which also writes `labels.json`), and `compose.py` puts the headline, cards, labels, captions, CTA and sound on it with ffmpeg. Steps, files and commands: docs/video.md#3d-cutaway-films. Method and build rules: the vault's `shared/playbooks/05 Marketing/3d-explainer-videos.md`. For a Blender film, steps 5-7 below become: preview stills per shot → full render → `compose.py` → `python -m viral_scout check <profile> <mp4>` (no `film check` / `film render`). Steps 1-4 and 8-10 stay.
 1. Script as above, mode FILM; compliance PASS.
 2. Voice: the owner's memo, or `voice` above.
 3. Film folder: `python -m viral_scout video <profile> film new <slug> --from <reference film>` copies the reference's SPEC, code, fonts and sound effects into `<video.films_dir>/<slug>/` (renders, word times, its voice, REVIEW.md and POST.md are left out). No reference yet → create the folder. Rewrite `SPEC.md` for this film: GOAL · OUTPUT · TIME · STORY · LOOK (the profile's colors and fonts) · OBJECTS · MOTION · SHOTS (second by second, keyed to words) · SOUND · BANNED · QA frames.
@@ -146,7 +148,7 @@ Follow the method in the playbook §8 and the HyperFrames skills (hyperframes, h
 ## week
 
 1. Read the tracker (statuses, "What worked"), the content plan if any, the latest viral-scout ideas note and demand calendar (`data/<profile>-demand.json`: what is in season, `start_by` dates).
-2. Pick 5 videos: ✍️ scripted first, then 💡 ideas, then new topics. No topic posted in the last 4 weeks. Never two videos of the same format on neighbouring days. Give each slot one goal: saves, trust, reach, expertise or leads. Month 1 after the first post: variety. From month 2: 1-2 slots are 🔁 re-cuts of the winners (new hook first).
+2. Pick 5 videos: ✍️ scripted first, then 💡 ideas, then new topics. No topic posted in the last 4 weeks. Never two videos of the same format on neighbouring days. Give each slot one goal (rule 8: views, follows, trust or leads) and balance them across the week. Month 1 after the first post: variety. From month 2: 1-2 slots are 🔁 re-cuts of the winners (new hook first).
 3. Add new rows as 💡 and "week of YYYY-MM-DD" in Notes. In chat: a 5-row table (day · title · rubric · mode · goal · status · the fact and source it rests on) and one line on batching the filming. Stop.
 
 ## review

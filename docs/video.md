@@ -200,14 +200,35 @@ The same 3D tools serve different goals, so pick one per video:
 
 **Save a reference.** `python -m viral_scout save <profile> <url> --note "GOOD REFERENCE (format): …"` stores the post in the database, tracks it and writes a swipe note. Set `format: "3D cutaway explainer"` in the note and add the tags `reference` and `format/3d-cutaway`. Then list the note under the profile's `video.formats[].references`. To study it frame by frame: `python -m yt_dlp <url>` from `$VIRAL_SCOUT_YTDLP`, `video <profile> transcribe <mp4>`, and a contact sheet (`ffmpeg -i in.mp4 -vf "fps=1/4,scale=360:-1,tile=4x2" sheet%02d.png`).
 
-**Build it** as a normal film (`/studio-video <profile> film`), with the 3D scenes in Three.js inside the HyperFrames composition:
+**Build it in Blender.** Blender is free and GPL; install it from blender.org, because winget's download gets a 403 from download.blender.org. The 3D is rendered there, and the text, captions and sound go on top. Browser 3D (Three.js inside a HyperFrames composition) was tried first and dropped. With box geometry and no collision it looked like an old video game, with objects passing through walls.
 
-- The method: the hyperframes skill's `references/types/3d.md` (deterministic frames, one hero object, cutaways and exploded views, light and materials) and `references/runtimes.md` (render from `e.detail.time` in an `hf-seek` listener; heavy setup registers `window.__hf.buildReady`).
-- Models: build them from primitives (boards, joists, screws, anchors, gutters are boxes and cylinders). Textures and HDRIs: CC0 only (ambientCG, Poly Haven), credited in `assets/CREDITS.md` like the sound effects. Never the reference's models, voice, music or words: only the format.
-- Shots: SHOTS in `SPEC.md` keyed to the voice's words. One step = one visible action. Labels carry real numbers only with a source tag (code section, manufacturer's table).
-- Length: 45-75 s. The references run 2-3 min, but a first film is easier to review short.
-- The first one is built live with the owner and becomes the quality bar; later films start with `film new <name> --from <that film>`.
-- Check like any film: `film check`, snapshots of the dive and the payoff, `film render`. A heavy frame slows every render, so profile the heaviest moment once.
+A film folder (`<films_dir>/<name>/`) holds:
+
+| File | What |
+|---|---|
+| `scene_full.py` | the whole film as one Blender Python script: materials, models, animation, lights, camera keys, plus checks. Run headless: `blender -b -P scene_full.py -- out/full` (`--preview` = half size and fewer samples; `--frames 1,200,…` = stills only; `--check` = build and check, no render) |
+| `assets/tex/` | CC0 textures (Poly Haven: diffuse, normal, roughness, md5-checked), credited in `assets/CREDITS.md` |
+| `assets/voice/` | the voice; `work-words.json` from `video <profile> film words` (the voice is the clock) |
+| `labels.json` | written by the scene script: each pointer label's screen position (the 3D anchor projected through the camera) and its time window, plus the shot cuts and key word times |
+| `compose.py` | puts the overlay on the Blender frames with ffmpeg: headline at frame 0, cards with their source line, labels, captions from `work-words.json`, ✓/✕ marks, the CTA, sound effects and the voice. Output: `out/<name>-film.mp4` |
+
+How the scene script works:
+- **The voice is the clock.** It reads `work-words.json` and finds every cut and event by its word (`T("lift")`). Re-voice the film and the shots follow.
+- **Coordinates:** the layout is written Y-up (x along the wall, y up, z out of the house). One root object turns it to Blender's Z-up.
+- **Sets:** a cutaway slice (the cut face at x = 0, open to the camera) for the shots inside the house, and a separate full set for the outside shots.
+- **Models:** real thickness and bevels. Profiles such as a K-style gutter or a clip are extruded from a 2D outline with Solidify and Bevel. Stains, rot and wet spots are spreading masks in the material (a radius value keyed over time), not stickers on the surface.
+- **Checks:** every frame, the script checks that the camera never enters the solid and prints the frames where it does. Look at one preview still per shot before the full render.
+- **Render:** Eevee at 1080×1920, 30 fps, a PNG sequence. About 1 s per frame on a laptop RTX GPU, so a 45 s film takes about 20 min.
+
+The rest is the normal film flow:
+- `film new <name> --from <reference film>` copies the scene script, textures and compose script.
+- `film words` makes the word times.
+- `film check` and `film render` are for HyperFrames compositions, so a Blender film skips them. Check the composed mp4 with `python -m viral_scout check <profile> <mp4>` instead: loudness, hook, pacing, CTA.
+- The method and the build rules (thickness, no pass-through, damage in the surface, camera outside the solid, a cut every 2-4 s) are in the shared vault playbook `3d-explainer-videos.md`.
+
+- Models and textures: CC0 only (Poly Haven, ambientCG). Never the reference's models, voice, music or words: only the format.
+- Shots: one step = one visible action. Labels carry real numbers only with a source tag (code section, manufacturer's table).
+- Length: 45-75 s. The first film is built live with the owner and becomes the quality bar; later films start from it with `film new --from`.
 
 ## Triggering it from another repo
 
