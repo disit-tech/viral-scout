@@ -29,7 +29,9 @@ from . import core, pack
 
 META_PUBLISH_SCOPES = ["instagram_content_publish", "pages_manage_posts", "pages_read_user_content",
                        "pages_manage_engagement", "instagram_manage_messages", "pages_messaging"]
-YT_SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl"]
+YT_SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl",
+             # read-only analytics, so `perf` measures this channel's own videos with the same sign-in
+             "https://www.googleapis.com/auth/yt-analytics.readonly", "https://www.googleapis.com/auth/youtube.readonly"]
 LI_PORT = 8766
 
 

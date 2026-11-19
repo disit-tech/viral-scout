@@ -41,8 +41,19 @@ def values(cfg, job, now=None, done_file=""):
         "posts_queue": ps["posts_queue"] or "(no posts queue: set studio.vault_dir)", "posts_per_day": str(ps["posts"].get("per_day", 1)),
         "posts_platforms": ", ".join(ps["posts"].get("platforms") or []),
         "challenges": ("on: a post or film may end with a comment challenge (rules in the posts job)" if ps["challenges"].get("enabled") else "off"),
+        "perf_report": perf_report(cfg),
         "done_file": done_file, "max_tries": str(j.get("max_tries", 2)), "count": str(j.get("count", 5)), "buffer": str(j.get("buffer", 4)),
     }
+
+
+def perf_report(cfg):
+    """The newest own-performance report (perf, pulled daily by the autopost job), or a note that there is none."""
+    out = Path(cfg.get("output_dir") or "")
+    try:
+        files = sorted(out.glob("*-performance.md")) if out.is_dir() else []
+    except OSError:
+        files = []
+    return f"the report `{files[-1]}`" if files else "the own-performance report (there is none yet: skip this)"
 
 
 def fill(text, vals):

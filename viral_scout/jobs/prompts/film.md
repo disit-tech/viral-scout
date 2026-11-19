@@ -10,6 +10,8 @@ Read the queue `{{queue}}` (`{{publish}} plan --days 14` prints it with the free
 2. The tracker `<vault>/05 Marketing/Video Studio/video-tracker.md`: the first ✍️ scripted row whose mode is not REAL (REAL = the owner on camera: never animate those) and has no film yet.
 3. Otherwise write a new script from the freshest material (viral-scout notes in `<vault>`, the best-scored idea). It must fit the date and must not repeat a topic already tracked or queued.
 
+Whatever the source: read {{perf_report}} first. Copy what the best of our own posted films did (hook type, length, format) and avoid what the weakest did; note in the script which one you learned from.
+
 ### 2. Script and facts
 - Length 35–60 s, hook in the first 2 s, one CTA (the link above with `utm_source=<platform>&utm_campaign=<slug>`, or the comment keyword).
 - Re-verify every number and claim today on the official source (WebSearch/WebFetch). A claim you cannot verify today is cut, not guessed. Every number gets its source on screen. Spoken numbers as words.

@@ -262,6 +262,23 @@ def posts(cfg, now, dry=False, run_node=None):
     return out
 
 
+def measure(cfg, now, build=None):
+    """Once a day (from 07:00): pull the business's own post numbers (perf), so the idea and film jobs can read what
+    worked. Only with the business's own Instagram or YouTube keys; a failure is a log line, never an alert storm."""
+    from ..perf import run as perf
+    marker = data_dir(cfg) / f"perf-{now:%Y-%m-%d}.done"
+    if marker.exists() or now.hour < 7 or not perf.own_keys(cfg):
+        return []
+    marker.write_text(now.isoformat(timespec="seconds"), encoding="utf-8")
+    try:
+        data, (md, _) = (build or perf.build)(cfg, True, True)
+        n = len(data.get("records") or [])
+        errs = (data.get("sources") or {}).get("errors") or []
+        return [f"perf: {n} of your own posts measured → {md}"] + [f"perf note: {e}"[:300] for e in errs[:2]]
+    except Exception as e:
+        return [f"perf note: measuring failed ({str(e)[:200]})"]
+
+
 def short_day(cfg, s, now):
     """Fewer films queued for today than publish.per_day, once the first posting time has passed: the film job is behind."""
     if not any(core.auto_post(s, p) for p in s["platforms"]):
@@ -283,6 +300,8 @@ def run(cfg, now=None, dry=False, run_node=None, replier=None, alert=None):
         return "busy: another autopost run is posting"
     try:
         out = films(cfg, now, dry, run_node) + posts(cfg, now, dry, run_node) + short_day(cfg, s, now)
+        if not dry:
+            out += measure(cfg, now)
         if s["challenges"].get("enabled"):
             from . import replies
             out += (replier or replies.run)(cfg, dry=dry)

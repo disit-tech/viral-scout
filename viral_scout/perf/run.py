@@ -36,6 +36,23 @@ def settings(cfg):
     return p, econ, goal
 
 
+OWN = {"IG_GRAPH_TOKEN": "INSTAGRAM_ACCESS_TOKEN", "IG_GRAPH_USER_ID": "INSTAGRAM_USER_ID",
+       "YT_OAUTH_CLIENT_ID": "YOUTUBE_CLIENT_ID", "YT_OAUTH_CLIENT_SECRET": "YOUTUBE_CLIENT_SECRET",
+       "YT_OAUTH_REFRESH_TOKEN": "YOUTUBE_REFRESH_TOKEN"}
+
+
+def own_keys(cfg):
+    """{perf env name: value} from the business's posting keys file; Instagram and YouTube only as complete sets."""
+    from ..publish import core, pack
+    env = pack.read_env_file(core.settings(cfg)["env_file"])
+    out = {}
+    if env.get("INSTAGRAM_ACCESS_TOKEN") and env.get("INSTAGRAM_USER_ID"):
+        out |= {k: env[v] for k, v in OWN.items() if k.startswith("IG_")}
+    if all(env.get(v) for k, v in OWN.items() if k.startswith("YT_")):
+        out |= {k: env[v] for k, v in OWN.items() if k.startswith("YT_")}
+    return out
+
+
 def pull(cfg, store, errors, skipped, quiet=False):
     p, _, _ = settings(cfg)
     # One token can see several ad accounts: a profile picks its own (perf.meta_ad_account_id /
@@ -44,6 +61,10 @@ def pull(cfg, store, errors, skipped, quiet=False):
     for key, env in (("meta_ad_account_id", "META_AD_ACCOUNT_ID"), ("tiktok_advertiser_id", "TIKTOK_ADVERTISER_ID")):
         if p.get(key):
             os.environ[env] = str(p[key])
+    # The business's own posting keys (publish <p> connect …, data/publish/<p>/keys.env) win over the shared .env:
+    # the shared IG/YouTube keys belong to ONE account, so without this every business would read that account.
+    for env, std in own_keys(cfg).items():
+        os.environ[env] = std
     wanted = p.get("sources")
     pulled = {}
     for name, mod, label, need in SOURCES:

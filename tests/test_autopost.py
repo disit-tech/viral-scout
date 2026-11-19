@@ -385,3 +385,28 @@ class AlertTest(Base):
             notify.alert = orig
         self.assertIn("didn't finish (exit 1)", got[0][0])
         self.assertIn("gave up for today", got[1][0])                   # exit 0 but no film delivered, last try
+
+
+class PerfLoopTest(Base):
+    def test_own_keys_and_daily_measure(self):
+        from viral_scout.perf import run as perf
+        cfg = self.profile()
+        own = perf.own_keys(cfg)
+        self.assertEqual((own["IG_GRAPH_TOKEN"], own["IG_GRAPH_USER_ID"], own["YT_OAUTH_REFRESH_TOKEN"]), ("t", "1", "c"))
+        calls = []
+
+        def build(cfg, pull, quiet):
+            calls.append(pull)
+            return {"records": [1, 2], "sources": {"errors": []}}, ("report.md", "x.json")
+        self.assertEqual(auto.measure(cfg, datetime(2026, 11, 18, 6, 0), build), [])          # before 07:00
+        self.assertIn("2 of your own posts", auto.measure(cfg, datetime(2026, 11, 18, 8, 0), build)[0])
+        self.assertEqual(auto.measure(cfg, datetime(2026, 11, 18, 9, 0), build), [])          # once a day
+        self.assertEqual(calls, [True])
+
+    def test_prompts_point_at_the_newest_report(self):
+        cfg = self.profile(jobs={"film": {"enabled": True}})
+        out = Path(cfg["output_dir"])
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "2026-11-17-performance.md").write_text("x", encoding="utf-8")
+        (out / "2026-11-18-performance.md").write_text("x", encoding="utf-8")
+        self.assertIn("2026-11-18-performance.md", prompts.assemble(cfg, "film"))

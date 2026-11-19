@@ -28,7 +28,7 @@ def _dir(cfg):
 
 
 def problems(lines):
-    return [l for l in lines if l and PROBLEM.search(l) and not l.startswith("dry run")]
+    return [l for l in lines if l and PROBLEM.search(l) and not l.startswith(("dry run", "perf"))]
 
 
 def _fresh(cfg, msgs, now):

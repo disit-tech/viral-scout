@@ -12,6 +12,8 @@ From the freshest material in `<vault>` (viral-scout notes, the ideas: `{{ideas}
 - **question / poll-style**: one question people answer in the comments;
 - **challenge** (comment challenges: {{challenges}}): "Comment <KEYWORD> and we'll send you <the free thing>". The free thing must exist (a checklist, a guide, a page on the site, a short tutorial video already made): its URL goes in `reward:`. Never promise a prize or money. "Tag 2 friends" challenges are for Instagram only (`mentions: 2`) and never on Facebook (Facebook demotes tag-bait posts) or LinkedIn.
 
+Our own numbers: {{perf_report}}. Favour the topics and formats that did best there.
+
 ### 2. Write
 One file per post: `<vault>/05 Marketing/Social/posts/<date>-<n>-<slug>.md` in the caption-file format (docs/publish-and-jobs.md#caption-file):
 ```
