@@ -193,6 +193,9 @@ def check(cfg, service):
                                     (env.get("YOUTUBE_CLIENT_SECRET") or env.get("YT_OAUTH_CLIENT_SECRET"))):
         return ("No Google sign-in client yet: put YT_OAUTH_CLIENT_ID and YT_OAUTH_CLIENT_SECRET on the Setup page "
                 "(YouTube step 1 on the Posting page says how to make them).")
+    if service == "tiktok" and not (env.get("TIKTOK_POST_CLIENT_KEY") and env.get("TIKTOK_POST_CLIENT_SECRET")):
+        return ("No TikTok app yet: put TIKTOK_POST_CLIENT_KEY and TIKTOK_POST_CLIENT_SECRET on the Setup page "
+                "(TikTok step 1 on the Posting page says how to make them).")
     if service == "linkedin" and not (env.get("LINKEDIN_CLIENT_ID") and env.get("LINKEDIN_CLIENT_SECRET")):
         return ("No LinkedIn app yet: put LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET on the Setup page "
                 "(LinkedIn step 1 on the Posting page says how to make them).")
@@ -203,6 +206,13 @@ def expiring(cfg, today=None, days=7):
     """Warnings for keys that stop working soon (LinkedIn tokens last 60 days)."""
     env = keys_for(cfg)
     out = []
+    t = env.get("TIKTOK_POST_REFRESH_EXPIRES", "")
+    if t:
+        try:
+            if (date.fromisoformat(t) - (today or date.today())).days <= days:
+                out.append(f"TikTok sign-in for {cfg['name']} ends {t}: Posting page → TikTok → Connect again")
+        except ValueError:
+            pass
     e = env.get("LINKEDIN_TOKEN_EXPIRES", "")
     if e:
         try:

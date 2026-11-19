@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 /** A browser sign-in (Google / LinkedIn): check the app keys first, then start it in the background with its output in
  *  data/publish/<p>/connect-<svc>.log, and hand back the sign-in URL it printed (when no browser tab opens). */
-async function signIn(profile: string, service: "google" | "linkedin", extra: string[]) {
+async function signIn(profile: string, service: "google" | "linkedin" | "tiktok", extra: string[]) {
   const c = await runCli(["publish", profile, "connect", service, "--check"], undefined, 30_000);
   const chk = (() => { try { return JSON.parse(last(c.output)); } catch { return { ok: false, error: c.output.slice(-300) }; } })();
   if (!chk.ok) return NextResponse.json({ ok: false, output: chk.error }, { status: 400 });
@@ -46,7 +46,7 @@ async function signIn(profile: string, service: "google" | "linkedin", extra: st
   }
   const url = text.match(/https:\/\/\S+/)?.[0];
   if (/error:/.test(text)) return NextResponse.json({ ok: false, output: text.trim().split("\n").pop() }, { status: 400 });
-  const name = service === "google" ? "Google" : "LinkedIn";
+  const name = service === "google" ? "Google" : service === "tiktok" ? "TikTok" : "LinkedIn";
   return NextResponse.json({ ok: true, url,
     output: `${name} sign-in started: a tab should open in your browser. No tab? Use the link below. After you allow it, reload this page (the step turns ✅).` });
 }
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
     return reply(await runCli(["publish", profile, "connect", "meta", ...(page ? ["--page", page] : [])], undefined, 60_000));
   }
   if (action === "connect-google") return signIn(profile, "google", []);
+  if (action === "connect-tiktok") return signIn(profile, "tiktok", []);
   if (action === "connect-linkedin") {
     const org = String(b.org ?? "").trim();
     if (org && !/^(urn:li:organization:)?\d{1,20}$/.test(org)) return bad("org: the company Page's numeric id");

@@ -21,6 +21,7 @@ from pathlib import Path
 
 from .. import config
 from . import core, pack
+from . import auto
 
 NODE_DIR = Path(__file__).resolve().parent / "node"
 
@@ -64,7 +65,8 @@ def node_command(cfg, plan, caption_file, args):
     s = core.settings(cfg)
     log = config.ROOT / "data" / "publish" / cfg["name"] / "published.jsonl"
     cmd = ["node", str(NODE_DIR / "publish.mjs"), plan["video"], "--caption-file", str(caption_file),
-           "--only", ",".join(plan["auto"]), "--tz", s["timezone"], "--log", str(log),
+           "--only", ",".join(p for p in plan["auto"] if p != "tiktok"),   # tiktok: publish/tiktok.py
+           "--tz", s["timezone"], "--log", str(log),
            "--category", str(s["youtube"]["category"]), "--lang", s["youtube"]["language"],
            "--privacy", s["youtube"].get("privacy", "public")]
     for k in ("at", "video_url", "cover_url", "cover"):
@@ -114,7 +116,7 @@ def main(argv):
     ap = sub.add_parser("autopost")
     ap.add_argument("--dry-run", action="store_true")
     co = sub.add_parser("connect")
-    co.add_argument("service", choices=["meta", "google", "linkedin"])
+    co.add_argument("service", choices=["meta", "google", "linkedin", "tiktok"])
     co.add_argument("--page")
     co.add_argument("--org")
     co.add_argument("--no-browser", action="store_true")
@@ -163,7 +165,9 @@ def main(argv):
             print(json.dumps({"ok": not err, "error": err}))
             return 0 if not err else 1
         try:
-            lines = (connect.meta(cfg, a.page) if a.service == "meta" else
+            from . import tiktok
+            lines = (tiktok.connect(cfg, not a.no_browser) if a.service == "tiktok" else
+                     connect.meta(cfg, a.page) if a.service == "meta" else
                      connect.google(cfg, not a.no_browser) if a.service == "google" else connect.linkedin(cfg, a.org, not a.no_browser))
         except Exception as e:
             print(f"error: {e}")
@@ -196,6 +200,17 @@ def main(argv):
     if not pp["auto"]:
         print("nothing posts automatically (publish.auto_post is off for every platform)." if not a.dry_run else "dry run: nothing sent.")
         return 0
+    if "tiktok" in pp["auto"] and not a.dry_run:
+        from . import tiktok
+        try:
+            r = tiktok.upload_draft(cfg, video)
+            auto.log_published(cfg, "tiktok", r["id"], video.name)
+            print(f"  tiktok     draft in the TikTok app ({tiktok.tell_owner(cfg, video.stem, core.parse_caption(cap.read_text(encoding='utf-8'))['tiktok'])})")
+        except Exception as e:
+            print(f"  tiktok     failed: {e}")
+        pp["auto"] = [p for p in pp["auto"] if p != "tiktok"]
+        if not pp["auto"]:
+            return 0
     if not shutil.which("node"):
         print("error: node not on PATH (needed for the API publisher)")
         return 1

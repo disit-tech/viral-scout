@@ -140,6 +140,15 @@ KEYS = [
      "unlocks": "The LinkedIn app's secret (pairs with LINKEDIN_CLIENT_ID).",
      "get": "Same app → Auth → Primary Client Secret.",
      "docs": "https://learn.microsoft.com/linkedin/shared/authentication/authorization-code-flow"},
+    {"name": "TIKTOK_POST_CLIENT_KEY", "group": "TikTok (posting drafts)", "cost": "free",
+     "unlocks": "Films land in each business's TikTok app as drafts at their time (Posting page → Connect TikTok).",
+     "get": "developers.tiktok.com → Manage apps → Connect an app → products Login Kit + Content Posting API (Upload), "
+            "platform Desktop, redirect URI http://localhost:8767/callback/ → Client key.",
+     "docs": "https://developers.tiktok.com/doc/content-posting-api-reference-upload-video"},
+    {"name": "TIKTOK_POST_CLIENT_SECRET", "group": "TikTok (posting drafts)", "cost": "",
+     "unlocks": "The TikTok posting app's secret (pairs with TIKTOK_POST_CLIENT_KEY).",
+     "get": "Same app → Client secret.",
+     "docs": "https://developers.tiktok.com/doc/oauth-user-access-token-management"},
     {"name": "META_ADS_TOKEN", "group": "Meta Marketing API (your ads)", "cost": "free",
      "unlocks": "Your performance: your Meta ads' impressions, hook rate (3-s plays), ThruPlays, quartiles, CTR, "
                 "CPC, CPM, leads, purchases, ROAS, daily frequency for fatigue. Paid ads page: campaigns, budgets, "
@@ -242,6 +251,7 @@ TIER = {
     "YT_OAUTH_CLIENT_ID": "recommended", "YT_OAUTH_CLIENT_SECRET": "recommended", "YT_OAUTH_REFRESH_TOKEN": "recommended",
     "STUDIO_SERVICE_URL": "recommended", "IDEAS_API_SECRET": "recommended",
     "LINKEDIN_CLIENT_ID": "optional", "LINKEDIN_CLIENT_SECRET": "optional",
+    "TIKTOK_POST_CLIENT_KEY": "optional", "TIKTOK_POST_CLIENT_SECRET": "optional",
     "GOOGLE_ADS_CLIENT_ID": "optional", "GOOGLE_ADS_CLIENT_SECRET": "optional", "GOOGLE_ADS_REFRESH_TOKEN": "optional",
     "GOOGLE_ADS_DEVELOPER_TOKEN": "optional", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "advanced",
     "TIKTOK_APP_ID": "optional", "TIKTOK_APP_SECRET": "optional", "TIKTOK_APP_REDIRECT_URI": "advanced",
@@ -277,6 +287,7 @@ USES = {
     "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
     "STUDIO_SERVICE_URL": ["ideas"], "IDEAS_API_SECRET": ["ideas"],
     "LINKEDIN_CLIENT_ID": ["posting"], "LINKEDIN_CLIENT_SECRET": ["posting"],
+    "TIKTOK_POST_CLIENT_KEY": ["posting"], "TIKTOK_POST_CLIENT_SECRET": ["posting"],
     "GOOGLE_ADS_CLIENT_ID": ["paid"], "GOOGLE_ADS_CLIENT_SECRET": ["paid"], "GOOGLE_ADS_REFRESH_TOKEN": ["paid"],
     "GOOGLE_ADS_DEVELOPER_TOKEN": ["paid"], "GOOGLE_ADS_LOGIN_CUSTOMER_ID": ["paid"],
     "META_ADS_TOKEN": ["performance", "paid"], "META_AD_ACCOUNT_ID": ["performance"],

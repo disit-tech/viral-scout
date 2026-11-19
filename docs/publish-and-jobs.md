@@ -12,7 +12,7 @@ The last part of the studio: scout → ideas → script → video → **publish 
 
 1. Claude never posts. No Claude job is allowed `publish … post`, whatever the profile adds to its tools. Only the autopost job (plain Python + the official APIs) posts, and only rows that are approved: by the owner's ✅, or by `publish.approval: auto`, which the owner sets in the profile.
 2. `publish post` sends only to platforms with `auto_post: true`. The default is false everywhere, so the default is a queue for posting by hand.
-3. TikTok and every platform without an official publishing API are always posted by hand. TikTok's API keeps posts private until TikTok audits the app. Browser-automation posters are never used: they break the platforms' terms.
+3. TikTok gets drafts, not posts: with `auto_post.tiktok: true` the film is uploaded to the business's TikTok app inbox (Content Posting API, upload mode) and its `## TikTok` caption goes to the owner's bot; the owner pastes it and taps Post. TikTok requires that tap from a person, and direct posting by an unaudited app is private-only. Every platform without an official publishing API is posted by hand. Browser-automation posters are never used: they break the platforms' terms.
 4. Jobs never spend money, contact leads, change a live website or delete data. A note that asks for that is answered "needs a live session".
 5. Delivering drafts to the owner (Telegram, the vault) is fine. Posting is the owner's decision: per row (✅) or once for everything (`approval: auto`, with 🛑 to stop one row).
 6. Tokens live in the env file named by the profile. They never go in the profile, a prompt or a log.
@@ -30,7 +30,7 @@ The shared `studio:` block (brand, vault folder, instructions note, compliance n
 | `timezone` | America/Springfield | for slots and `--at` |
 | `slots` | 18:00 / 18:30 / 18:30 / 19:30 | local posting time per platform |
 | `utm` | medium social, campaign `{slug}` | `sources` renames utm_source per platform (e.g. `instagram_story`) |
-| `auto_post` | all false | per platform; only instagram, facebook, youtube, linkedin can be true |
+| `auto_post` | all false | per platform; instagram, facebook, youtube, linkedin post; tiktok sends a draft to the TikTok app |
 | `per_day`, `times` | 1, 18:30 / 12:00 / 08:00 | films per post date; the n-th film of a date posts at `times[n]` on every auto platform |
 | `approval` | owner | `owner` (a row posts after ✅) or `auto` (rows are queued as `✅ auto`; 🛑 stops one) |
 | `late_days` | 1 | a due row the PC missed still posts this many days late, then it is reported as missed |
@@ -187,7 +187,8 @@ Keys, once per business (each business posts to its own accounts):
 1. **Meta**: Setup page → Connect Meta (or `keys meta connect`) with the publishing permissions, then `publish <p> connect meta [--page "<Page name>"]`. A Page token made from a long-lived sign-in does not expire.
 2. **YouTube**: `publish <p> connect google`, signed in as the channel. Uploads from an API project Google has not audited are forced to private: file the YouTube API audit before relying on it.
 3. **LinkedIn**: a LinkedIn app with *Share on LinkedIn* + *Sign In with LinkedIn using OpenID Connect* (and *Community Management API* to post as a company Page), `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` in `.env`, redirect `http://127.0.0.1:8766/`; then `publish <p> connect linkedin [--org <id>]`. The token lasts 60 days; autopost warns a week before.
-4. Register the tasks: `jobs <p> install-plan` prints the command (adds `viral-scout <p>.autopost`).
+4. **TikTok (drafts)**: an app at developers.tiktok.com with Login Kit + Content Posting API (upload), platform Desktop, redirect `http://localhost:8767/callback/`, `TIKTOK_POST_CLIENT_KEY` / `TIKTOK_POST_CLIENT_SECRET` in `.env` (submit it for review; until then add the business account as a sandbox target user); then `publish <p> connect tiktok`. The refresh token lasts a year and renews itself on use.
+5. Register the tasks: `jobs <p> install-plan` prints the command (adds `viral-scout <p>.autopost`).
 
 ### Caption file
 

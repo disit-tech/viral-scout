@@ -50,7 +50,7 @@ FIELDS = {
     # Posting / auto mode (business → Posting page, docs/publish-and-jobs.md#auto-mode)
     "publish.approval": "approval", "publish.per_day": "per_day", "publish.times": "hhmm_list",
     "publish.auto_post.instagram": "bool", "publish.auto_post.facebook": "bool", "publish.auto_post.youtube": "bool",
-    "publish.auto_post.linkedin": "bool",
+    "publish.auto_post.linkedin": "bool", "publish.auto_post.tiktok": "bool",
     "publish.posts.enabled": "bool", "publish.posts.per_day": "per_day", "publish.posts.times": "hhmm_list",
     "publish.posts.platforms": "post_platforms",
     "publish.challenges.enabled": "bool", "publish.challenges.dm": "bool", "publish.challenges.reply_text": "str",

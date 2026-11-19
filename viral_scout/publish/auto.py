@@ -11,13 +11,13 @@ Then the comment challenges: see replies.py.
 import json
 import re
 import subprocess
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .. import config
 from ..jobs.state import Lock
 from . import cli as pcli
-from . import connect, core
+from . import connect, core, tiktok
 
 NODE = Path(__file__).resolve().parent / "node"
 
@@ -105,6 +105,23 @@ def _remember_challenge(cfg, cap, key, before):
                                      "reward": cap.get("reward", "")}, ensure_ascii=False) + "\n")
 
 
+def log_published(cfg, platform, pid, key, **extra):
+    f = data_dir(cfg) / "published.jsonl"
+    with f.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "platform": platform, "id": pid,
+                             "video": key, **extra}, ensure_ascii=False) + "\n")
+
+
+def _tiktok(cfg, row, video, cap, dry):
+    """The film → the business's TikTok inbox as a draft, and its TikTok caption to the owner's bot."""
+    if dry:
+        return "dry run: tiktok draft"
+    r = tiktok.upload_draft(cfg, video)
+    text = core.parse_caption(cap.read_text(encoding="utf-8"))["tiktok"]
+    log_published(cfg, "tiktok", r["id"], video.name, mode="draft", caption=text[:2200])
+    return tiktok.tell_owner(cfg, row["title"], text)
+
+
 def _count(cfg):
     f = data_dir(cfg) / "published.jsonl"
     return len(f.read_text(encoding="utf-8").splitlines()) if f.exists() else 0
@@ -138,12 +155,19 @@ def films(cfg, now, dry=False, run_node=None):
             if not pp["auto"]:
                 out.append(f"film {row['title']}: keys missing for {', '.join(pp['missing'])}")
                 continue
-            args = type("A", (), {"dry_run": dry, "at": None, "video_url": None, "cover_url": None, "cover": None})()
-            before = _count(cfg)
-            code, log = (run_node or _node)(pcli.node_command(cfg, pp, cap, args), cfg, dry)
-            if not dry:
-                _remember_challenge(cfg, core.parse_caption(cap.read_text(encoding="utf-8")), video.name, before)
-            out.append(f"film {row['title']} → {', '.join(pp['auto'])}: exit {code}" + (f"\n{log[-600:]}" if code else ""))
+            if "tiktok" in pp["auto"]:
+                try:
+                    out.append(f"film {row['title']} → tiktok draft: {_tiktok(cfg, row, video, cap, dry)}")
+                except Exception as e:  # TikTok down must not stop the other platforms
+                    out.append(f"film {row['title']} → tiktok: {str(e)[:300]}")
+                pp["auto"] = [p for p in pp["auto"] if p != "tiktok"]
+            if pp["auto"]:
+                args = type("A", (), {"dry_run": dry, "at": None, "video_url": None, "cover_url": None, "cover": None})()
+                before = _count(cfg)
+                code, log = (run_node or _node)(pcli.node_command(cfg, pp, cap, args), cfg, dry)
+                if not dry:
+                    _remember_challenge(cfg, core.parse_caption(cap.read_text(encoding="utf-8")), video.name, before)
+                out.append(f"film {row['title']} → {', '.join(pp['auto'])}: exit {code}" + (f"\n{log[-600:]}" if code else ""))
             done = published(cfg)
         left = [p for p in auto if (p, video.name) not in done]
         if not left and not dry:

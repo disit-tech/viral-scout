@@ -88,7 +88,7 @@ class PlanTest(Base):
         self.assertEqual([r["title"] for r in rows], ["Gutter tips", "Ice dams"])     # posted one left out
         first = {p["platform"]: p for p in rows[0]["posts"]}
         self.assertEqual(first["youtube"]["mode"], "auto")
-        self.assertEqual(first["tiktok"]["mode"], "manual")       # no API publisher: always by hand
+        self.assertEqual(first["tiktok"]["mode"], "auto")         # opted in: a draft in the TikTok app (publish/tiktok.py)
         self.assertEqual(first["instagram"]["mode"], "manual")    # not opted in
         self.assertEqual(first["instagram"]["at"], "2026-11-16 18:30")
         self.assertEqual(first["instagram"]["handle"], "@demo")

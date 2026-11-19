@@ -251,3 +251,58 @@ class DashboardTest(Base):
         finally:
             prof.unlink()
         self.assertTrue(cfg)
+
+
+class TikTokTest(Base):
+    def test_chunks(self):
+        from viral_scout.publish import tiktok
+        self.assertEqual(tiktok.chunks(30 * tiktok.MB), (30 * tiktok.MB, 1))
+        self.assertEqual(tiktok.chunks(105 * tiktok.MB), (10 * tiktok.MB, 10))   # the last chunk takes the remaining 15 MB
+
+    def test_upload_draft_puts_every_byte(self):
+        from viral_scout.publish import tiktok
+        cfg = self.profile()
+        calls = []
+
+        class R:
+            def __init__(self, j=None, code=201):
+                self.j, self.status_code, self.text = j, code, ""
+
+            def json(self):
+                return self.j
+
+        class Http:
+            def post(self, url, **kw):
+                calls.append(("init", kw["json"]))
+                return R({"data": {"publish_id": "p1", "upload_url": "https://up"}, "error": {"code": "ok"}})
+
+            def put(self, url, **kw):
+                calls.append(("put", kw["headers"]["Content-Range"]))
+                return R()
+        orig = tiktok.token
+        tiktok.token = lambda cfg, env=None: "tok"
+        try:
+            self.assertEqual(tiktok.upload_draft(cfg, self.films[0], http=Http()), {"id": "p1"})
+        finally:
+            tiktok.token = orig
+        self.assertEqual(calls[1], ("put", "bytes 0-0/1"))
+
+    def test_autopost_sends_tiktok_draft_and_caption(self):
+        from viral_scout.publish import tiktok
+        cfg = self.profile({"auto_post": {"instagram": True, "tiktok": True}})
+        keys = Path(core.settings(cfg)["env_file"])
+        keys.write_text(keys.read_text(encoding="utf-8") + "TIKTOK_POST_REFRESH_TOKEN=r\n", encoding="utf-8")
+        sent = []
+        orig = (tiktok.upload_draft, tiktok.tell_owner)
+        tiktok.upload_draft = lambda cfg, video, http=None: {"id": "pub-1"}
+        tiktok.tell_owner = lambda cfg, title, caption: sent.append((title, caption)) or "caption sent to the bot"
+        try:
+            node = FakeNode(cfg)
+            out = auto.run(cfg, now=datetime(2026, 11, 18, 12, 5), run_node=node, replier=lambda c, dry: [])
+        finally:
+            tiktok.upload_draft, tiktok.tell_owner = orig
+        self.assertIn("tiktok draft: caption sent to the bot", out)
+        self.assertEqual(node.calls[0][node.calls[0].index("--only") + 1], "instagram")   # node never gets tiktok
+        self.assertEqual(sent, [("A", "Text #a")])
+        self.assertIn(("tiktok", self.films[0].name), auto.published(cfg))
+        self.assertIn("📤 posted", self.queue.read_text(encoding="utf-8").split("\n")[2])

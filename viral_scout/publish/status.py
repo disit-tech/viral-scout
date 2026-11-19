@@ -12,8 +12,9 @@ KEYS = {
     "facebook": ["FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"],
     "youtube": ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"],
     "linkedin": ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR"],
+    "tiktok": ["TIKTOK_POST_REFRESH_TOKEN"],
 }
-CONNECT = {"instagram": "meta", "facebook": "meta", "youtube": "google", "linkedin": "linkedin"}
+CONNECT = {"instagram": "meta", "facebook": "meta", "youtube": "google", "linkedin": "linkedin", "tiktok": "tiktok"}
 
 
 def _log(cfg, name):
@@ -58,7 +59,8 @@ def build(cfg, now=None):
     keys = {p: {"connected": all(env.get(k) for k in names), "missing": [k for k in names if not env.get(k)], "connect": CONNECT[p]}
             for p, names in KEYS.items()}
     # The shared app keys each Connect button needs first (names → set or not; values never leave here).
-    prereqs = {k: bool(env.get(k)) for k in ("META_APP_ID", "META_APP_SECRET", "META_USER_TOKEN", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET")}
+    prereqs = {k: bool(env.get(k)) for k in ("META_APP_ID", "META_APP_SECRET", "META_USER_TOKEN", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET",
+                                          "TIKTOK_POST_CLIENT_KEY", "TIKTOK_POST_CLIENT_SECRET")}
     prereqs["GOOGLE_CLIENT"] = bool((env.get("YOUTUBE_CLIENT_ID") or env.get("YT_OAUTH_CLIENT_ID")) and
                                     (env.get("YOUTUBE_CLIENT_SECRET") or env.get("YT_OAUTH_CLIENT_SECRET")))
     if env.get("LINKEDIN_TOKEN_EXPIRES"):

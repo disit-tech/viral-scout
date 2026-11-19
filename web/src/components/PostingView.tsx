@@ -16,16 +16,16 @@ type Status = {
     challenges: { enabled: boolean; dm: boolean; reply_text: string; reply_text_instagram: string };
     film_job: boolean; posts_job: boolean;
   };
-  prereqs: Record<"META_APP_ID" | "META_APP_SECRET" | "META_USER_TOKEN" | "LINKEDIN_CLIENT_ID" | "LINKEDIN_CLIENT_SECRET" | "GOOGLE_CLIENT", boolean>;
+  prereqs: Record<"META_APP_ID" | "META_APP_SECRET" | "META_USER_TOKEN" | "LINKEDIN_CLIENT_ID" | "LINKEDIN_CLIENT_SECRET" | "GOOGLE_CLIENT" | "TIKTOK_POST_CLIENT_KEY" | "TIKTOK_POST_CLIENT_SECRET", boolean>;
   handles: Record<string, string>;
   queue: string; posts_queue: string; films: Row[]; posts: Row[]; keys: Record<string, Key>; warnings: string[];
-  published: { time: string; platform: string; permalink?: string; id?: string; video?: string; post?: string }[];
+  published: { time: string; platform: string; permalink?: string; id?: string; video?: string; post?: string; mode?: string; caption?: string }[];
   challenges: { replied: number; active: number };
 };
 type Msg = { ok: boolean; text: string } | null;
 
-const PLATFORMS = ["instagram", "facebook", "youtube", "linkedin"] as const;
-const NAMES: Record<string, string> = { instagram: "Instagram", facebook: "Facebook", youtube: "YouTube", linkedin: "LinkedIn" };
+const PLATFORMS = ["instagram", "facebook", "youtube", "linkedin", "tiktok"] as const;
+const NAMES: Record<string, string> = { instagram: "Instagram", facebook: "Facebook", youtube: "YouTube", linkedin: "LinkedIn", tiktok: "TikTok (drafts)" };
 const field = "w-full rounded-lg border border-line bg-panel-2 px-2 py-1.5 text-sm";
 const btn = "rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-panel-2 disabled:opacity-40";
 const STATE_STYLE: Record<Row["state"], string> = {
@@ -158,7 +158,7 @@ export default function PostingView({ profile }: { profile: string }) {
       {/* ── Settings ── */}
       <section className="rounded-2xl border border-line bg-panel p-4">
         <h3 className="mb-1 font-semibold">How it posts</h3>
-        <p className="mb-3 text-muted">Saved in this business&apos;s profile (<code>publish:</code> and <code>jobs:</code>). TikTok always stays by hand: its API keeps posts private.</p>
+        <p className="mb-3 text-muted">Saved in this business&apos;s profile (<code>publish:</code> and <code>jobs:</code>). TikTok goes to the TikTok app as a draft: you get the caption in the bot, paste it and tap Post (TikTok wants that tap from a person).</p>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3">
             <label className="block">Approval
@@ -274,7 +274,20 @@ export default function PostingView({ profile }: { profile: string }) {
               { done: !!st.keys.linkedin?.connected && !st.warnings.length, text: <>The LinkedIn sign-in lasts 60 days. This page and the posting job warn you a week before; then press Connect again.</> },
             ]} />
         </div>
-        <p className="mt-3 text-xs text-muted">TikTok has no step here: its API keeps every post private until TikTok audits the app, so TikTok stays a by-hand post (the morning post pack in Telegram).</p>
+        <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          <Guide title="TikTok (drafts)" done={!!st.keys.tiktok?.connected} status={st.keys.tiktok?.connected ? "✅ connected" : "⚪ not connected"}
+            steps={[
+              { done: st.prereqs.TIKTOK_POST_CLIENT_KEY && st.prereqs.TIKTOK_POST_CLIENT_SECRET, text: <>
+                <Ext href="https://developers.tiktok.com/apps/">developers.tiktok.com → Manage apps</Ext> → Connect an app (log in with any TikTok account; it becomes the developer).
+                Add the products <b>Login Kit</b> and <b>Content Posting API</b> (leave <i>Direct Post</i> off: drafts only). Platform <b>Desktop</b>, redirect URI <code>http://localhost:8767/callback/</code>, scopes <code>user.info.basic</code> and <code>video.upload</code>.
+                Copy Client key and Client secret into <SetupKey k="TIKTOK_POST_CLIENT_KEY" /> and <SetupKey k="TIKTOK_POST_CLIENT_SECRET" /> on the Setup page.
+                Then <b>Submit for review</b> in the app (TikTok checks it, usually a few days). While it is in review, add the business&apos;s TikTok account under <i>Sandbox → Target users</i> and it works already.</> },
+              { done: !!st.keys.tiktok?.connected, text: <>Press Connect and log in with the <b>business&apos;s</b> TikTok account{st.handles.tiktok ? ` (${st.handles.tiktok})` : ""}, then Authorize.
+                <br /><button className={`${btn} mt-1.5`} disabled={!!busy || !(st.prereqs.TIKTOK_POST_CLIENT_KEY && st.prereqs.TIKTOK_POST_CLIENT_SECRET)} title={st.prereqs.TIKTOK_POST_CLIENT_KEY ? "" : "Do step 1 first"}
+                  onClick={() => act("tt", { action: "connect-tiktok" })}>{busy === "tt" ? "Opening…" : "Connect TikTok"}</button></> },
+              { done: !!st.settings.auto_post.tiktok, text: <>Tick <b>TikTok (drafts)</b> under &quot;Posts by itself to&quot; above and Save. At each film&apos;s time the video lands in the TikTok app (inbox notification) and the caption comes in the bot: open TikTok, paste, tap Post.</> },
+            ]} />
+        </div>
       </section>
 
       {/* ── Queues ── */}
@@ -310,7 +323,9 @@ export default function PostingView({ profile }: { profile: string }) {
         {st.published.length === 0 ? <p className="text-muted">Nothing posted through the APIs yet.</p> : (
           <ul className="space-y-1 text-xs">{st.published.map((p, i) => (
             <li key={i}><span className="text-muted">{p.time.slice(0, 16).replace("T", " ")}</span> · {NAMES[p.platform] ?? p.platform} · {p.video || p.post}
-              {p.permalink && <> · <a className="text-accent hover:underline" href={p.permalink} target="_blank" rel="noreferrer">open</a></>}</li>))}</ul>
+              {p.permalink && <> · <a className="text-accent hover:underline" href={p.permalink} target="_blank" rel="noreferrer">open</a></>}
+              {p.mode === "draft" && <> · <span className="text-accent">draft in the TikTok app: tap Post there</span>
+                {p.caption && <button className="ml-2 rounded border border-line px-1.5 hover:bg-panel-2" onClick={() => navigator.clipboard?.writeText(p.caption ?? "")}>copy caption</button>}</>}</li>))}</ul>
         )}
       </section>
     </div>

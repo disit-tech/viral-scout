@@ -5,7 +5,8 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # Platforms with an official-API publisher in publish/node (the rest are always posted by hand).
-API_PLATFORMS = ("instagram", "facebook", "youtube", "linkedin")
+# tiktok: drafts in the TikTok app (publish/tiktok.py, inbox upload); the owner taps Post there.
+API_PLATFORMS = ("instagram", "facebook", "youtube", "linkedin", "tiktok")
 KNOWN = ("tiktok", "instagram", "youtube", "facebook", "threads", "x", "linkedin", "pinterest", "nextdoor")
 
 # Standard env names the node publisher reads. A profile maps them to its own names (publish.tokens).
@@ -14,6 +15,7 @@ TOKEN_NAMES = {
     "facebook": ["FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"],
     "youtube": ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"],
     "linkedin": ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR"],
+    "tiktok": ["TIKTOK_POST_REFRESH_TOKEN"],
 }
 
 DEFAULTS = {
