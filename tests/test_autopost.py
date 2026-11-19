@@ -4,6 +4,7 @@ the node publisher and the platform clients are fakes.
   python -m pytest tests/test_autopost.py -q
 """
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+os.environ["VIRAL_SCOUT_NO_ALERTS"] = "1"   # never message the real bot from a test
 
 import yaml  # noqa: E402
 
@@ -338,3 +340,48 @@ class ThreadsTest(Base):
         self.assertEqual(node.calls[0][node.calls[0].index("--only") + 1], "instagram")
         self.assertEqual(got, [("Text #a", "https://ig/reel/1")])
         self.assertIn(("threads", self.films[0].name), auto.published(cfg))
+
+
+class AlertTest(Base):
+    def test_failed_post_alerts_once_a_day(self):
+        cfg = self.profile()
+        sent = []
+
+        def bad_node(cmd, cfg, dry):
+            return 1, "✖ instagram failed: token expired"
+        alert = lambda cfg, title, lines, now: sent.append(lines) or "bot"   # noqa: E731
+        from viral_scout.publish import notify
+        real = lambda cfg, title, lines, now: notify.alert(cfg, title, lines, now, send=lambda c, t, b: sent.append(b) or "bot")  # noqa: E731
+        auto.run(cfg, now=datetime(2026, 11, 18, 12, 5), run_node=bad_node, replier=lambda c, dry: [], alert=real)
+        auto.run(cfg, now=datetime(2026, 11, 18, 12, 35), run_node=bad_node, replier=lambda c, dry: [], alert=real)
+        self.assertEqual(len(sent), 1)                                   # the second run repeats nothing
+        self.assertIn("exit 1", sent[0])
+        self.assertTrue(alert)
+
+    def test_short_day_and_missed(self):
+        cfg = self.profile()
+        s = core.settings(cfg)
+        self.assertEqual(auto.short_day(cfg, s, datetime(2026, 11, 18, 11, 0)), [])          # before the first time
+        self.assertEqual(auto.short_day(cfg, s, datetime(2026, 11, 18, 12, 1)), [])          # 2 queued, 2 wanted
+        self.assertIn("only 0 of 2", auto.short_day(cfg, s, datetime(2026, 11, 19, 12, 1))[0])
+        out = auto.films(cfg, datetime(2026, 11, 20, 9, 0))            # 11-18 rows: late_days 1 → missed on 11-20
+        self.assertTrue(any("missed, never posted" in l for l in out))
+
+    def test_problem_lines(self):
+        from viral_scout.publish import notify
+        self.assertEqual(notify.problems(["film A → instagram: exit 0", "film B: waiting for approval", "film C → tiktok: TikTok not connected for this business"]),
+                         ["film C → tiktok: TikTok not connected for this business"])
+
+    def test_film_job_failure_alerts(self):
+        from viral_scout.publish import notify
+        cfg = self.profile(jobs={"film": {"enabled": True}})
+        got = []
+        orig = notify.alert
+        notify.alert = lambda cfg, title, lines, now=None, send=None: got.append(lines)
+        try:
+            runner.run(cfg, "film", now=datetime(2026, 11, 18, 6, 0), execute=lambda *a: 1, which=lambda _: "claude", wait_minutes=0)
+            runner.run(cfg, "film", now=datetime(2026, 11, 18, 7, 0), execute=lambda *a: 0, which=lambda _: "claude", wait_minutes=0)
+        finally:
+            notify.alert = orig
+        self.assertIn("didn't finish (exit 1)", got[0][0])
+        self.assertIn("gave up for today", got[1][0])                   # exit 0 but no film delivered, last try

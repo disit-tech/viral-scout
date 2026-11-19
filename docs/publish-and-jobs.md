@@ -191,6 +191,10 @@ Keys, once per business (each business posts to its own accounts):
 5. **Threads**: in the same Meta app add the use case *Access the Threads API* (threads_basic, threads_content_publish), add the business's Threads account as a Threads Tester (accept it in Threads → Settings → Account → Website permissions), generate a token with the User Token Generator and paste it on the Posting page (`publish <p> connect threads`, token on stdin). Films get a Threads text with the link to their Reel/Short; text posts go as text. The token renews itself (60 days at a time) while posting runs.
 6. Register the tasks: `jobs <p> install-plan` prints the command (adds `viral-scout <p>.autopost`).
 
+### Alerts
+
+Nobody approves a post in auto mode, so the pipeline tells the owner when it breaks (`publish/notify.py`): a post that fails or can't go out (no caption, keys missing, a platform error), a row that was never posted, fewer films queued for today than `per_day` once the first posting time passed, a film or posts run that didn't deliver (and louder when it gave up for the day), a sign-in about to expire. They go to the business's bot as a short .txt with the summary as its caption (the notes API of `jobs.api`), else the morning pack's Telegram bot, else only `data/publish/<profile>/alerts.log`. The same alert repeats at most once a day. Tests set `VIRAL_SCOUT_NO_ALERTS=1`.
+
 ### Caption file
 
 `caption.md` in the film folder (and each post file):

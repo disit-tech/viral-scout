@@ -49,6 +49,19 @@ def _execute(cmd, prompt, log, cwd):
 LOCK_WAIT_MINUTES = 50
 
 
+def _alert(cfg, job, m, j, code, log, now):
+    """A film or posts run that didn't deliver: tell the owner (once per try), louder on the last try of the day."""
+    try:
+        from ..publish import notify
+        last = j.get("max_tries") and m.tries() >= j["max_tries"]
+        what = (f"{job} job gave up for today after {m.tries()} tries ({m.key}): nothing new is queued, so a posting slot "
+                f"will be empty" if last else f"{job} run {m.tries()}/{j.get('max_tries') or '-'} didn't finish (exit {code}); "
+                f"the next hourly try retries")
+        notify.alert(cfg, f"{job} job", [what, f"log: {log}"], now)
+    except Exception:
+        pass                    # an alert must never break the job runner
+
+
 def run(cfg, job, now=None, force=False, dry=False, execute=None, pending=None, which=shutil.which,
         wait_minutes=None, sleep=time.sleep):
     """Returns (exit code, message). execute(cmd, prompt, log_path, cwd), pending(cfg) and sleep are injectable for tests."""
@@ -114,6 +127,8 @@ def run(cfg, job, now=None, force=False, dry=False, execute=None, pending=None, 
         if code == 0 and j["done_by"] == "runner":
             m.mark_done(now.isoformat(timespec="seconds"))
         note(f"=== job {job} done (exit {code})")
+        if job in ("film", "posts") and not m.done():
+            _alert(cfg, job, m, j, code, log, now)
         return code, f"{job} exit {code}, log {log}"
     finally:
         lock.release()

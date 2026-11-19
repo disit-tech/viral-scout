@@ -4,6 +4,7 @@ No network: Telegram and the notes API are replaced by fakes.
   python -m pytest tests/test_publish.py -q
 """
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+os.environ["VIRAL_SCOUT_NO_ALERTS"] = "1"   # never message the real bot from a test
 
 import yaml  # noqa: E402
 

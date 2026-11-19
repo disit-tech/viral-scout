@@ -96,6 +96,8 @@ def _remember_challenge(cfg, cap, key, before):
     if not (cap.get("challenge") or cap.get("mentions")):
         return
     f = data_dir(cfg) / "published.jsonl"
+    if not f.exists():              # every platform failed: nothing was posted, so nothing to watch
+        return
     out = data_dir(cfg) / "challenges.jsonl"
     with out.open("a", encoding="utf-8") as fh:
         for line in f.read_text(encoding="utf-8").splitlines()[before:]:
@@ -167,6 +169,8 @@ def films(cfg, now, dry=False, run_node=None):
         if why:
             if why == "waiting for approval":
                 out.append(f"film {row['date']} {row['title']}: {why}")
+            elif why == "missed" and row["date"] == str(now.date() - timedelta(days=int(s.get("late_days", 1)) + 1)):
+                out.append(f"film {row['date']} {row['title']}: missed, never posted (PC off, or it kept failing)")
             continue
         video = Path(row["video"])
         cap = caption_for(video) if row["video"] else None
@@ -258,7 +262,19 @@ def posts(cfg, now, dry=False, run_node=None):
     return out
 
 
-def run(cfg, now=None, dry=False, run_node=None, replier=None):
+def short_day(cfg, s, now):
+    """Fewer films queued for today than publish.per_day, once the first posting time has passed: the film job is behind."""
+    if not any(core.auto_post(s, p) for p in s["platforms"]):
+        return []
+    first = (s["times"] or ["18:30"])[0]
+    if now.strftime("%H:%M") < first:
+        return []
+    n = len([r for r in core.read_queue(s["queue"]) if r["date"] == str(now.date())])
+    want = max(1, int(s["per_day"]))
+    return [f"only {n} of {want} films queued for today {now:%Y-%m-%d}: the film job is behind (check its log)"] if n < want else []
+
+
+def run(cfg, now=None, dry=False, run_node=None, replier=None, alert=None):
     s = core.settings(cfg)
     now = now or core.now_in(s["timezone"])
     now = now.replace(tzinfo=None) if isinstance(now, datetime) else now
@@ -266,11 +282,18 @@ def run(cfg, now=None, dry=False, run_node=None, replier=None):
     if not dry and not lock.acquire():
         return "busy: another autopost run is posting"
     try:
-        out = films(cfg, now, dry, run_node) + posts(cfg, now, dry, run_node)
+        out = films(cfg, now, dry, run_node) + posts(cfg, now, dry, run_node) + short_day(cfg, s, now)
         if s["challenges"].get("enabled"):
             from . import replies
             out += (replier or replies.run)(cfg, dry=dry)
         out += connect.expiring(cfg, now.date())
+        if not dry:
+            from . import notify
+            bad = notify.problems(out)
+            if bad:
+                how = (alert or notify.alert)(cfg, "posting problem", bad, now)
+                if how:
+                    out.append(f"alert sent ({how})")
         return "\n".join(out) or "nothing due"
     finally:
         lock.release()
