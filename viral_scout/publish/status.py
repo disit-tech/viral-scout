@@ -57,6 +57,10 @@ def build(cfg, now=None):
     post_rows = [row_out(posts, r, ps.get("times") or ["10:00"], post_plats, "file", "post") for r in posts if r["date"] >= str(since)]
     keys = {p: {"connected": all(env.get(k) for k in names), "missing": [k for k in names if not env.get(k)], "connect": CONNECT[p]}
             for p, names in KEYS.items()}
+    # The shared app keys each Connect button needs first (names → set or not; values never leave here).
+    prereqs = {k: bool(env.get(k)) for k in ("META_APP_ID", "META_APP_SECRET", "META_USER_TOKEN", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET")}
+    prereqs["GOOGLE_CLIENT"] = bool((env.get("YOUTUBE_CLIENT_ID") or env.get("YT_OAUTH_CLIENT_ID")) and
+                                    (env.get("YOUTUBE_CLIENT_SECRET") or env.get("YT_OAUTH_CLIENT_SECRET")))
     if env.get("LINKEDIN_TOKEN_EXPIRES"):
         keys["linkedin"]["expires"] = env["LINKEDIN_TOKEN_EXPIRES"]
     replied = auto.data_dir(cfg) / "replied.json"
@@ -68,6 +72,7 @@ def build(cfg, now=None):
                      "challenges": {k: s["challenges"].get(k) for k in ("enabled", "dm", "reply_text", "reply_text_instagram")},
                      "film_job": bool(J["film"]["enabled"]), "posts_job": bool(J["posts"]["enabled"])},
         "queue": s["queue"], "posts_queue": s["posts_queue"],
+        "prereqs": prereqs, "handles": s["handles"] or {},
         "films": film_rows, "posts": post_rows, "keys": keys, "warnings": connect.expiring(cfg, now.date()),
         "published": list(reversed(_log(cfg, "published.jsonl")))[:30],
         "challenges": {"replied": len(json.loads(replied.read_text(encoding="utf-8"))) if replied.exists() else 0,

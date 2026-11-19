@@ -118,6 +118,7 @@ def main(argv):
     co.add_argument("--page")
     co.add_argument("--org")
     co.add_argument("--no-browser", action="store_true")
+    co.add_argument("--check", action="store_true", help="only say whether the sign-in can start (JSON)")
     a = p.parse_args(argv)
     cfg = config.load(a.profile)
     s = core.settings(cfg)
@@ -157,6 +158,10 @@ def main(argv):
 
     if a.cmd == "connect":
         from . import connect
+        if a.check:
+            err = connect.check(cfg, a.service)
+            print(json.dumps({"ok": not err, "error": err}))
+            return 0 if not err else 1
         try:
             lines = (connect.meta(cfg, a.page) if a.service == "meta" else
                      connect.google(cfg, not a.no_browser) if a.service == "google" else connect.linkedin(cfg, a.org, not a.no_browser))

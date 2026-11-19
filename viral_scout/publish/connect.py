@@ -184,6 +184,21 @@ def linkedin(cfg, org=None, open_browser=True, timeout=300):
     return [f"LinkedIn: posts as {author} → LINKEDIN_* ({f})", f"The token expires {expires}: run this again before then."]
 
 
+def check(cfg, service):
+    """Why a sign-in can't start yet ("" = it can). The dashboard asks before it opens a browser."""
+    env = keys_for(cfg)
+    if service == "meta" and not env.get("META_USER_TOKEN"):
+        return "No Facebook sign-in yet: Setup page → Connect Meta first (needs META_APP_ID / META_APP_SECRET)."
+    if service == "google" and not ((env.get("YOUTUBE_CLIENT_ID") or env.get("YT_OAUTH_CLIENT_ID")) and
+                                    (env.get("YOUTUBE_CLIENT_SECRET") or env.get("YT_OAUTH_CLIENT_SECRET"))):
+        return ("No Google sign-in client yet: put YT_OAUTH_CLIENT_ID and YT_OAUTH_CLIENT_SECRET on the Setup page "
+                "(YouTube step 1 on the Posting page says how to make them).")
+    if service == "linkedin" and not (env.get("LINKEDIN_CLIENT_ID") and env.get("LINKEDIN_CLIENT_SECRET")):
+        return ("No LinkedIn app yet: put LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET on the Setup page "
+                "(LinkedIn step 1 on the Posting page says how to make them).")
+    return ""
+
+
 def expiring(cfg, today=None, days=7):
     """Warnings for keys that stop working soon (LinkedIn tokens last 60 days)."""
     env = keys_for(cfg)

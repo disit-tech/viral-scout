@@ -16,6 +16,8 @@ type Status = {
     challenges: { enabled: boolean; dm: boolean; reply_text: string; reply_text_instagram: string };
     film_job: boolean; posts_job: boolean;
   };
+  prereqs: Record<"META_APP_ID" | "META_APP_SECRET" | "META_USER_TOKEN" | "LINKEDIN_CLIENT_ID" | "LINKEDIN_CLIENT_SECRET" | "GOOGLE_CLIENT", boolean>;
+  handles: Record<string, string>;
   queue: string; posts_queue: string; films: Row[]; posts: Row[]; keys: Record<string, Key>; warnings: string[];
   published: { time: string; platform: string; permalink?: string; id?: string; video?: string; post?: string }[];
   challenges: { replied: number; active: number };
@@ -33,6 +35,32 @@ const STATE_LABEL: Record<Row["state"], string> = {
   posted: "📤 posted", stopped: "🛑 stopped", "due now": "⏱ due now", "waiting for approval": "👀 waiting for ✅", missed: "missed", scheduled: "🗓 scheduled",
 };
 
+function Ext({ href, children }: { href: string; children: React.ReactNode }) {
+  return <a className="text-accent hover:underline" href={href} target="_blank" rel="noreferrer">{children}</a>;
+}
+
+/** A key on the Setup page: the link scrolls to its row and flashes it (#key-NAME). */
+function SetupKey({ k }: { k: string }) {
+  return <a className="font-mono text-accent hover:underline" href={`/setup#key-${k}`}>{k}</a>;
+}
+
+/** One platform's numbered steps; the first open step is highlighted. */
+function Guide({ title, status, done, steps }: { title: string; status: string; done: boolean; steps: { done: boolean; text: React.ReactNode }[] }) {
+  const next = steps.findIndex((s) => !s.done);
+  return (
+    <div className={`rounded-xl border p-3 ${done ? "border-above/40" : "border-line"}`}>
+      <div className="flex items-baseline justify-between gap-2"><span className="font-medium">{title}</span><span className="text-xs">{status}</span></div>
+      <ol className="mt-2 space-y-2 text-xs">
+        {steps.map((s, i) => (
+          <li key={i} className={`flex gap-2 rounded-lg p-1.5 ${i === next ? "bg-accent/10" : ""} ${s.done ? "text-muted" : ""}`}>
+            <span className="shrink-0 font-semibold">{s.done ? "✅" : `${i + 1}.`}</span><div className="min-w-0 leading-relaxed">{s.text}</div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 async function post(body: object) {
   return fetch("/api/posting", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
     .then((r) => r.json()).catch(() => ({ ok: false, output: "request failed" }));
@@ -49,6 +77,7 @@ export default function PostingView({ profile }: { profile: string }) {
   const [form, setForm] = useState<Status["settings"] | null>(null);
   const [page, setPage] = useState("");
   const [org, setOrg] = useState("");
+  const [link, setLink] = useState("");
 
   const load = useCallback(async () => {
     const d = await fetch(`/api/posting?profile=${encodeURIComponent(profile)}`).then((r) => r.json()).catch(() => ({ error: "couldn't reach the dashboard server" }));
@@ -60,8 +89,11 @@ export default function PostingView({ profile }: { profile: string }) {
   async function act(key: string, body: object) {
     setBusy(key);
     setMsg(null);
+    setLink("");
     const r = await post({ profile, ...body });
     setBusy("");
+    if (r.url) setLink(String(r.url));
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setMsg({ ok: !!r.ok, text: String(r.output ?? "").trim().split("\n").filter(Boolean).slice(-4).join(" · ") || (r.ok ? "Done." : "Failed.") });
     load();
   }
@@ -116,10 +148,11 @@ export default function PostingView({ profile }: { profile: string }) {
           </div>
         </div>
         {notConnected.length > 0 && (
-          <p className="mt-2 text-mega">Not connected yet: {notConnected.map((p) => NAMES[p]).join(", ")}. Nothing posts there until you connect it below.</p>
+          <p className="mt-2 text-mega">Not connected yet: {notConnected.map((p) => NAMES[p]).join(", ")}. Nothing posts there until you connect it: <a className="text-accent underline" href="#accounts">step-by-step below ↓</a></p>
         )}
         {st.warnings.map((w) => <p key={w} className="mt-1 text-mega">⚠ {w}</p>)}
         {msg && <p className={`mt-2 whitespace-pre-wrap ${msg.ok ? "text-above" : "text-mega"}`}>{msg.text}</p>}
+        {link && <p className="mt-1"><a className="text-accent underline" href={link} target="_blank" rel="noreferrer">Open the sign-in page →</a></p>}
       </section>
 
       {/* ── Settings ── */}
@@ -191,31 +224,57 @@ export default function PostingView({ profile }: { profile: string }) {
       </section>
 
       {/* ── Accounts ── */}
-      <section className="rounded-2xl border border-line bg-panel p-4">
-        <h3 className="mb-1 font-semibold">Accounts</h3>
-        <p className="mb-3 text-muted">The keys this business posts with, saved in <code>data/publish/{profile}/keys.env</code> on this PC (never in the profile).</p>
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-line p-3">
-            <div className="font-medium">Meta: Instagram + Facebook</div>
-            <p className="my-1 text-xs">{(["instagram", "facebook"] as const).map((p) => <span key={p} className="mr-2">{st.keys[p]?.connected ? "✅" : "⚪"} {NAMES[p]}</span>)}</p>
-            <p className="mb-2 text-xs text-muted">Uses your Facebook sign-in from the Setup page (Connect Meta; sign in again once so it asks for posting). Then pick this business&apos;s Page.</p>
-            <input className={field} placeholder="Page name or id (empty = match the handles)" value={page} onChange={(e) => setPage(e.target.value)} />
-            <button className={`${btn} mt-2`} disabled={!!busy} onClick={() => act("meta", { action: "connect-meta", page })}>{busy === "meta" ? "Connecting…" : "Connect Page"}</button>
-          </div>
-          <div className="rounded-xl border border-line p-3">
-            <div className="font-medium">YouTube</div>
-            <p className="my-1 text-xs">{st.keys.youtube?.connected ? "✅ connected" : "⚪ not connected"}</p>
-            <p className="mb-2 text-xs text-muted">Sign in as the business&apos;s channel. Until Google audits the API project, uploads arrive as private.</p>
-            <button className={btn} disabled={!!busy} onClick={() => act("google", { action: "connect-google" })}>{busy === "google" ? "Opening…" : "Connect YouTube"}</button>
-          </div>
-          <div className="rounded-xl border border-line p-3">
-            <div className="font-medium">LinkedIn</div>
-            <p className="my-1 text-xs">{st.keys.linkedin?.connected ? `✅ connected${st.keys.linkedin.expires ? ` · renew by ${st.keys.linkedin.expires}` : ""}` : "⚪ not connected"}</p>
-            <p className="mb-2 text-xs text-muted">Needs LINKEDIN_CLIENT_ID / SECRET on the Setup page. Empty id = post as you; a company Page id needs the Community Management API.</p>
-            <input className={field} placeholder="Company Page id (optional)" value={org} onChange={(e) => setOrg(e.target.value)} />
-            <button className={`${btn} mt-2`} disabled={!!busy} onClick={() => act("li", { action: "connect-linkedin", org })}>{busy === "li" ? "Opening…" : "Connect LinkedIn"}</button>
-          </div>
+      <section id="accounts" className="rounded-2xl border border-line bg-panel p-4">
+        <h3 className="mb-1 font-semibold">Accounts: how to connect</h3>
+        <p className="mb-3 text-muted">
+          Each platform needs a free developer app once (shared by all your businesses), then one sign-in per business. Go
+          through the steps top to bottom; a step ticks itself when it&apos;s done (reload the page). The keys stay on this PC
+          in <code>data/publish/{profile}/keys.env</code>.
+        </p>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Guide title="Meta: Instagram + Facebook" done={!!st.keys.instagram?.connected && !!st.keys.facebook?.connected}
+            status={(["instagram", "facebook"] as const).map((p) => `${st.keys[p]?.connected ? "✅" : "⚪"} ${NAMES[p]}`).join("  ")}
+            steps={[
+              { done: !!st.keys.instagram?.connected, text: <>Check: the Instagram account is a <b>Business or Creator</b> account and is linked to the business&apos;s <b>Facebook Page</b> (Instagram app → Settings → Account type and tools; Facebook Page → Settings → Linked accounts).</> },
+              { done: st.prereqs.META_APP_ID && st.prereqs.META_APP_SECRET, text: <>
+                Create a Meta app: <Ext href="https://developers.facebook.com/apps/creation/">developers.facebook.com → Create app</Ext>, type <b>Business</b>.
+                Add the product <b>Facebook Login for Business</b>; in its Settings put <code>http://localhost:8765/</code> under <i>Valid OAuth Redirect URIs</i>.
+                Then App settings → Basic: copy <b>App ID</b> and <b>App secret</b> into <SetupKey k="META_APP_ID" /> and <SetupKey k="META_APP_SECRET" /> on the Setup page.
+                Leave the app in Development mode: you are its admin, so posting to your own Pages works without App Review.</> },
+              { done: st.prereqs.META_USER_TOKEN, text: <>On the <a className="text-accent hover:underline" href="/setup">Setup page</a> press <b>Connect Meta</b> and sign in with the Facebook account that manages the Page. Tick <b>every</b> Page, Instagram account and permission it asks for (posting needs <i>instagram_content_publish</i> and <i>pages_manage_posts</i>).</> },
+              { done: !!st.keys.instagram?.connected || !!st.keys.facebook?.connected, text: <>Pick this business&apos;s Page. Empty box = the Page whose Instagram matches the profile{st.handles.instagram ? ` (${st.handles.instagram})` : ""}; or type the Page name.
+                <input className={`${field} mt-1.5`} placeholder="Page name or id (optional)" value={page} onChange={(e) => setPage(e.target.value)} />
+                <button className={`${btn} mt-1.5`} disabled={!!busy || !st.prereqs.META_USER_TOKEN} title={st.prereqs.META_USER_TOKEN ? "" : "Do step 3 first"}
+                  onClick={() => act("meta", { action: "connect-meta", page })}>{busy === "meta" ? "Connecting…" : "Connect Page"}</button></> },
+            ]} />
+          <Guide title="YouTube" done={!!st.keys.youtube?.connected} status={st.keys.youtube?.connected ? "✅ connected" : "⚪ not connected"}
+            steps={[
+              { done: st.prereqs.GOOGLE_CLIENT, text: <>
+                Make a Google sign-in client (once): <Ext href="https://console.cloud.google.com/projectcreate">create a Google Cloud project</Ext>,{" "}
+                <Ext href="https://console.cloud.google.com/apis/library/youtube.googleapis.com">enable YouTube Data API v3</Ext>, set up the{" "}
+                <Ext href="https://console.cloud.google.com/auth/overview">OAuth consent screen</Ext> (External, your email) and press <b>Publish app</b> (in Testing the sign-in stops after 7 days).
+                Then <Ext href="https://console.cloud.google.com/apis/credentials">Credentials</Ext> → Create credentials → OAuth client ID → <b>Desktop app</b>.
+                Copy its client ID and secret into <SetupKey k="YT_OAUTH_CLIENT_ID" /> and <SetupKey k="YT_OAUTH_CLIENT_SECRET" /> on the Setup page.</> },
+              { done: !!st.keys.youtube?.connected, text: <>Press Connect: a Google page opens (or a link appears at the top of this page). Sign in with the account that owns the business&apos;s channel; if it asks which channel, pick the business&apos;s. Allow every box.
+                <br /><button className={`${btn} mt-1.5`} disabled={!!busy || !st.prereqs.GOOGLE_CLIENT} title={st.prereqs.GOOGLE_CLIENT ? "" : "Do step 1 first"}
+                  onClick={() => act("google", { action: "connect-google" })}>{busy === "google" ? "Opening…" : "Connect YouTube"}</button></> },
+              { done: false, text: <>Ask Google for the API audit: <Ext href="https://support.google.com/youtube/contact/yt_api_form">YouTube API Services form</Ext> → &quot;Audit and quota extension&quot;. Until it is approved, YouTube keeps every API upload <b>private</b> (uploaded, but nobody sees it). Takes days to weeks.</> },
+            ]} />
+          <Guide title="LinkedIn" done={!!st.keys.linkedin?.connected}
+            status={st.keys.linkedin?.connected ? `✅ connected${st.keys.linkedin.expires ? ` · renew by ${st.keys.linkedin.expires}` : ""}` : "⚪ not connected"}
+            steps={[
+              { done: st.prereqs.LINKEDIN_CLIENT_ID && st.prereqs.LINKEDIN_CLIENT_SECRET, text: <>
+                <Ext href="https://www.linkedin.com/developers/apps/new">linkedin.com/developers → Create app</Ext> (it asks for a LinkedIn company Page: use the business&apos;s, or create one first).
+                Tab <b>Products</b>: request <b>Share on LinkedIn</b> and <b>Sign In with LinkedIn using OpenID Connect</b> (both are instant).
+                Tab <b>Auth</b>: add the redirect URL <code>http://127.0.0.1:8766/</code>, then copy Client ID and Primary Client Secret into <SetupKey k="LINKEDIN_CLIENT_ID" /> and <SetupKey k="LINKEDIN_CLIENT_SECRET" /> on the Setup page.</> },
+              { done: !!st.keys.linkedin?.connected, text: <>Press Connect and sign in. Empty box = posts go out as <b>your profile</b>. To post as the <b>company Page</b>, type its number (from the admin URL <code>linkedin.com/company/12345678/admin</code>); that also needs the <i>Community Management API</i> product, which LinkedIn reviews.
+                <input className={`${field} mt-1.5`} placeholder="Company Page id (optional)" value={org} onChange={(e) => setOrg(e.target.value)} />
+                <button className={`${btn} mt-1.5`} disabled={!!busy || !(st.prereqs.LINKEDIN_CLIENT_ID && st.prereqs.LINKEDIN_CLIENT_SECRET)} title={st.prereqs.LINKEDIN_CLIENT_ID ? "" : "Do step 1 first"}
+                  onClick={() => act("li", { action: "connect-linkedin", org })}>{busy === "li" ? "Opening…" : "Connect LinkedIn"}</button></> },
+              { done: !!st.keys.linkedin?.connected && !st.warnings.length, text: <>The LinkedIn sign-in lasts 60 days. This page and the posting job warn you a week before; then press Connect again.</> },
+            ]} />
         </div>
+        <p className="mt-3 text-xs text-muted">TikTok has no step here: its API keeps every post private until TikTok audits the app, so TikTok stays a by-hand post (the morning post pack in Telegram).</p>
       </section>
 
       {/* ── Queues ── */}

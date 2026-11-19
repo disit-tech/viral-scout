@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { mkdirSync, openSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { NextResponse, type NextRequest } from "next/server";
 import { REPO, localOnly, runCli, startDetached } from "@/lib/cli";
@@ -21,6 +22,33 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: r.output.slice(-400) }, { status: 500 });
   }
+}
+
+/** A browser sign-in (Google / LinkedIn): check the app keys first, then start it in the background with its output in
+ *  data/publish/<p>/connect-<svc>.log, and hand back the sign-in URL it printed (when no browser tab opens). */
+async function signIn(profile: string, service: "google" | "linkedin", extra: string[]) {
+  const c = await runCli(["publish", profile, "connect", service, "--check"], undefined, 30_000);
+  const chk = (() => { try { return JSON.parse(last(c.output)); } catch { return { ok: false, error: c.output.slice(-300) }; } })();
+  if (!chk.ok) return NextResponse.json({ ok: false, output: chk.error }, { status: 400 });
+  const dir = path.join(REPO, "data", "publish", profile);
+  mkdirSync(dir, { recursive: true });
+  const log = path.join(dir, `connect-${service}.log`);
+  const fd = openSync(log, "w");
+  const py = process.env.VIRAL_SCOUT_PYTHON || "python";
+  const p = spawn(/*turbopackIgnore: true*/ py, ["-m", "viral_scout", "publish", profile, "connect", service, ...extra], {
+    cwd: REPO, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUNBUFFERED: "1" }, windowsHide: true, detached: true, stdio: ["ignore", fd, fd],
+  });
+  p.unref();
+  let text = "";
+  for (let i = 0; i < 20 && !/https:\/\/\S+/.test(text) && !/error:/.test(text); i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    try { text = readFileSync(log, "utf-8"); } catch { /* not written yet */ }
+  }
+  const url = text.match(/https:\/\/\S+/)?.[0];
+  if (/error:/.test(text)) return NextResponse.json({ ok: false, output: text.trim().split("\n").pop() }, { status: 400 });
+  const name = service === "google" ? "Google" : "LinkedIn";
+  return NextResponse.json({ ok: true, url,
+    output: `${name} sign-in started: a tab should open in your browser. No tab? Use the link below. After you allow it, reload this page (the step turns ✅).` });
 }
 
 function syncTasks(profile: string): Promise<{ code: number; output: string }> {
@@ -73,15 +101,11 @@ export async function POST(req: NextRequest) {
     if (page.length > 120 || /[\r\n]/.test(page)) return bad("bad page");
     return reply(await runCli(["publish", profile, "connect", "meta", ...(page ? ["--page", page] : [])], undefined, 60_000));
   }
-  if (action === "connect-google") {
-    startDetached(["publish", profile, "connect", "google"]);
-    return NextResponse.json({ ok: true, output: "A Google sign-in opened in the browser: pick the business's channel and allow every box, then reload this page." });
-  }
+  if (action === "connect-google") return signIn(profile, "google", []);
   if (action === "connect-linkedin") {
     const org = String(b.org ?? "").trim();
     if (org && !/^(urn:li:organization:)?\d{1,20}$/.test(org)) return bad("org: the company Page's numeric id");
-    startDetached(["publish", profile, "connect", "linkedin", ...(org ? ["--org", org] : [])]);
-    return NextResponse.json({ ok: true, output: "A LinkedIn sign-in opened in the browser. Allow it, then reload this page." });
+    return signIn(profile, "linkedin", org ? ["--org", org] : []);
   }
   if (action === "sync-tasks") return reply(await syncTasks(profile));
   return bad("unknown action");
