@@ -13,8 +13,9 @@ KEYS = {
     "youtube": ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"],
     "linkedin": ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR"],
     "tiktok": ["TIKTOK_POST_REFRESH_TOKEN"],
+    "threads": ["THREADS_ACCESS_TOKEN", "THREADS_USER_ID"],
 }
-CONNECT = {"instagram": "meta", "facebook": "meta", "youtube": "google", "linkedin": "linkedin", "tiktok": "tiktok"}
+CONNECT = {"instagram": "meta", "facebook": "meta", "youtube": "google", "linkedin": "linkedin", "tiktok": "tiktok", "threads": "threads"}
 
 
 def _log(cfg, name):
@@ -53,7 +54,7 @@ def build(cfg, now=None):
     films = core.read_queue(s["queue"])
     film_rows = [row_out(films, r, s["times"], auto_on, "video", "film") for r in films if r["date"] >= str(since)]
     ps = s["posts"]
-    post_plats = [p for p in ps.get("platforms") or [] if p in ("facebook", "linkedin")]
+    post_plats = [p for p in ps.get("platforms") or [] if p in ("facebook", "linkedin", "threads")]
     posts = core.read_posts(s["posts_queue"])
     post_rows = [row_out(posts, r, ps.get("times") or ["10:00"], post_plats, "file", "post") for r in posts if r["date"] >= str(since)]
     keys = {p: {"connected": all(env.get(k) for k in names), "missing": [k for k in names if not env.get(k)], "connect": CONNECT[p]}

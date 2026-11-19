@@ -24,8 +24,8 @@ type Status = {
 };
 type Msg = { ok: boolean; text: string } | null;
 
-const PLATFORMS = ["instagram", "facebook", "youtube", "linkedin", "tiktok"] as const;
-const NAMES: Record<string, string> = { instagram: "Instagram", facebook: "Facebook", youtube: "YouTube", linkedin: "LinkedIn", tiktok: "TikTok (drafts)" };
+const PLATFORMS = ["instagram", "facebook", "youtube", "linkedin", "threads", "tiktok"] as const;
+const NAMES: Record<string, string> = { instagram: "Instagram", facebook: "Facebook", youtube: "YouTube", linkedin: "LinkedIn", threads: "Threads", tiktok: "TikTok (drafts)" };
 const field = "w-full rounded-lg border border-line bg-panel-2 px-2 py-1.5 text-sm";
 const btn = "rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-panel-2 disabled:opacity-40";
 const STATE_STYLE: Record<Row["state"], string> = {
@@ -78,6 +78,7 @@ export default function PostingView({ profile }: { profile: string }) {
   const [page, setPage] = useState("");
   const [org, setOrg] = useState("");
   const [link, setLink] = useState("");
+  const [thToken, setThToken] = useState("");
 
   const load = useCallback(async () => {
     const d = await fetch(`/api/posting?profile=${encodeURIComponent(profile)}`).then((r) => r.json()).catch(() => ({ error: "couldn't reach the dashboard server" }));
@@ -197,11 +198,11 @@ export default function PostingView({ profile }: { profile: string }) {
                 <input key={i} type="time" className={`${field} w-28`} value={t} onChange={(e) => setTime("posts", i, e.target.value)} />))}</div></div>
             </div>
             <div>Text/photo posts go to
-              <div className="mt-1 flex gap-3">{(["linkedin", "facebook"] as const).map((p) => (
+              <div className="mt-1 flex gap-3">{(["linkedin", "facebook", "threads"] as const).map((p) => (
                 <label key={p} className="flex items-center gap-1"><input type="checkbox" checked={form.posts.platforms.includes(p)}
                   onChange={(e) => setForm({ ...form, posts: { ...form.posts, platforms: e.target.checked ? [...form.posts.platforms, p] : form.posts.platforms.filter((x) => x !== p) } })} />
                   {NAMES[p]}</label>))}</div>
-              <p className="mt-0.5 text-xs text-muted">Instagram photo posts stay by hand (its API only takes a public image URL).</p>
+              <p className="mt-0.5 text-xs text-muted">Instagram photo posts stay by hand, and Threads gets the text only (both APIs take images only from a public URL).</p>
             </div>
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.challenges.enabled}
               onChange={(e) => setForm({ ...form, challenges: { ...form.challenges, enabled: e.target.checked } })} />
@@ -275,6 +276,22 @@ export default function PostingView({ profile }: { profile: string }) {
             ]} />
         </div>
         <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          <Guide title="Threads" done={!!st.keys.threads?.connected} status={st.keys.threads?.connected ? "✅ connected" : "⚪ not connected"}
+            steps={[
+              { done: !!st.keys.threads?.connected, text: <>
+                In the same Meta app as Instagram (<Ext href="https://developers.facebook.com/apps/">developers.facebook.com → your app</Ext>): <b>Use cases → Add use case → Access the Threads API</b>, with the permissions <code>threads_basic</code> and <code>threads_content_publish</code>.
+                Optional: copy the Threads app secret into <SetupKey k="THREADS_APP_SECRET" /> (then a short token is swapped for a 60-day one).</> },
+              { done: !!st.keys.threads?.connected, text: <>
+                <b>App roles → Roles → Add people → Threads Tester</b>: the business&apos;s Threads account{st.handles.threads ? ` (${st.handles.threads})` : st.handles.instagram ? ` (same as Instagram: ${st.handles.instagram})` : ""}.
+                Accept the invite in the Threads app: Settings → Account → Website permissions → Invites.</> },
+              { done: !!st.keys.threads?.connected, text: <>
+                Threads use case → Settings → <b>User Token Generator</b> → Generate access token for that account. Paste it here:
+                <input className={`${field} mt-1.5`} type="password" placeholder="THAA…" value={thToken} onChange={(e) => setThToken(e.target.value)} />
+                <button className={`${btn} mt-1.5`} disabled={!!busy || thToken.length < 20} onClick={() => { act("th", { action: "connect-threads", token: thToken }); setThToken(""); }}>
+                  {busy === "th" ? "Connecting…" : "Connect Threads"}</button>
+                <span className="mt-1 block text-muted">The token renews itself every time posting runs, so you paste it once.</span></> },
+              { done: !!st.settings.auto_post.threads, text: <>Tick <b>Threads</b> under &quot;Posts by itself to&quot; (films: the Threads text + a link to the Reel/Short) and under &quot;Text/photo posts go to&quot;, then Save.</> },
+            ]} />
           <Guide title="TikTok (drafts)" done={!!st.keys.tiktok?.connected} status={st.keys.tiktok?.connected ? "✅ connected" : "⚪ not connected"}
             steps={[
               { done: st.prereqs.TIKTOK_POST_CLIENT_KEY && st.prereqs.TIKTOK_POST_CLIENT_SECRET, text: <>

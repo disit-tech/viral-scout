@@ -306,3 +306,35 @@ class TikTokTest(Base):
         self.assertEqual(sent, [("A", "Text #a")])
         self.assertIn(("tiktok", self.films[0].name), auto.published(cfg))
         self.assertIn("📤 posted", self.queue.read_text(encoding="utf-8").split("\n")[2])
+
+
+class ThreadsTest(Base):
+    def test_fit_keeps_the_link(self):
+        from viral_scout.publish import threads
+        out = threads.fit("word " * 200, "https://instagram.com/reel/x")
+        self.assertLessEqual(len(out), 500)
+        self.assertTrue(out.endswith("https://instagram.com/reel/x"))
+
+    def test_film_threads_links_to_the_reel(self):
+        from viral_scout.publish import threads
+        cfg = self.profile({"auto_post": {"instagram": True, "threads": True}, "platforms": ["instagram", "threads"]})
+        keys = Path(core.settings(cfg)["env_file"])
+        keys.write_text(keys.read_text(encoding="utf-8") + "THREADS_ACCESS_TOKEN=x\nTHREADS_USER_ID=1\n", encoding="utf-8")
+        got = []
+
+        class Node(FakeNode):
+            def __call__(self, cmd, cfg, dry):
+                code, out = super().__call__(cmd, cfg, dry)
+                with self.log.open("a", encoding="utf-8") as fh:    # the Reel's permalink, as publish.mjs logs it
+                    fh.write(json.dumps({"platform": "instagram", "video": Path(cmd[2]).name, "permalink": "https://ig/reel/1"}) + "\n")
+                return code, out
+        orig = threads.post
+        threads.post = lambda cfg, text, link="", http=None: got.append((text, link)) or {"id": "t1", "link": "https://threads/t1"}
+        try:
+            node = Node(cfg)
+            auto.run(cfg, now=datetime(2026, 11, 18, 12, 5), run_node=node, replier=lambda c, dry: [])
+        finally:
+            threads.post = orig
+        self.assertEqual(node.calls[0][node.calls[0].index("--only") + 1], "instagram")
+        self.assertEqual(got, [("Text #a", "https://ig/reel/1")])
+        self.assertIn(("threads", self.films[0].name), auto.published(cfg))

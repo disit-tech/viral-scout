@@ -206,6 +206,13 @@ def expiring(cfg, today=None, days=7):
     """Warnings for keys that stop working soon (LinkedIn tokens last 60 days)."""
     env = keys_for(cfg)
     out = []
+    th = env.get("THREADS_EXPIRES", "")
+    if th:
+        try:
+            if (date.fromisoformat(th) - (today or date.today())).days < 0:
+                out.append(f"Threads token for {cfg['name']} expired {th}: Posting page → Threads → paste a new token")
+        except ValueError:
+            pass
     t = env.get("TIKTOK_POST_REFRESH_EXPIRES", "")
     if t:
         try:

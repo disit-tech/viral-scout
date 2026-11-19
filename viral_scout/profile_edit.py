@@ -50,7 +50,7 @@ FIELDS = {
     # Posting / auto mode (business → Posting page, docs/publish-and-jobs.md#auto-mode)
     "publish.approval": "approval", "publish.per_day": "per_day", "publish.times": "hhmm_list",
     "publish.auto_post.instagram": "bool", "publish.auto_post.facebook": "bool", "publish.auto_post.youtube": "bool",
-    "publish.auto_post.linkedin": "bool", "publish.auto_post.tiktok": "bool",
+    "publish.auto_post.linkedin": "bool", "publish.auto_post.tiktok": "bool", "publish.auto_post.threads": "bool",
     "publish.posts.enabled": "bool", "publish.posts.per_day": "per_day", "publish.posts.times": "hhmm_list",
     "publish.posts.platforms": "post_platforms",
     "publish.challenges.enabled": "bool", "publish.challenges.dm": "bool", "publish.challenges.reply_text": "str",
@@ -198,8 +198,8 @@ def _clean(path, kind, v):
             raise ValueError(f"{path}: 1 to 5 times like 11:30 ({', '.join(bad)})")
         return out
     if kind == "post_platforms":
-        if not isinstance(v, list) or any(x not in ("facebook", "linkedin") for x in v):
-            raise ValueError(f"{path}: a list of facebook, linkedin")
+        if not isinstance(v, list) or any(x not in ("facebook", "linkedin", "threads") for x in v):
+            raise ValueError(f"{path}: a list of facebook, linkedin, threads")
         return list(dict.fromkeys(v))
     if kind == "jobdays":                     # "daily" or weekday names (jobs/schedule.py)
         days = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")

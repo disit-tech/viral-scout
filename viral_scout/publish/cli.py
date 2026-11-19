@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from datetime import date, datetime
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from . import core, pack
 from . import auto
 
 NODE_DIR = Path(__file__).resolve().parent / "node"
+PY_PLATFORMS = ("tiktok", "threads")   # posted from Python (tiktok.py, threads.py), not publish.mjs
 
 
 def post_plan(cfg, video, caption_text, only=None):
@@ -65,7 +67,7 @@ def node_command(cfg, plan, caption_file, args):
     s = core.settings(cfg)
     log = config.ROOT / "data" / "publish" / cfg["name"] / "published.jsonl"
     cmd = ["node", str(NODE_DIR / "publish.mjs"), plan["video"], "--caption-file", str(caption_file),
-           "--only", ",".join(p for p in plan["auto"] if p != "tiktok"),   # tiktok: publish/tiktok.py
+           "--only", ",".join(p for p in plan["auto"] if p not in PY_PLATFORMS),   # tiktok/threads: Python modules
            "--tz", s["timezone"], "--log", str(log),
            "--category", str(s["youtube"]["category"]), "--lang", s["youtube"]["language"],
            "--privacy", s["youtube"].get("privacy", "public")]
@@ -116,7 +118,7 @@ def main(argv):
     ap = sub.add_parser("autopost")
     ap.add_argument("--dry-run", action="store_true")
     co = sub.add_parser("connect")
-    co.add_argument("service", choices=["meta", "google", "linkedin", "tiktok"])
+    co.add_argument("service", choices=["meta", "google", "linkedin", "tiktok", "threads"])
     co.add_argument("--page")
     co.add_argument("--org")
     co.add_argument("--no-browser", action="store_true")
@@ -165,8 +167,9 @@ def main(argv):
             print(json.dumps({"ok": not err, "error": err}))
             return 0 if not err else 1
         try:
-            from . import tiktok
-            lines = (tiktok.connect(cfg, not a.no_browser) if a.service == "tiktok" else
+            from . import threads, tiktok
+            lines = (threads.connect(cfg, sys.stdin.readline()) if a.service == "threads" else
+                     tiktok.connect(cfg, not a.no_browser) if a.service == "tiktok" else
                      connect.meta(cfg, a.page) if a.service == "meta" else
                      connect.google(cfg, not a.no_browser) if a.service == "google" else connect.linkedin(cfg, a.org, not a.no_browser))
         except Exception as e:
@@ -209,8 +212,17 @@ def main(argv):
         except Exception as e:
             print(f"  tiktok     failed: {e}")
         pp["auto"] = [p for p in pp["auto"] if p != "tiktok"]
-        if not pp["auto"]:
-            return 0
+    if "threads" in pp["auto"] and not a.dry_run:
+        from . import threads
+        try:
+            r = threads.post(cfg, core.parse_caption(cap.read_text(encoding="utf-8"))["threads"], pp["links"].get("threads", ""))
+            auto.log_published(cfg, "threads", r["id"], video.name, permalink=r["link"])
+            print(f"  threads    posted {r['link'] or r['id']}")
+        except Exception as e:
+            print(f"  threads    failed: {e}")
+        pp["auto"] = [p for p in pp["auto"] if p != "threads"]
+    if not pp["auto"]:
+        return 0
     if not shutil.which("node"):
         print("error: node not on PATH (needed for the API publisher)")
         return 1

@@ -17,7 +17,7 @@ from pathlib import Path
 from .. import config
 from ..jobs.state import Lock
 from . import cli as pcli
-from . import connect, core, tiktok
+from . import connect, core, threads, tiktok
 
 NODE = Path(__file__).resolve().parent / "node"
 
@@ -122,6 +122,33 @@ def _tiktok(cfg, row, video, cap, dry):
     return tiktok.tell_owner(cfg, row["title"], text)
 
 
+def film_link(cfg, video_name, s):
+    """Where the film can be watched: its Instagram Reel, else its YouTube Short, else the site's link."""
+    f = data_dir(cfg) / "published.jsonl"
+    rows = []
+    if f.exists():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                pass
+    for want in ("instagram", "youtube"):
+        r = next((x for x in reversed(rows) if x.get("platform") == want and x.get("video") == video_name and x.get("permalink")), None)
+        if r:
+            return r["permalink"]
+    return core.utm_link(s["link"], "threads", Path(video_name).stem, s)
+
+
+def _threads(cfg, text, link, key, field, dry):
+    if dry:
+        return "dry run: threads post"
+    r = threads.post(cfg, text, link)
+    with (data_dir(cfg) / "published.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "platform": "threads",
+                             "id": r["id"], "permalink": r["link"], field: key}, ensure_ascii=False) + "\n")
+    return r["link"] or r["id"]
+
+
 def _count(cfg):
     f = data_dir(cfg) / "published.jsonl"
     return len(f.read_text(encoding="utf-8").splitlines()) if f.exists() else 0
@@ -161,6 +188,8 @@ def films(cfg, now, dry=False, run_node=None):
                 except Exception as e:  # TikTok down must not stop the other platforms
                     out.append(f"film {row['title']} → tiktok: {str(e)[:300]}")
                 pp["auto"] = [p for p in pp["auto"] if p != "tiktok"]
+            want_threads = "threads" in pp["auto"]
+            pp["auto"] = [p for p in pp["auto"] if p != "threads"]
             if pp["auto"]:
                 args = type("A", (), {"dry_run": dry, "at": None, "video_url": None, "cover_url": None, "cover": None})()
                 before = _count(cfg)
@@ -168,6 +197,12 @@ def films(cfg, now, dry=False, run_node=None):
                 if not dry:
                     _remember_challenge(cfg, core.parse_caption(cap.read_text(encoding="utf-8")), video.name, before)
                 out.append(f"film {row['title']} → {', '.join(pp['auto'])}: exit {code}" + (f"\n{log[-600:]}" if code else ""))
+            if want_threads:              # after the others, so it can link to the Reel / Short
+                try:
+                    text = core.parse_caption(cap.read_text(encoding="utf-8"))["threads"]
+                    out.append(f"film {row['title']} → threads: {_threads(cfg, text, film_link(cfg, video.name, s), video.name, 'video', dry)}")
+                except Exception as e:
+                    out.append(f"film {row['title']} → threads: {str(e)[:300]}")
             done = published(cfg)
         left = [p for p in auto if (p, video.name) not in done]
         if not left and not dry:
@@ -180,7 +215,7 @@ def films(cfg, now, dry=False, run_node=None):
 def posts(cfg, now, dry=False, run_node=None):
     s = core.settings(cfg)
     ps = s["posts"]
-    plats = [p for p in ps.get("platforms") or [] if p in ("facebook", "linkedin") and core.auto_post(s, p)]
+    plats = [p for p in ps.get("platforms") or [] if p in ("facebook", "linkedin", "threads") and core.auto_post(s, p)]
     out = []
     if not ps.get("enabled") or not plats:
         return out
@@ -198,6 +233,12 @@ def posts(cfg, now, dry=False, run_node=None):
             continue
         cap = core.parse_caption(f.read_text(encoding="utf-8"))
         todo = [p for p in plats if (p, f.name) not in done]
+        if "threads" in todo:             # text only: Threads takes photos from a public URL alone
+            try:
+                out.append(f"post {row['title']} → threads: {_threads(cfg, cap['threads'], '', f.name, 'post', dry)}")
+            except Exception as e:
+                out.append(f"post {row['title']} → threads: {str(e)[:300]}")
+            todo = [p for p in todo if p != "threads"]
         if todo:
             cmd = ["node", str(NODE / "post.mjs"), "--caption-file", str(f), "--only", ",".join(todo),
                    "--log", str(data_dir(cfg) / "published.jsonl")]

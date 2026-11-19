@@ -103,6 +103,11 @@ export async function POST(req: NextRequest) {
   }
   if (action === "connect-google") return signIn(profile, "google", []);
   if (action === "connect-tiktok") return signIn(profile, "tiktok", []);
+  if (action === "connect-threads") {
+    const token = String(b.token ?? "").trim();
+    if (!/^[\w.|-]{20,600}$/.test(token)) return bad("paste the whole token from the Threads User Token Generator");
+    return reply(await runCli(["publish", profile, "connect", "threads"], token, 60_000));   // token on stdin, never in argv
+  }
   if (action === "connect-linkedin") {
     const org = String(b.org ?? "").trim();
     if (org && !/^(urn:li:organization:)?\d{1,20}$/.test(org)) return bad("org: the company Page's numeric id");

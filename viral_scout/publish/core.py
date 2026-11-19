@@ -6,7 +6,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # Platforms with an official-API publisher in publish/node (the rest are always posted by hand).
 # tiktok: drafts in the TikTok app (publish/tiktok.py, inbox upload); the owner taps Post there.
-API_PLATFORMS = ("instagram", "facebook", "youtube", "linkedin", "tiktok")
+# threads: a text post (+ the film's Instagram/YouTube link) through the Threads API (publish/threads.py).
+API_PLATFORMS = ("instagram", "facebook", "youtube", "linkedin", "tiktok", "threads")
 KNOWN = ("tiktok", "instagram", "youtube", "facebook", "threads", "x", "linkedin", "pinterest", "nextdoor")
 
 # Standard env names the node publisher reads. A profile maps them to its own names (publish.tokens).
@@ -16,6 +17,7 @@ TOKEN_NAMES = {
     "youtube": ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"],
     "linkedin": ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR"],
     "tiktok": ["TIKTOK_POST_REFRESH_TOKEN"],
+    "threads": ["THREADS_ACCESS_TOKEN", "THREADS_USER_ID"],
 }
 
 DEFAULTS = {

@@ -22,6 +22,8 @@ reward: <url>               (only for a challenge)
 <professional, first line is the hook, short paragraphs, ≤ 1300 characters, ≤ 3 hashtags, link with utm_source=linkedin>
 ## Facebook
 <conversational, ≤ 600 characters, link with utm_source=facebook>
+## Threads
+<≤ 450 characters, casual, a question or a hot take works best; text only (a photo is not posted there)>
 ## Instagram
 <only when there is a photo; Instagram photo posts are posted by hand>
 ```

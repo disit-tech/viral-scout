@@ -30,7 +30,7 @@ The shared `studio:` block (brand, vault folder, instructions note, compliance n
 | `timezone` | America/Springfield | for slots and `--at` |
 | `slots` | 18:00 / 18:30 / 18:30 / 19:30 | local posting time per platform |
 | `utm` | medium social, campaign `{slug}` | `sources` renames utm_source per platform (e.g. `instagram_story`) |
-| `auto_post` | all false | per platform; instagram, facebook, youtube, linkedin post; tiktok sends a draft to the TikTok app |
+| `auto_post` | all false | per platform; instagram, facebook, youtube, linkedin, threads post; tiktok sends a draft to the TikTok app |
 | `per_day`, `times` | 1, 18:30 / 12:00 / 08:00 | films per post date; the n-th film of a date posts at `times[n]` on every auto platform |
 | `approval` | owner | `owner` (a row posts after ✅) or `auto` (rows are queued as `✅ auto`; 🛑 stops one) |
 | `late_days` | 1 | a due row the PC missed still posts this many days late, then it is reported as missed |
@@ -188,7 +188,8 @@ Keys, once per business (each business posts to its own accounts):
 2. **YouTube**: `publish <p> connect google`, signed in as the channel. Uploads from an API project Google has not audited are forced to private: file the YouTube API audit before relying on it.
 3. **LinkedIn**: a LinkedIn app with *Share on LinkedIn* + *Sign In with LinkedIn using OpenID Connect* (and *Community Management API* to post as a company Page), `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` in `.env`, redirect `http://127.0.0.1:8766/`; then `publish <p> connect linkedin [--org <id>]`. The token lasts 60 days; autopost warns a week before.
 4. **TikTok (drafts)**: an app at developers.tiktok.com with Login Kit + Content Posting API (upload), platform Desktop, redirect `http://localhost:8767/callback/`, `TIKTOK_POST_CLIENT_KEY` / `TIKTOK_POST_CLIENT_SECRET` in `.env` (submit it for review; until then add the business account as a sandbox target user); then `publish <p> connect tiktok`. The refresh token lasts a year and renews itself on use.
-5. Register the tasks: `jobs <p> install-plan` prints the command (adds `viral-scout <p>.autopost`).
+5. **Threads**: in the same Meta app add the use case *Access the Threads API* (threads_basic, threads_content_publish), add the business's Threads account as a Threads Tester (accept it in Threads → Settings → Account → Website permissions), generate a token with the User Token Generator and paste it on the Posting page (`publish <p> connect threads`, token on stdin). Films get a Threads text with the link to their Reel/Short; text posts go as text. The token renews itself (60 days at a time) while posting runs.
+6. Register the tasks: `jobs <p> install-plan` prints the command (adds `viral-scout <p>.autopost`).
 
 ### Caption file
 
