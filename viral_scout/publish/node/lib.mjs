@@ -18,7 +18,7 @@ export function loadEnv() {
   return (k) => (process.env[k] ?? local[k] ?? "").trim();
 }
 
-export const PLATFORMS = ["instagram", "facebook", "youtube"];
+export const PLATFORMS = ["instagram", "facebook", "youtube", "linkedin"];
 
 /**
  * Caption file:
@@ -28,12 +28,14 @@ export const PLATFORMS = ["instagram", "facebook", "youtube"];
  *   ## Instagram             ← optional per-network overrides (whole caption for that network)
  *   ## Facebook
  *   ## YouTube
+ *   ## LinkedIn
+ *   photo: / challenge: / mentions: / reward: header lines are read by the Python side (posts, comment replies).
  */
 export function parseCaption(text) {
   const lines = text.replace(/^﻿/, "").replace(/\r/g, "").split("\n");
   const meta = {};
   let i = 0;
-  while (i < lines.length && /^(ai|title)\s*:/i.test(lines[i])) {
+  while (i < lines.length && /^(ai|title|photo|challenge|mentions|reward)\s*:/i.test(lines[i])) {
     const at = lines[i].indexOf(":");
     meta[lines[i].slice(0, at).trim().toLowerCase()] = lines[i].slice(at + 1).trim();
     i++;
@@ -41,7 +43,7 @@ export function parseCaption(text) {
   const parts = { base: [] };
   let cur = "base";
   for (; i < lines.length; i++) {
-    const h = lines[i].match(/^##\s*(instagram|facebook|youtube)\s*$/i);
+    const h = lines[i].match(/^##\s*(instagram|facebook|youtube|linkedin|tiktok|threads|x|pinterest|nextdoor)\s*$/i);
     if (h) {
       cur = h[1].toLowerCase();
       parts[cur] = [];
@@ -55,6 +57,8 @@ export function parseCaption(text) {
     instagram: clean(parts.instagram) || base,
     facebook: clean(parts.facebook) || base,
     youtube: clean(parts.youtube) || base,
+    linkedin: clean(parts.linkedin) || base,
+    photo: meta.photo ?? "",
   };
 }
 
@@ -80,6 +84,7 @@ export function captionProblems(c) {
   if (hashtags(c.instagram).length > 30) out.push(`instagram: ${hashtags(c.instagram).length} hashtags > 30`);
   if (!c.youtube) out.push("youtube: empty caption");
   if (Buffer.byteLength(c.youtube) > 5000) out.push("youtube: description > 5000 bytes");
+  if ((c.linkedin ?? "").length > 3000) out.push(`linkedin: text ${c.linkedin.length} > 3000 characters`);
   return out;
 }
 

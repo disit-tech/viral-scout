@@ -5,6 +5,9 @@
   post  <video.mp4> --caption <caption.md> [--only a,b] [--at "YYYY-MM-DD HH:mm"] [--dry-run] [--video-url URL]
         posts ONLY to platforms with publish.auto_post.<platform>: true (official APIs, publish/node); every other
         platform is queued for posting by hand (data/publish/<profile>/queue.jsonl). --dry-run sends nothing.
+  autopost [--dry-run]                            the posting job: due films and text/photo posts from the queues,
+                                                  then the comment challenges (publish/auto.py, replies.py)
+  connect meta|google|linkedin [--page P] [--org ID]   this business's posting keys → publish.env_file (connect.py)
 """
 import argparse
 import json
@@ -27,7 +30,7 @@ def post_plan(cfg, video, caption_text, only=None):
     targets = [p for p in s["platforms"] if not only or p in only]
     auto = [p for p in targets if core.auto_post(s, p)]
     manual = [p for p in targets if p not in auto]
-    env = {**pack.read_env_file(s["env_file"]), **os.environ}
+    env = {**os.environ, **pack.read_env_file(s["env_file"])}   # the business's own keys win
     missing = {}
     for p in auto:
         names = s["tokens"].get(p) or {}
@@ -44,7 +47,7 @@ def post_plan(cfg, video, caption_text, only=None):
 def node_env(cfg):
     """Child env for the node publisher: the profile's token names mapped to the standard ones. Values never printed."""
     s = core.settings(cfg)
-    src = {**pack.read_env_file(s["env_file"]), **os.environ}
+    src = {**os.environ, **pack.read_env_file(s["env_file"])}
     env = dict(os.environ)
     for p, names in core.TOKEN_NAMES.items():
         m = s["tokens"].get(p) or {}
@@ -101,6 +104,13 @@ def main(argv):
     po.add_argument("--cover-url")
     po.add_argument("--cover")
     po.add_argument("--dry-run", action="store_true")
+    ap = sub.add_parser("autopost")
+    ap.add_argument("--dry-run", action="store_true")
+    co = sub.add_parser("connect")
+    co.add_argument("service", choices=["meta", "google", "linkedin"])
+    co.add_argument("--page")
+    co.add_argument("--org")
+    co.add_argument("--no-browser", action="store_true")
     a = p.parse_args(argv)
     cfg = config.load(a.profile)
     s = core.settings(cfg)
@@ -117,6 +127,22 @@ def main(argv):
             for x in r["posts"]:
                 print(f"    {x['platform']:<10} {x['at'][11:] or '--:--'}  {x['mode']:<6} {x['handle']:<18} {x['link']}")
         print("free dates:", ", ".join(core.free_dates(cfg)[:7]))
+        return 0
+
+    if a.cmd == "autopost":
+        from . import auto
+        print(auto.run(cfg, dry=a.dry_run))
+        return 0
+
+    if a.cmd == "connect":
+        from . import connect
+        try:
+            lines = (connect.meta(cfg, a.page) if a.service == "meta" else
+                     connect.google(cfg, not a.no_browser) if a.service == "google" else connect.linkedin(cfg, a.org, not a.no_browser))
+        except Exception as e:
+            print(f"error: {e}")
+            return 1
+        print("\n".join(lines))
         return 0
 
     if a.cmd == "today":

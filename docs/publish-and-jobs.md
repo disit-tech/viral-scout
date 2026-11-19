@@ -2,18 +2,19 @@
 
 The last part of the studio: scout → ideas → script → video → **publish → measure**, plus the jobs that run it while nobody watches.
 
-- **Publish** plans the week, sends the owner a morning post pack, and posts one approved video through official APIs. Only where the profile opts in.
+- **Publish** plans the week, sends the owner a morning post pack, and posts approved videos and text/photo posts through official APIs. Only where the profile opts in.
+- **Autopost** (a job without Claude, every 30 min) posts what is due from the queues and answers comment challenges. See [Auto mode](#auto-mode).
 - **Jobs** run Claude Code headless on a schedule: ideas, script, notes, film, blog. One job at a time, narrow permissions, a log per job.
 - **Notes** carry the owner's replies (Telegram) back to the notes job, which makes new versions.
 - **Scheduling** is one script the owner runs once. Claude never registers tasks.
 
 ## Safety rules
 
-1. Nothing is posted unattended. No job is allowed `publish … post`, whatever the profile adds to its tools.
+1. Claude never posts. No Claude job is allowed `publish … post`, whatever the profile adds to its tools. Only the autopost job (plain Python + the official APIs) posts, and only rows that are approved: by the owner's ✅, or by `publish.approval: auto`, which the owner sets in the profile.
 2. `publish post` sends only to platforms with `auto_post: true`. The default is false everywhere, so the default is a queue for posting by hand.
 3. TikTok and every platform without an official publishing API are always posted by hand. TikTok's API keeps posts private until TikTok audits the app. Browser-automation posters are never used: they break the platforms' terms.
 4. Jobs never spend money, contact leads, change a live website or delete data. A note that asks for that is answered "needs a live session".
-5. Delivering drafts to the owner (Telegram, the vault) is fine. Posting is the owner's decision.
+5. Delivering drafts to the owner (Telegram, the vault) is fine. Posting is the owner's decision: per row (✅) or once for everything (`approval: auto`, with 🛑 to stop one row).
 6. Tokens live in the env file named by the profile. They never go in the profile, a prompt or a log.
 
 ## Profile blocks
@@ -29,14 +30,19 @@ The shared `studio:` block (brand, vault folder, instructions note, compliance n
 | `timezone` | America/Springfield | for slots and `--at` |
 | `slots` | 18:00 / 18:30 / 18:30 / 19:30 | local posting time per platform |
 | `utm` | medium social, campaign `{slug}` | `sources` renames utm_source per platform (e.g. `instagram_story`) |
-| `auto_post` | all false | per platform; only instagram, facebook, youtube can be true |
-| `env_file` | none | file with the tokens |
+| `auto_post` | all false | per platform; only instagram, facebook, youtube, linkedin can be true |
+| `per_day`, `times` | 1, 18:30 / 12:00 / 08:00 | films per post date; the n-th film of a date posts at `times[n]` on every auto platform |
+| `approval` | owner | `owner` (a row posts after ✅) or `auto` (rows are queued as `✅ auto`; 🛑 stops one) |
+| `late_days` | 1 | a due row the PC missed still posts this many days late, then it is reported as missed |
+| `posts` | off, 1 a day, 10:00 / 15:00, linkedin + facebook | text/photo posts: `enabled`, `per_day`, `times`, `platforms`, `queue` (default `<vault_dir>/05 Marketing/Social/post-queue.md`) |
+| `challenges` | off | comment challenges: `enabled`, `dm`, `days`, `reply_text`, `reply_text_<platform>` (`{link}` = the reward link) |
+| `env_file` | `data/publish/<profile>/keys.env` | this business's tokens (git-ignored); its keys win over the shared `.env` |
 | `tokens` | standard names | map a standard name to yours, e.g. `youtube: {YOUTUBE_REFRESH_TOKEN: MYBIZ_YT}` |
 | `youtube` | category 27, en, public | upload settings |
 | `queue` | `<vault_dir>/05 Marketing/Video Studio/ready-to-post.md` | the ready-to-post table |
 | `morning_pack` | off, 9:00, delivery none | `enabled`, `hour`, `delivery: telegram\|none`, `env_file`, `token_env`, `chat_env` |
 
-Standard token names: `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_USER_ID`, `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN`, `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`.
+Standard token names: `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_USER_ID`, `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN`, `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`, `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_AUTHOR`. `publish <profile> connect meta|google|linkedin` fills them (see [Auto mode](#auto-mode)).
 
 ### `jobs:`
 
@@ -45,7 +51,8 @@ Standard token names: `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_USER_ID`, `FACEBOOK_P
 | `ideas` | off, 08:00 daily, `count: 5` | runs the `/studio-ideas` skill |
 | `script` | off, 08:30 daily | one script for the best approved idea, sent for ✅ |
 | `notes` | off, every 15 min | starts Claude only when a note waits |
-| `film` | off, 06:00 daily, hourly until 22:00, `max_tries: 2`, `buffer: 4` | one finished film a day |
+| `film` | off, 06:00 daily, hourly until 22:00, `max_tries: 2`, `buffer: 4` | `publish.per_day` finished films a day (one per run; markers `film-<date>.done`, `film-<date>-2.done`) |
+| `posts` | off, 07:00 daily | `publish.posts.per_day` text/photo posts (and challenges) for tomorrow into the posts queue |
 | `blog` | off, Monday 08:45 | one blog draft a week, sent for ✅ |
 | `owner`, `language` | "the owner", English | how prompts name and talk to the approver |
 | `delivery` | none | `telegram` (through the ideas API / service) or `none` |
@@ -153,3 +160,50 @@ Done once for the solar example below; the same steps fit any business whose sit
 
 - Moved and made generic: `tools/publish` (now `viral_scout/publish/node`), `post-today.mjs` (`publish today`), `notes.mjs` (`notes`, through the API), `jobs/run.ps1` (`jobs run`), `jobs/schedule.ps1` (`schedule-studio.ps1`), the job prompts (core prompts plus the instructions note), `ideas-daily.ps1` of solar and homes (the `ideas` job).
 - Not moved: `tools/ad-spy` is replaced by `python -m viral_scout ads` (official Meta and TikTok APIs plus Apify, scored, weekly). `tools/carousel`, `tools/postcards` and `tools/social` render solar's own brand templates (fonts, art, the founder photo), so they stay in solar. A generic carousel or card renderer belongs in `video … cards`.
+
+
+## Auto mode
+
+Several films a day and text/photo posts that go out without a ✅ per post. The owner turns it on in the profile:
+
+```yaml
+publish:
+  platforms: [tiktok, instagram, youtube, facebook, linkedin]
+  auto_post: {instagram: true, facebook: true, youtube: true, linkedin: true}
+  approval: auto            # every finished film/post is queued as "✅ auto"
+  per_day: 2
+  times: ["11:30", "18:30"] # film 1 and film 2 of a date
+  posts: {enabled: true, per_day: 1, times: ["09:30"], platforms: [linkedin, facebook]}
+  challenges: {enabled: true}
+jobs:
+  film: {enabled: true, buffer: 4}
+  posts: {enabled: true}
+```
+
+Flow: the film job (one film per run, two runs a day) and the posts job write the queues → `autopost` every 30 min posts each due row once per platform (`data/publish/<profile>/published.jsonl`), marks it `📤 posted <date> (auto)`, then answers challenge comments. The owner still gets every film and post in the bot: a 🛑 reply (the notes job sets the row to `🛑 stopped`) or 🛑 in the queue row stops it until it is posted.
+
+Keys, once per business (each business posts to its own accounts):
+
+1. **Meta**: Setup page → Connect Meta (or `keys meta connect`) with the publishing permissions, then `publish <p> connect meta [--page "<Page name>"]`. A Page token made from a long-lived sign-in does not expire.
+2. **YouTube**: `publish <p> connect google`, signed in as the channel. Uploads from an API project Google has not audited are forced to private: file the YouTube API audit before relying on it.
+3. **LinkedIn**: a LinkedIn app with *Share on LinkedIn* + *Sign In with LinkedIn using OpenID Connect* (and *Community Management API* to post as a company Page), `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` in `.env`, redirect `http://127.0.0.1:8766/`; then `publish <p> connect linkedin [--org <id>]`. The token lasts 60 days; autopost warns a week before.
+4. Register the tasks: `jobs <p> install-plan` prints the command (adds `viral-scout <p>.autopost`).
+
+### Caption file
+
+`caption.md` in the film folder (and each post file):
+
+```
+ai: true                       optional, AI voice/picture → YouTube containsSyntheticMedia; say it in the Instagram text
+title: YouTube title           optional
+photo: tip.jpg                 posts only: a real photo next to the file (Facebook + LinkedIn; Instagram photos by hand)
+challenge: GUIDE               optional: comments with the word GUIDE get the reward
+mentions: 2                    optional, Instagram only: comments tagging 2+ accounts get the reward
+reward: https://…              what they get (default publish.link)
+<default text>
+## Instagram / ## Facebook / ## YouTube / ## LinkedIn   per-platform text
+```
+
+### Comment challenges
+
+"Comment GUIDE and we'll send you the checklist": autopost answers each qualifying comment once with `challenges.reply_text`. Public replies use `instagram_manage_comments` / `pages_manage_engagement` / YouTube `force-ssl`. `dm: true` tries a private reply first; Meta allows those to people outside the app's own testers only after App Review of `instagram_manage_messages` / `pages_messaging`. LinkedIn comments are not read (restricted API). "Tag 2 friends" is Instagram only: Facebook demotes tag-bait posts, and prizes or money are never promised (that is a promotion with its own legal rules).

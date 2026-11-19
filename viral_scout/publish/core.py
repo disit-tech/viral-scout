@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # Platforms with an official-API publisher in publish/node (the rest are always posted by hand).
-API_PLATFORMS = ("instagram", "facebook", "youtube")
+API_PLATFORMS = ("instagram", "facebook", "youtube", "linkedin")
 KNOWN = ("tiktok", "instagram", "youtube", "facebook", "threads", "x", "linkedin", "pinterest", "nextdoor")
 
 # Standard env names the node publisher reads. A profile maps them to its own names (publish.tokens).
@@ -13,6 +13,7 @@ TOKEN_NAMES = {
     "instagram": ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"],
     "facebook": ["FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"],
     "youtube": ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"],
+    "linkedin": ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR"],
 }
 
 DEFAULTS = {
@@ -22,6 +23,17 @@ DEFAULTS = {
     "slots": {"tiktok": "18:00", "instagram": "18:30", "youtube": "18:30", "facebook": "19:30"},
     "utm": {"medium": "social", "campaign": "{slug}", "sources": {}},
     "auto_post": {},
+    # Films per post date and the time the n-th film of a date goes out on every auto platform (profile timezone).
+    "per_day": 1,
+    "times": ["18:30", "12:00", "08:00"],
+    # owner: nothing is posted before the owner's ✅. auto: every finished film and post is approved when queued; the
+    # owner can still stop one (🛑 in the queue row, or a 🛑 reply in the bot) until its time.
+    "approval": "owner",
+    "posts": {"enabled": False, "per_day": 1, "times": ["10:00", "15:00"], "platforms": ["linkedin", "facebook"]},
+    # Comment challenges: a post with `challenge: KEYWORD` (or `mentions: 2`) in its caption header gets an answer
+    # under every qualifying comment (reply_text, {link} = the post's reward link). dm: try a private reply first.
+    "challenges": {"enabled": False, "dm": False, "days": 7, "reply_text": "Here you go: {link}",
+                   "reply_text_instagram": "Sent! Link is in our bio too: {link}"},
     "env_file": "",
     "tokens": {},
     "youtube": {"category": "27", "language": "en", "privacy": "public"},
@@ -45,6 +57,11 @@ def settings(cfg):
     if not s["queue"] and studio.get("vault_dir"):
         s["queue"] = str(Path(studio["vault_dir"]) / "05 Marketing" / "Video Studio" / "ready-to-post.md")
     s["link"] = s.get("link") or (studio.get("cta") or {}).get("link", "")
+    if not s["env_file"]:
+        from .. import config
+        s["env_file"] = str(config.ROOT / "data" / "publish" / cfg["name"] / "keys.env")   # git-ignored, per business
+    s["posts_queue"] = (s["posts"].get("queue") or (str(Path(studio["vault_dir"]) / "05 Marketing" / "Social" / "post-queue.md")
+                                                    if studio.get("vault_dir") else ""))
     s["platforms"] = [p.lower() for p in s["platforms"]]
     if True in s["morning_pack"]:          # YAML 1.1 reads a bare `on:` key as True
         s["morning_pack"] = {k: v for k, v in s["morning_pack"].items() if k is not True} | {"enabled": bool(s["morning_pack"][True])}
@@ -78,7 +95,7 @@ def parse_caption(text):
     """Header lines `ai:` / `title:`, a default caption, optional `## Instagram|Facebook|YouTube|TikTok…` overrides."""
     lines = text.lstrip("﻿").replace("\r", "").split("\n")
     meta, i = {}, 0
-    while i < len(lines) and re.match(r"^(ai|title)\s*:", lines[i], re.I):
+    while i < len(lines) and re.match(r"^(ai|title|photo|challenge|mentions|reward)\s*:", lines[i], re.I):
         k, _, v = lines[i].partition(":")
         meta[k.strip().lower()] = v.strip()
         i += 1
@@ -91,7 +108,10 @@ def parse_caption(text):
         else:
             parts[cur].append(line)
     base = "\n".join(parts["base"]).strip()
-    out = {"ai": bool(re.match(r"^(true|yes|1)$", meta.get("ai", ""), re.I)), "title": meta.get("title", "")}
+    out = {"ai": bool(re.match(r"^(true|yes|1)$", meta.get("ai", ""), re.I)), "title": meta.get("title", ""),
+           "photo": meta.get("photo", ""), "challenge": meta.get("challenge", "").strip().upper(),
+           "mentions": int(meta.get("mentions") or 0) if str(meta.get("mentions") or "0").isdigit() else 0,
+           "reward": meta.get("reward", "")}
     for p in KNOWN:
         out[p] = "\n".join(parts.get(p, [])).strip() or base
     return out
@@ -155,7 +175,19 @@ def posted(row):
 
 
 def approved(row):
-    return bool(re.search(r"✅|approved|схвал", row.get("status", ""), re.I))
+    return bool(re.search(r"✅|approved|схвал|\bauto\b", row.get("status", ""), re.I)) and not stopped(row)
+
+
+def stopped(row):
+    return bool(re.search(r"🛑|\bstop", row.get("status", ""), re.I))
+
+
+def post_time(s, rows, row, times=None):
+    """HH:MM for `row`: the n-th row of its date (queue order) takes times[n] (the last time when there are more)."""
+    times = times or s["times"]
+    same = [r for r in rows if r["date"] == row["date"]]
+    n = next((i for i, r in enumerate(same) if r is row), 0)
+    return times[min(n, len(times) - 1)] if times else "18:30"
 
 
 def slug_of(row):
@@ -181,8 +213,11 @@ def plan(cfg, start=None, days=7):
             continue
         slug = slug_of(row)
         posts = []
+        rows_all = read_queue(s["queue"])
+        mine = next((r for r in rows_all if r == row), row)
         for p in s["platforms"]:
-            posts.append({"platform": p, "handle": s["handles"].get(p, ""), "at": f"{row['date']} {s['slots'].get(p, '')}".strip(),
+            at = post_time(s, rows_all, mine) if auto_post(s, p) else s["slots"].get(p, "")
+            posts.append({"platform": p, "handle": s["handles"].get(p, ""), "at": f"{row['date']} {at}".strip(),
                           "link": utm_link(s["link"], p, slug, s), "mode": "auto" if auto_post(s, p) else "manual"})
         out.append({**row, "slug": slug, "approved": approved(row), "posts": posts})
     return out
@@ -191,9 +226,29 @@ def plan(cfg, start=None, days=7):
 def free_dates(cfg, start=None, horizon=14):
     """Dates from `start` (default tomorrow) on with no queued film: where the film job puts the next one."""
     s = settings(cfg)
-    taken = {r["date"] for r in read_queue(s["queue"])}
+    count = {}
+    for r in read_queue(s["queue"]):
+        count[r["date"]] = count.get(r["date"], 0) + 1
     d = start or (date.today() + timedelta(days=1))
-    return [str(d + timedelta(days=i)) for i in range(horizon) if str(d + timedelta(days=i)) not in taken]
+    per = max(1, int(s["per_day"]))
+    return [str(d + timedelta(days=i)) for i in range(horizon) if count.get(str(d + timedelta(days=i)), 0) < per]
+
+
+# ───────────── Text / photo posts: <vault>/05 Marketing/Social/post-queue.md ─────────────
+def read_posts(path):
+    """Rows `| YYYY-MM-DD | title | `post.md` | status |` → dicts (post = caption file, optional `photo:` header)."""
+    p = Path(path) if path else None
+    if not p or not p.exists():
+        return []
+    rows = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        if not re.match(r"^\|\s*\d{4}-\d{2}-\d{2}\s*\|", line):
+            continue
+        c = [x.strip() for x in line.split("|")]
+        m = re.search(r"`([^`]+)`", c[3] if len(c) > 3 else "")
+        rows.append({"date": c[1], "title": c[2] if len(c) > 2 else "", "file": m.group(1) if m else "",
+                     "status": c[4] if len(c) > 4 else ""})
+    return rows
 
 
 def chunks(text, mx=3900):

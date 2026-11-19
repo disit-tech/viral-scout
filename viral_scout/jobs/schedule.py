@@ -47,7 +47,8 @@ def plan(cfg):
             rep = _hours_between(j["at"], j.get("retry_until") or j["at"])
             trig = {"type": "weekly" if days else "daily", "days": days, "at": j["at"], "repeat_minutes": 60 if rep else 0, "repeat_hours": rep}
             why = (f"{'every ' + ', '.join(days) if days else 'daily'} {j['at']}" + (f", hourly until {j['retry_until']}" if rep else "")
-                   + f"; once per {j['period']}" + (f", max {j['max_tries']} tries" if j.get("max_tries") else ""))
+                   + (f"; {S.runs_per_day(cfg, job)} per {j['period']}" if S.runs_per_day(cfg, job) > 1 else f"; once per {j['period']}")
+                   + (f", max {j['max_tries']} tries" + (" each" if S.runs_per_day(cfg, job) > 1 else "") if j.get("max_tries") else ""))
         tasks.append({"name": f"viral-scout {p}.{job}", "profile": p, "job": job, "trigger": trig, "time_limit_hours": s["time_limit_hours"],
                       "args": f"-Profile {p} -Job {job}", "what": why})
     mp = pub.settings(cfg)["morning_pack"]
@@ -57,6 +58,11 @@ def plan(cfg):
                       "trigger": {"type": "daily", "days": None, "at": at, "repeat_minutes": 60, "repeat_hours": _hours_between(at, "21:00")},
                       "time_limit_hours": 1, "args": f"-Profile {p} -Job post",
                       "what": f"morning post pack daily {at} (no Claude; once a day, marker)"})
+    ps = pub.settings(cfg)
+    if any(pub.auto_post(ps, x) for x in ps["platforms"] + list((ps["posts"] or {}).get("platforms") or [])):
+        tasks.append({"name": f"viral-scout {p}.autopost", "profile": p, "job": "autopost",
+                      "trigger": {"type": "every", "minutes": 30}, "time_limit_hours": 1, "args": f"-Profile {p} -Job autopost",
+                      "what": "every 30 min: posts due films and posts through the official APIs, answers challenge comments (no Claude)"})
     return tasks
 
 

@@ -118,16 +118,22 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 #   daily: {count: 5, at: "08:15", add_dirs: []}   # scripts/ideas-daily.ps1 -Profile <name>
 
 # Publishing (python -m viral_scout publish <profile> plan|today|post). See docs/publish-and-jobs.md.
-# Nothing is posted automatically unless auto_post is true for that platform (only instagram, facebook, youtube have
-# an API publisher; tiktok and the rest are always posted by hand). Tokens stay in the env file, never here.
+# Nothing is posted automatically unless auto_post is true for that platform (only instagram, facebook, youtube, linkedin
+# have an API publisher; tiktok and the rest are always posted by hand). Tokens stay in the env file, never here:
+# `publish <profile> connect meta|google|linkedin` writes them to data/publish/<profile>/keys.env.
 # publish:
 #   platforms: [tiktok, instagram, youtube, facebook]
 #   handles: {instagram: "@mybusiness", tiktok: "@mybusiness", youtube: "@mybusiness"}
 #   timezone: America/Springfield
 #   slots: {tiktok: "18:00", instagram: "18:30", youtube: "18:30", facebook: "19:30"}   # local posting times
 #   utm: {medium: social, campaign: "{slug}", sources: {instagram_story: instagram_story}}
-#   auto_post: {instagram: false, facebook: false, youtube: false}
-#   env_file: D:/repo/mybusiness/.env.local          # where the tokens live
+#   auto_post: {instagram: false, facebook: false, youtube: false, linkedin: false}
+#   approval: owner                                  # owner (✅ per row) | auto (queued as "✅ auto", 🛑 stops one)
+#   per_day: 1                                       # films per post date
+#   times: ["18:30", "12:00"]                        # the n-th film of a date posts at times[n] on the auto platforms
+#   posts: {enabled: false, per_day: 1, times: ["10:00"], platforms: [linkedin, facebook]}   # text/photo posts
+#   challenges: {enabled: false, dm: false, reply_text: "Here you go: {link}"}             # "comment GUIDE" replies
+#   env_file: ""                                     # default data/publish/<profile>/keys.env (git-ignored)
 #   tokens:                                          # standard name: the name in your env file (only if different)
 #     youtube: {YOUTUBE_REFRESH_TOKEN: MYBIZ_YT_REFRESH}
 #   youtube: {category: "27", language: en, privacy: public}
@@ -155,6 +161,7 @@ report: {top: 25, hooks: 20, transcripts: 40}   # hooks shown / transcripts fetc
 #   notes:  {enabled: true, every_minutes: 15}
 #   film:   {enabled: false, at: "06:00", retry_until: "22:00", max_tries: 2, buffer: 4}
 #   blog:   {enabled: false, days: Monday, at: "08:45"}
+#   posts:  {enabled: false, at: "07:00"}            # publish.posts.per_day text/photo posts for tomorrow
 #   allowed_tools: {all: [], film: ["Bash(npx hyperframes:*)", "Bash(ffmpeg:*)"]}   # extras on top of each job's narrow list
 #   instructions: {film: "Reference film: films/first-film. Never show a ladder on a roof."}
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from .. import config
 
-JOBS = ("ideas", "script", "notes", "film", "blog")
+JOBS = ("ideas", "script", "notes", "film", "blog", "posts")
 
 # period: one success per day/week (marker); None = no marker (notes runs whenever there is work).
 # done_by: who writes the .done marker. "runner" = on exit code 0; "claude" = the prompt's last step (film: only
@@ -15,7 +15,17 @@ JOB_DEFAULTS = {
     "notes": {"enabled": False, "every_minutes": 15, "period": None, "done_by": None, "max_tries": 0},
     "film": {"enabled": False, "at": "06:00", "days": "daily", "retry_until": "22:00", "period": "day", "done_by": "claude", "max_tries": 2},
     "blog": {"enabled": False, "at": "08:45", "days": "Monday", "retry_until": "20:00", "period": "week", "done_by": "runner", "max_tries": 2},
+    # Text / photo posts (and comment challenges) for tomorrow, publish.posts.per_day of them, into the posts queue.
+    "posts": {"enabled": False, "at": "07:00", "days": "daily", "retry_until": "20:00", "period": "day", "done_by": "runner", "max_tries": 2},
 }
+
+
+def runs_per_day(cfg, job):
+    """How many successful runs a job wants per period: the film job makes publish.per_day films a day."""
+    if job != "film":
+        return 1
+    from ..publish import core as pub
+    return max(1, int(pub.settings(cfg)["per_day"]))
 
 DEFAULTS = {
     "cwd": "",                 # where Claude runs (default: the viral-scout repo)

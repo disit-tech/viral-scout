@@ -20,6 +20,7 @@ def values(cfg, job, now=None, done_file=""):
     ps = pub.settings(cfg)
     p = cfg["name"]
     j = s[job]
+    auto_list = ", ".join(x for x in ps["platforms"] if pub.auto_post(ps, x)) or "no platform (auto_post is off)"
     return {
         "job": job, "profile": p, "brand": st["brand"], "repo": str(config.ROOT), "vault_dir": st["vault_dir"] or "(studio.vault_dir not set)",
         "today": (now or datetime.now()).strftime("%Y-%m-%d"), "owner": s["owner"], "language": s["language"],
@@ -29,6 +30,17 @@ def values(cfg, job, now=None, done_file=""):
                     else "none: leave results in the vault and the daily note; skip the send steps",
         "ideas": f"{PY} ideas {p}", "notes": f"{PY} notes {p}", "video": f"{PY} video {p}", "publish": f"{PY} publish {p}", "check": f"{PY} check {p}",
         "queue": ps["queue"] or "(no queue: set studio.vault_dir)", "platforms": ", ".join(ps["platforms"]),
+        "approval_intro": (f"Films are approved automatically (publish.approval: auto): the posting job puts each one on "
+                           f"{auto_list} at its time without waiting for {s['owner']}. {s['owner']} can still stop one until then. "
+                           "So the quality bar below is the last check: a film you would not post is not delivered."
+                           if ps["approval"] == "auto" else f"{s['owner']} reviews only the finished film; nothing is posted without them."),
+        "queue_status": "✅ auto" if ps["approval"] == "auto" else f"waiting for {s['owner']}",
+        "review_line": (f"Posts automatically on {auto_list} at its time. Reply 🛑 to stop it, or with changes."
+                        if ps["approval"] == "auto" else "Watch with sound. Reply with changes or ✅."),
+        "auto_platforms": auto_list, "per_day": str(ps["per_day"]), "times": ", ".join(ps["times"][: max(1, int(ps["per_day"]))]),
+        "posts_queue": ps["posts_queue"] or "(no posts queue: set studio.vault_dir)", "posts_per_day": str(ps["posts"].get("per_day", 1)),
+        "posts_platforms": ", ".join(ps["posts"].get("platforms") or []),
+        "challenges": ("on: a post or film may end with a comment challenge (rules in the posts job)" if ps["challenges"].get("enabled") else "off"),
         "done_file": done_file, "max_tries": str(j.get("max_tries", 2)), "count": str(j.get("count", 5)), "buffer": str(j.get("buffer", 4)),
     }
 
@@ -76,6 +88,7 @@ def allowed_tools(cfg, job):
         "script": BASE + WEB + [cmd("ideas")],
         "notes": BASE + WEB + [cmd("notes"), cmd("ideas"), cmd("video"), cmd("check")],
         "blog": BASE + WEB + [cmd("ideas"), cmd("notes")],
+        "posts": BASE + WEB + [cmd("ideas"), cmd("notes"), cmd("video"), f"Bash({PY} publish {p} plan:*)"],
         "film": BASE + WEB + [cmd("ideas"), cmd("notes"), cmd("video"), cmd("check"), f"Bash({PY} publish {p} plan:*)"],
     }[job]
     extra = s.get("allowed_tools") or {}

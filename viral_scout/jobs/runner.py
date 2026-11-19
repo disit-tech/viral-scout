@@ -59,7 +59,14 @@ def run(cfg, job, now=None, force=False, dry=False, execute=None, pending=None, 
     now = now or datetime.now()
     if not j["enabled"] and not force:
         return 0, f"{job} is off for {cfg['name']} (jobs.{job}.enabled)"
-    m = Markers(S.state_dir(cfg), job, period_key(j["period"], now))
+    key = period_key(j["period"], now)
+    m = Markers(S.state_dir(cfg), job, key)
+    # Several runs a period (film with publish.per_day 2): markers <key>, <key>-2, …; this run takes the first open one.
+    if key is not None:
+        for n in range(2, S.runs_per_day(cfg, job) + 1):
+            if not m.done():
+                break
+            m = Markers(S.state_dir(cfg), job, f"{key}-{n}")
     log = S.log_dir() / f"{cfg['name']}-{job}-{now:%Y-%m-%d}.log"
 
     def note(msg):

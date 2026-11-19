@@ -35,7 +35,9 @@ GRAPH = f"https://graph.facebook.com/{VERSION}"
 DIALOG = f"https://www.facebook.com/{VERSION}/dialog/oauth"
 PORT = 8765
 SCOPES = ["instagram_basic", "instagram_manage_insights", "instagram_manage_comments", "pages_show_list",
-          "pages_read_engagement", "business_management", "ads_read", "ads_management"]
+          "pages_read_engagement", "business_management", "ads_read", "ads_management",
+          # Posting and comment challenges (publish <profile> autopost): Reels, Page posts, replies under comments.
+          "instagram_content_publish", "pages_manage_posts", "pages_read_user_content", "pages_manage_engagement"]
 
 
 class MetaError(RuntimeError):

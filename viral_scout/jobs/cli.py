@@ -1,7 +1,8 @@
 """python -m viral_scout jobs <profile> run <job> [--force] [--dry-run] | list | prompt <job> | install-plan [--json]
 
   run <job>      one unattended run (Task Scheduler calls this through scripts/studio.ps1). job = ideas|script|notes|film|blog,
-                 or post (the morning post pack: no Claude, same as `publish <profile> today`)
+                 or post (the morning post pack: no Claude, same as `publish <profile> today`),
+                 or autopost (the posting job: no Claude, same as `publish <profile> autopost`)
   list           the jobs, on/off, today's marker and tries, the lock
   prompt <job>   print the assembled prompt (core + profile instructions); runs nothing
   install-plan   the Task Scheduler tasks this profile wants, and the command the owner runs to register them
@@ -101,6 +102,10 @@ def main(argv):
         if not rest:
             print("usage: jobs <profile> run <job>")
             return 2
+        if rest[0] == "autopost":
+            from ..publish import auto
+            print(auto.run(cfg, dry="--dry-run" in rest))
+            return 0
         if rest[0] == "post":
             from ..publish import pack
             print(pack.today(cfg, dry="--dry-run" in rest, force="--force" in rest))

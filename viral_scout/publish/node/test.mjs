@@ -41,3 +41,15 @@ test("--at: wall time in the tz → UTC, DST aware", () => {
   assert.throws(() => parseAt("tomorrow"));
   assert.equal(parseAt("2026-07-01 18:00", "Europe/Warsaw").toISOString(), "2026-07-01T16:00:00.000Z"); // CEST +2
 });
+
+test("caption: LinkedIn section and post headers", async () => {
+  const c = parseCaption("photo: p.jpg\nchallenge: GUIDE\nBase\n## LinkedIn\nLI text\n");
+  assert.equal(c.linkedin, "LI text");
+  assert.equal(c.facebook, "Base");
+  assert.equal(c.photo, "p.jpg");
+});
+
+test("linkedin: little text escapes and hashtags", async () => {
+  const { littleText } = await import("./linkedin.mjs");
+  assert.equal(littleText("Save 20% (really) #solar_tips @x"), String.raw`Save 20% \(really\) {hashtag|\#|solar_tips} \@x`);
+});

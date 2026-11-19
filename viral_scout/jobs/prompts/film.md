@@ -1,9 +1,9 @@
 ## Job: one finished film per day
 
-So {{owner}} can post one video a day. {{owner}} reviews only the finished film; nothing is posted without them. Quality bar and look: the reference film named in the business rules below. Static text cards with captions are not a film: every film moves (camera, transitions, events timed to the words, sound).
+{{per_day}} film(s) per post date (posting times {{times}}). {{approval_intro}} Quality bar and look: the reference film named in the business rules below. Static text cards with captions are not a film: every film moves (camera, transitions, events timed to the words, sound).
 
 ### 0. Is a film needed?
-Read the queue `{{queue}}` (`{{publish}} plan --days 14` prints it with the free dates). If {{buffer}} or more films are queued for future dates and not posted, stop: the buffer is full. Otherwise the new film gets the first free date from tomorrow on.
+Read the queue `{{queue}}` (`{{publish}} plan --days 14` prints it with the free dates). If {{buffer}} or more films are queued for future dates and not posted, stop: the buffer is full. Otherwise the new film gets the first free date from tomorrow on (a date is free until it holds {{per_day}} films). Two films on one date must differ in topic and format.
 
 ### 1. Topic (first match wins)
 1. `{{ideas}} pull`: an idea with stage `script_ok`, then one with stage `script` (its script is in `<vault>/05 Marketing/Video Studio/scripts/*-idea<ID>.md`). Run `{{ideas}} stage <ID> making`.
@@ -26,8 +26,9 @@ Follow the `/studio-video` skill, mode `film`, and read the shared notes it list
 ### 4. Deliver
 1. Posting pack `POST.md` in the film folder: one "▶ PLATFORM (format · goal)" block per platform in {{platforms}}, each with its OWN text (not one caption pasted everywhere), how to post, the AI label line when the voice or picture is AI, and the UTM link for that platform. `{{publish}} today` sends it to {{owner}} on the post date.
 2. The "Don't / Do" still when the topic has an honest pair, made as the `/studio-video` film mode says (a ❌ and a ✅ frame from the render, cropped between the film's heading and its captions, labels of 3-5 words that match each picture, a short source tag; `{{video}} still …` → `still.png` in the film folder). Read the PNG before sending. No honest pair: skip it.
-3. Queue row in `{{queue}}`: `| <post date> | <title> | `<full mp4 path>` | <script link> | waiting for {{owner}} |`. Tracker row → 🎬 film rendered <MM-DD>, the full mp4 path and the post date.
-4. Delivery: `{{notes}} send <mp4> "🎬 Video for <date>: <title>. Watch with sound. Reply with changes or ✅." --tags "film idea<ID>"` (leave out `idea<ID>` when it didn't come from an idea; the business tag is added for you). If it came from an idea: `{{ideas}} stage <ID> draft --draft <mp4 path>`.
-5. Last step, only if the film was delivered: write the slug into `{{done_file}}`.
+3. Caption file `caption.md` in the film folder for the posting job (format: docs/publish-and-jobs.md#caption-file): `ai: true` when the voice or picture is AI, `title:` for YouTube, then `## Instagram`, `## Facebook`, `## YouTube`, `## LinkedIn` sections, each its own text with that platform's UTM link (LinkedIn: plain professional tone, no hashtag wall, at most 3 hashtags). If the CTA is a comment keyword, add the header lines `challenge: <KEYWORD>` and `reward: <url of what they get>` (comment challenges: {{challenges}}). Check it with `{{publish}} plan` (the post command itself is not yours).
+4. Queue row in `{{queue}}`: `| <post date> | <title> | `<full mp4 path>` | <script link> | {{queue_status}} |`. Tracker row → 🎬 film rendered <MM-DD>, the full mp4 path and the post date.
+5. Delivery: `{{notes}} send <mp4> "🎬 Video for <date>: <title>. {{review_line}}" --tags "film idea<ID>"` (leave out `idea<ID>` when it didn't come from an idea; the business tag is added for you). If it came from an idea: `{{ideas}} stage <ID> draft --draft <mp4 path>`.
+6. Last step, only if the film was delivered: write the slug into `{{done_file}}`.
 
 If something fails: write what broke in the daily note, put an idea back with `{{ideas}} stage <ID> script_ok`, and do not write the .done file (the next hourly run retries, at most {{max_tries}} runs a day).

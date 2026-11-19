@@ -1,4 +1,4 @@
-// One approved vertical video → Instagram Reels + Facebook Page Reel + YouTube Shorts. See docs/publish-and-jobs.md.
+// One approved vertical video → Instagram Reels + Facebook Page Reel + YouTube Shorts + LinkedIn video. See docs/publish-and-jobs.md.
 // Normally started by `python -m viral_scout publish <profile> post` (only for platforms the profile opted in).
 //   node publish.mjs <video.mp4> --caption-file <caption.md> [--only instagram,facebook,youtube]
 //        [--video-url https://…] [--cover-url https://…] [--cover cover.jpg] [--thumb-offset 1500]
@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { basename, dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { captionProblems, hashtags, loadEnv, parseAt, parseCaption, PLATFORMS, youtubeTitle } from "./lib.mjs";
+import { linkedinPost } from "./linkedin.mjs";
 
 const get = loadEnv();
 const V = get("META_GRAPH_VERSION") || "v26.0";
@@ -28,7 +29,7 @@ const die = (msg) => {
   process.exit(1);
 };
 const video = pos[0] && resolve(pos[0]);
-if (!video || !existsSync(video)) die("Usage: node publish.mjs <video.mp4> --caption-file <caption.md> [--dry-run]  (see docs/publish-and-jobs.md)");
+if (!video || !existsSync(video)) die("Usage: node publish.mjs <video.mp4> --caption-file <caption.md> [--dry-run]  (see docs/publish-and-jobs.md; text/photo posts: post.mjs)");
 const tz = flags.tz || "America/Springfield";
 const logFile = resolve(flags.log || fileURLToPath(new URL("./out/published.jsonl", import.meta.url)));
 if (!flags["caption-file"] || !existsSync(flags["caption-file"])) die("--caption-file <file> is required");
@@ -68,6 +69,7 @@ if (info) {
   if (s < 3) for (const p of PLATFORMS) skip[p] = `${s.toFixed(1)} s is under 3 s`;
   if (s > 900) skip.instagram = `${s.toFixed(0)} s is over the 15-minute Reels limit`;
   if (s > 90) skip.facebook = `${s.toFixed(0)} s is over the 90-second Facebook Reels limit`;
+  if (s > 900) skip.linkedin = `${s.toFixed(0)} s is over LinkedIn's 15-minute limit`;
   if (s > 180) skip.youtube = `${s.toFixed(0)} s is over 3 minutes: not a Short`;
   if (w > 1920) warn.push(`width ${w} > 1920 (Instagram maximum)`);
 }
@@ -80,6 +82,7 @@ const env = {
   instagram: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"],
   facebook: ["FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"],
   youtube: ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"],
+  linkedin: ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR"],
 };
 const missing = (p) => env[p].filter((k) => !get(k));
 
@@ -124,7 +127,7 @@ const bytes = () => readFileSync(video);
 async function instagram() {
   const token = get("INSTAGRAM_ACCESS_TOKEN");
   const ig = get("INSTAGRAM_USER_ID");
-  const api = `https://graph.instagram.com/${V}`;
+  const api = token.startsWith("IG") ? `https://graph.instagram.com/${V}` : `https://graph.facebook.com/${V}`;
   const auth = { Authorization: `Bearer ${token}` };
   const common = { media_type: "REELS", caption: caption.instagram, share_to_feed: "true", cover_url: flags["cover-url"], thumb_offset: flags["cover-url"] ? undefined : flags["thumb-offset"] };
 
@@ -230,7 +233,12 @@ async function youtube() {
 }
 
 // ───────────── Run ─────────────
-const run = { instagram, facebook, youtube };
+async function linkedin() {
+  return linkedinPost({ token: get("LINKEDIN_ACCESS_TOKEN"), author: get("LINKEDIN_AUTHOR"), version: get("LINKEDIN_API_VERSION"),
+    text: caption.linkedin, media: { video, title } });
+}
+
+const run = { instagram, facebook, youtube, linkedin };
 const todo = only.filter((p) => !skip[p] && !missing(p).length);
 if (at && flags.wait) {
   const ms = at.getTime() - Date.now();
