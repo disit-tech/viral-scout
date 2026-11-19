@@ -216,3 +216,38 @@ class ConnectTest(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DashboardTest(Base):
+    def test_status_and_row_buttons(self):
+        from viral_scout.publish import status
+        cfg = self.profile({"approval": "auto"})
+        d = status.build(cfg, now=datetime(2026, 11, 18, 12, 5))
+        self.assertEqual([(f["time"], f["state"]) for f in d["films"]], [("12:00", "due now"), ("18:30", "scheduled")])
+        self.assertTrue(d["keys"]["instagram"]["connected"])
+        self.assertFalse(d["keys"]["facebook"]["connected"])
+        self.assertNotIn("urn:li:person:x", json.dumps(d))                # key names only, never values
+        self.assertEqual(status.set_row(cfg, "stop", str(self.films[0])), "🛑 stopped (dashboard)")
+        self.assertEqual(status.build(cfg, now=datetime(2026, 11, 18, 12, 5))["films"][0]["state"], "stopped")
+        self.assertEqual(status.set_row(cfg, "resume", str(self.films[0])), "✅ auto")
+
+    def test_profile_edit_writes_publish_fields(self):
+        from viral_scout import profile_edit
+        cfg = self.profile()
+        prof = config.PROFILES / "zz-autotest.yaml"
+        prof.write_text("name: zz-autotest\npublish:\n  per_day: 1\n  posts: {enabled: false, per_day: 1}\njobs:\n  film: {enabled: false}\n",
+                        encoding="utf-8")
+        try:
+            profile_edit.set_fields("zz-autotest", {"publish.approval": "auto", "publish.per_day": 2, "publish.times": ["11:30", "18:30"],
+                                                    "publish.posts.enabled": True, "publish.auto_post.linkedin": True, "jobs.film.enabled": True})
+            doc = yaml.safe_load(prof.read_text(encoding="utf-8"))
+            self.assertEqual(doc["publish"]["approval"], "auto")
+            self.assertEqual(doc["publish"]["times"], ["11:30", "18:30"])
+            self.assertEqual(doc["publish"]["posts"], {"enabled": True, "per_day": 1})
+            self.assertTrue(doc["publish"]["auto_post"]["linkedin"])
+            self.assertTrue(doc["jobs"]["film"]["enabled"])
+            with self.assertRaises(ValueError):
+                profile_edit.set_fields("zz-autotest", {"publish.times": ["25:00"]})
+        finally:
+            prof.unlink()
+        self.assertTrue(cfg)

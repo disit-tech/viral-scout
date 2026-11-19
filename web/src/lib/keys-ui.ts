@@ -42,6 +42,6 @@ export function costDetail(k: { cost?: string; price?: string }): string {
 export const USES: { id: string; label: string }[] = [
   { id: "videos", label: "🎬 videos" }, { id: "ads", label: "📢 ads" }, { id: "demand", label: "🔎 search demand" },
   { id: "performance", label: "📊 your performance" }, { id: "paid", label: "💳 paid ads" }, { id: "ideas", label: "💡 ideas & bots" }, { id: "local", label: "📍 local competitors" },
-  { id: "alerts", label: "🔔 alerts" }, { id: "tools", label: "🛠 tools" },
+  { id: "alerts", label: "🔔 alerts" }, { id: "posting", label: "📤 posting" }, { id: "tools", label: "🛠 tools" },
 ];
 export const useLabel = (id: string) => USES.find((u) => u.id === id)?.label ?? id;

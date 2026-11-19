@@ -8,6 +8,8 @@
   autopost [--dry-run]                            the posting job: due films and text/photo posts from the queues,
                                                   then the comment challenges (publish/auto.py, replies.py)
   connect meta|google|linkedin [--page P] [--org ID]   this business's posting keys → publish.env_file (connect.py)
+  status --json                                   the Posting page: settings, queues, keys set or not, recent posts
+  row stop|resume <file>                          🛑 or ✅ on the queue row of that mp4 / post file
 """
 import argparse
 import json
@@ -104,6 +106,11 @@ def main(argv):
     po.add_argument("--cover-url")
     po.add_argument("--cover")
     po.add_argument("--dry-run", action="store_true")
+    st = sub.add_parser("status")
+    st.add_argument("--json", action="store_true")
+    rw = sub.add_parser("row")
+    rw.add_argument("action", choices=["stop", "resume"])
+    rw.add_argument("file")
     ap = sub.add_parser("autopost")
     ap.add_argument("--dry-run", action="store_true")
     co = sub.add_parser("connect")
@@ -127,6 +134,20 @@ def main(argv):
             for x in r["posts"]:
                 print(f"    {x['platform']:<10} {x['at'][11:] or '--:--'}  {x['mode']:<6} {x['handle']:<18} {x['link']}")
         print("free dates:", ", ".join(core.free_dates(cfg)[:7]))
+        return 0
+
+    if a.cmd == "status":
+        from . import status
+        print(json.dumps(status.build(cfg), ensure_ascii=False))
+        return 0
+
+    if a.cmd == "row":
+        from . import status
+        try:
+            print(json.dumps({"ok": True, "status": status.set_row(cfg, a.action, a.file)}, ensure_ascii=False))
+        except ValueError as e:
+            print(json.dumps({"ok": False, "error": str(e)}))
+            return 1
         return 0
 
     if a.cmd == "autopost":

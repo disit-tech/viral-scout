@@ -131,6 +131,15 @@ KEYS = [
      "unlocks": "Read-only access to your channel's analytics without logging in each time.",
      "get": "Run: python -m viral_scout perf auth youtube (opens Google's consent page, saves the token here).",
      "docs": "https://developers.google.com/youtube/analytics/reference/reports/query"},
+    {"name": "LINKEDIN_CLIENT_ID", "group": "LinkedIn (posting)", "cost": "free",
+     "unlocks": "Auto-posting to LinkedIn: each business signs in on its Posting page (Connect LinkedIn).",
+     "get": "linkedin.com/developers → Create app → Products: Share on LinkedIn + Sign In with LinkedIn using OpenID "
+            "Connect (Community Management API to post as a company Page) → Auth: redirect http://127.0.0.1:8766/ → Client ID.",
+     "docs": "https://learn.microsoft.com/linkedin/marketing/community-management/shares/posts-api"},
+    {"name": "LINKEDIN_CLIENT_SECRET", "group": "LinkedIn (posting)", "cost": "",
+     "unlocks": "The LinkedIn app's secret (pairs with LINKEDIN_CLIENT_ID).",
+     "get": "Same app → Auth → Primary Client Secret.",
+     "docs": "https://learn.microsoft.com/linkedin/shared/authentication/authorization-code-flow"},
     {"name": "META_ADS_TOKEN", "group": "Meta Marketing API (your ads)", "cost": "free",
      "unlocks": "Your performance: your Meta ads' impressions, hook rate (3-s plays), ThruPlays, quartiles, CTR, "
                 "CPC, CPM, leads, purchases, ROAS, daily frequency for fatigue. Paid ads page: campaigns, budgets, "
@@ -232,6 +241,7 @@ TIER = {
     "META_AD_ACCOUNT_ID": "recommended", "TELEGRAM_BOT_TOKEN": "recommended", "TELEGRAM_CHAT_ID": "recommended",
     "YT_OAUTH_CLIENT_ID": "recommended", "YT_OAUTH_CLIENT_SECRET": "recommended", "YT_OAUTH_REFRESH_TOKEN": "recommended",
     "STUDIO_SERVICE_URL": "recommended", "IDEAS_API_SECRET": "recommended",
+    "LINKEDIN_CLIENT_ID": "optional", "LINKEDIN_CLIENT_SECRET": "optional",
     "GOOGLE_ADS_CLIENT_ID": "optional", "GOOGLE_ADS_CLIENT_SECRET": "optional", "GOOGLE_ADS_REFRESH_TOKEN": "optional",
     "GOOGLE_ADS_DEVELOPER_TOKEN": "optional", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "advanced",
     "TIKTOK_APP_ID": "optional", "TIKTOK_APP_SECRET": "optional", "TIKTOK_APP_REDIRECT_URI": "advanced",
@@ -266,6 +276,7 @@ USES = {
     "TELEGRAM_BOT_TOKEN": ["alerts"], "TELEGRAM_CHAT_ID": ["alerts"],
     "YT_OAUTH_CLIENT_ID": ["performance"], "YT_OAUTH_CLIENT_SECRET": ["performance"], "YT_OAUTH_REFRESH_TOKEN": ["performance"],
     "STUDIO_SERVICE_URL": ["ideas"], "IDEAS_API_SECRET": ["ideas"],
+    "LINKEDIN_CLIENT_ID": ["posting"], "LINKEDIN_CLIENT_SECRET": ["posting"],
     "GOOGLE_ADS_CLIENT_ID": ["paid"], "GOOGLE_ADS_CLIENT_SECRET": ["paid"], "GOOGLE_ADS_REFRESH_TOKEN": ["paid"],
     "GOOGLE_ADS_DEVELOPER_TOKEN": ["paid"], "GOOGLE_ADS_LOGIN_CUSTOMER_ID": ["paid"],
     "META_ADS_TOKEN": ["performance", "paid"], "META_AD_ACCOUNT_ID": ["performance"],

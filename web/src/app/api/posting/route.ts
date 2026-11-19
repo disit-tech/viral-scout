@@ -1,0 +1,88 @@
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { NextResponse, type NextRequest } from "next/server";
+import { REPO, localOnly, runCli, startDetached } from "@/lib/cli";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+const NAME = /^[\w.-]+$/;
+const last = (out: string) => out.split("\n").filter((l) => l.startsWith("{")).pop() ?? "{}";
+
+/** Local only. GET ?profile= → `publish <p> status --json` (settings, queues, which keys are set, recent posts). */
+export async function GET(req: NextRequest) {
+  const deny = localOnly(req);
+  if (deny) return deny;
+  const profile = req.nextUrl.searchParams.get("profile") ?? "";
+  if (!NAME.test(profile)) return NextResponse.json({ error: "bad request" }, { status: 400 });
+  const r = await runCli(["publish", profile, "status", "--json"], undefined, 60_000);
+  try {
+    return NextResponse.json(JSON.parse(last(r.output)));
+  } catch {
+    return NextResponse.json({ error: r.output.slice(-400) }, { status: 500 });
+  }
+}
+
+function syncTasks(profile: string): Promise<{ code: number; output: string }> {
+  return new Promise((resolve) => {
+    if (process.platform !== "win32") return resolve({ code: 1, output: "Task Scheduler is Windows only" });
+    const p = spawn(/*turbopackIgnore: true*/ "powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
+      path.join(REPO, "scripts", "tasks.ps1"), "studio-sync", "-Profile", profile], { cwd: REPO, windowsHide: true });
+    let out = "";
+    const timer = setTimeout(() => p.kill(), 60_000);
+    p.stdout.on("data", (d) => (out += d));
+    p.stderr.on("data", (d) => (out += d));
+    p.on("close", (code) => { clearTimeout(timer); resolve({ code: code ?? 1, output: out.trim() }); });
+    p.on("error", (e) => { clearTimeout(timer); resolve({ code: 1, output: String(e) }); });
+  });
+}
+
+/**
+ * Local only. POST {profile, action, file?, page?, org?}:
+ *   stop | resume <file>       🛑 / ✅ on the queue row of that mp4 or post file
+ *   autopost                   post what is due now (in the background; the result lands in the published list)
+ *   dry-run                    what autopost would do now, nothing sent
+ *   connect-meta [page]        this business's Page + Instagram keys from the shared Facebook sign-in
+ *   connect-google | connect-linkedin [org]   a sign-in opens in the browser on this PC
+ *   sync-tasks                 register / update this business's Task Scheduler tasks (new ones start paused)
+ */
+export async function POST(req: NextRequest) {
+  const deny = localOnly(req);
+  if (deny) return deny;
+  const b = await req.json().catch(() => ({}));
+  const profile = String(b.profile ?? ""), action = String(b.action ?? "");
+  const bad = (m: string) => NextResponse.json({ ok: false, output: m }, { status: 400 });
+  if (!NAME.test(profile)) return bad("bad request");
+  const reply = (r: { code: number; output: string }) =>
+    NextResponse.json({ ok: r.code === 0, output: r.output.slice(-1500) }, { status: r.code === 0 ? 200 : 400 });
+
+  if (action === "stop" || action === "resume") {
+    const file = String(b.file ?? "");
+    if (!file || file.length > 500 || /[\r\n]/.test(file)) return bad("bad file");
+    const r = await runCli(["publish", profile, "row", action, file]);
+    const d = (() => { try { return JSON.parse(last(r.output)); } catch { return { error: r.output.slice(-300) }; } })();
+    return NextResponse.json({ ok: !!d.ok, output: d.ok ? `Row is now: ${d.status}` : d.error }, { status: d.ok ? 200 : 400 });
+  }
+  if (action === "dry-run") return reply(await runCli(["publish", profile, "autopost", "--dry-run"], undefined, 120_000));
+  if (action === "autopost") {
+    startDetached(["publish", profile, "autopost"]);
+    return NextResponse.json({ ok: true, output: "Posting what is due now, in the background. Uploads take a few minutes: reload to see them under Recent posts." });
+  }
+  if (action === "connect-meta") {
+    const page = String(b.page ?? "").trim();
+    if (page.length > 120 || /[\r\n]/.test(page)) return bad("bad page");
+    return reply(await runCli(["publish", profile, "connect", "meta", ...(page ? ["--page", page] : [])], undefined, 60_000));
+  }
+  if (action === "connect-google") {
+    startDetached(["publish", profile, "connect", "google"]);
+    return NextResponse.json({ ok: true, output: "A Google sign-in opened in the browser: pick the business's channel and allow every box, then reload this page." });
+  }
+  if (action === "connect-linkedin") {
+    const org = String(b.org ?? "").trim();
+    if (org && !/^(urn:li:organization:)?\d{1,20}$/.test(org)) return bad("org: the company Page's numeric id");
+    startDetached(["publish", profile, "connect", "linkedin", ...(org ? ["--org", org] : [])]);
+    return NextResponse.json({ ok: true, output: "A LinkedIn sign-in opened in the browser. Allow it, then reload this page." });
+  }
+  if (action === "sync-tasks") return reply(await syncTasks(profile));
+  return bad("unknown action");
+}

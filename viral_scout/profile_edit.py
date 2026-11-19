@@ -47,6 +47,15 @@ FIELDS = {
     "paid.brief.audience": "text", "paid.brief.offer": "str", "paid.brief.landing": "str", "paid.brief.notes": "text",
     # Idea generator schedule (dashboard Schedule page → the studio ideas job, docs/publish-and-jobs.md)
     "jobs.ideas.enabled": "bool", "jobs.ideas.at": "hhmm", "jobs.ideas.days": "jobdays", "jobs.ideas.count": "int",
+    # Posting / auto mode (business → Posting page, docs/publish-and-jobs.md#auto-mode)
+    "publish.approval": "approval", "publish.per_day": "per_day", "publish.times": "hhmm_list",
+    "publish.auto_post.instagram": "bool", "publish.auto_post.facebook": "bool", "publish.auto_post.youtube": "bool",
+    "publish.auto_post.linkedin": "bool",
+    "publish.posts.enabled": "bool", "publish.posts.per_day": "per_day", "publish.posts.times": "hhmm_list",
+    "publish.posts.platforms": "post_platforms",
+    "publish.challenges.enabled": "bool", "publish.challenges.dm": "bool", "publish.challenges.reply_text": "str",
+    "publish.challenges.reply_text_instagram": "str",
+    "jobs.film.enabled": "bool", "jobs.posts.enabled": "bool",
 }
 MISSING = object()
 
@@ -174,6 +183,24 @@ def _clean(path, kind, v):
         if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", v):
             raise ValueError(f"{path}: a time like 08:00")
         return v
+    if kind == "approval":
+        if v not in ("owner", "auto"):
+            raise ValueError(f"{path}: owner or auto")
+        return v
+    if kind == "per_day":
+        if isinstance(v, bool) or not re.fullmatch(r"[1-5]", str(v).strip()):
+            raise ValueError(f"{path}: 1 to 5 a day")
+        return int(v)
+    if kind == "hhmm_list":
+        out = [x.strip() for x in (v if isinstance(v, list) else str(v).split(",")) if str(x).strip()]
+        bad = [x for x in out if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", x)]
+        if bad or not out or len(out) > 5:
+            raise ValueError(f"{path}: 1 to 5 times like 11:30 ({', '.join(bad)})")
+        return out
+    if kind == "post_platforms":
+        if not isinstance(v, list) or any(x not in ("facebook", "linkedin") for x in v):
+            raise ValueError(f"{path}: a list of facebook, linkedin")
+        return list(dict.fromkeys(v))
     if kind == "jobdays":                     # "daily" or weekday names (jobs/schedule.py)
         days = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
         items = [x.strip() for x in (v if isinstance(v, list) else str(v).split(","))]
