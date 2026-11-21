@@ -180,7 +180,7 @@ jobs:
   posts: {enabled: true}
 ```
 
-Flow: the film job (one film per run, two runs a day) and the posts job write the queues → `autopost` every 30 min posts each due row once per platform (`data/publish/<profile>/published.jsonl`), marks it `📤 posted <date> (auto)`, then answers challenge comments. The owner still gets every film and post in the bot: a 🛑 reply (the notes job sets the row to `🛑 stopped`) or 🛑 in the queue row stops it until it is posted.
+Flow: the film job (one film per run, two runs a day) and the posts job write the queues → `autopost` every 30 min posts each due row once per platform (`data/publish/<profile>/published.jsonl`), marks it `📤 posted <date> (auto)`, then answers challenge comments. Catch-up is spread out: rows up to `publish.late_days` (default 1) back still post, but at most `publish.max_per_run` (default 1) films and 1 text post per run, so after the PC was off the backlog goes out 30 min apart instead of all at once. The owner still gets every film and post in the bot: a 🛑 reply (the notes job sets the row to `🛑 stopped`) or 🛑 in the queue row stops it until it is posted.
 
 Keys, once per business (each business posts to its own accounts):
 

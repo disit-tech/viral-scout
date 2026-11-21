@@ -117,6 +117,17 @@ class AutopostTest(Base):
     def test_auto_approval_posts_without_owner(self):
         cfg = self.profile({"approval": "auto"})                    # B still says "waiting for Alex": auto mode posts it
         node = FakeNode(cfg)
+        out = auto.run(cfg, now=datetime(2026, 11, 18, 18, 31), run_node=node, replier=lambda c, dry: [])
+        self.assertEqual(len(node.calls), 1)                         # one film per run: no burst after the PC was off
+        self.assertIn("next run (max_per_run 1)", out)
+        auto.run(cfg, now=datetime(2026, 11, 18, 19, 1), run_node=node, replier=lambda c, dry: [])
+        self.assertEqual(len(node.calls), 2)                         # the next tick posts the other one
+        auto.run(cfg, now=datetime(2026, 11, 18, 19, 31), run_node=node, replier=lambda c, dry: [])
+        self.assertEqual(len(node.calls), 2)
+
+    def test_max_per_run_setting(self):
+        cfg = self.profile({"approval": "auto", "max_per_run": 2})
+        node = FakeNode(cfg)
         auto.run(cfg, now=datetime(2026, 11, 18, 18, 31), run_node=node, replier=lambda c, dry: [])
         self.assertEqual(len(node.calls), 2)
 

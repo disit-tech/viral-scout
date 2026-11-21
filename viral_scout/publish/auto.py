@@ -6,6 +6,7 @@ time came (the n-th row of a date posts at publish.times[n]) goes to every platf
 approved (✅, or `✅ auto` when publish.approval is auto) and not stopped (🛑). Caption: caption.md in the film folder.
 Text/photo posts (Social/post-queue.md): the same, at publish.posts.times, to publish.posts.platforms.
 Each platform posts once (published.jsonl); when every auto platform is done the row becomes `📤 posted <date>`.
+At most publish.max_per_run (default 1) films and posts go out per run, so a backlog is spread over the ticks.
 Then the comment challenges: see replies.py.
 """
 import json
@@ -164,8 +165,12 @@ def films(cfg, now, dry=False, run_node=None):
         return out
     rows = core.read_queue(s["queue"])
     done = published(cfg)
+    cap_n, sent = int(s.get("max_per_run", 1)), 0   # catch-up after the PC was off: one film per tick, not a burst
     for row in rows:
         why = due(s, rows, row, now, s["times"], int(s.get("late_days", 1)))
+        if not why and sent >= cap_n:
+            out.append(f"film {row['date']} {row['title']}: next run (max_per_run {cap_n})")
+            continue
         if why:
             if why == "waiting for approval":
                 out.append(f"film {row['date']} {row['title']}: {why}")
@@ -186,6 +191,7 @@ def films(cfg, now, dry=False, run_node=None):
             if not pp["auto"]:
                 out.append(f"film {row['title']}: keys missing for {', '.join(pp['missing'])}")
                 continue
+            sent += 1
             if "tiktok" in pp["auto"]:
                 try:
                     out.append(f"film {row['title']} → tiktok draft: {_tiktok(cfg, row, video, cap, dry)}")
@@ -225,8 +231,12 @@ def posts(cfg, now, dry=False, run_node=None):
         return out
     rows = core.read_posts(s["posts_queue"])
     done = published(cfg)
+    cap_n, sent = int(s.get("max_per_run", 1)), 0
     for row in rows:
         why = due(s, rows, row, now, ps.get("times") or ["10:00"], int(s.get("late_days", 1)))
+        if not why and sent >= cap_n:
+            out.append(f"post {row['date']} {row['title']}: next run (max_per_run {cap_n})")
+            continue
         if why:
             if why == "waiting for approval":
                 out.append(f"post {row['date']} {row['title']}: {why}")
@@ -237,6 +247,8 @@ def posts(cfg, now, dry=False, run_node=None):
             continue
         cap = core.parse_caption(f.read_text(encoding="utf-8"))
         todo = [p for p in plats if (p, f.name) not in done]
+        if todo:
+            sent += 1
         if "threads" in todo:             # text only: Threads takes photos from a public URL alone
             try:
                 out.append(f"post {row['title']} → threads: {_threads(cfg, cap['threads'], '', f.name, 'post', dry)}")
