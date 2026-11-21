@@ -4,12 +4,15 @@ The requests are the same as solar site/scripts/ideas.mjs sends: same paths, met
 bodies (compact, `project` first on push). The project slug always comes from the profile; it can't be passed in.
 """
 import json
+import time
 import urllib.error
 import urllib.request
 from urllib.parse import quote
 
 from . import packs as packs_mod
 from .settings import (BATCH_MAX, FIELDS, IDEAS_MAX, PLATFORMS, REQUIRED, STAGES, IdeasError)
+
+PUSH_TIMEOUT = 180
 
 
 def urllib_transport(method, url, headers, body, timeout=60):
@@ -35,10 +38,10 @@ class Client:
         self.project, self.base, self.secret = project, base.rstrip("/"), secret
         self.transport = transport or urllib_transport
 
-    def call(self, method, body=None, path="/api/ideas"):
+    def call(self, method, body=None, path="/api/ideas", timeout=None):
         headers = {"Authorization": f"Bearer {self.secret}", "Content-Type": "application/json"}
         data = dumps(body).encode("utf-8") if body is not None else None
-        status, text = self.transport(method, f"{self.base}{path}", headers, data)
+        status, text = self.transport(method, f"{self.base}{path}", headers, data, **({"timeout": timeout} if timeout else {}))
         if not 200 <= status < 300:
             raise IdeasError(f"{status} {text}")
         return json.loads(text) if text else {}
@@ -59,8 +62,68 @@ class Client:
     def push(self, batch):
         if batch.get("project") not in (None, self.project):
             raise IdeasError(f"the batch says project {batch['project']!r}, this profile is {self.project!r}")
-        body = {"project": self.project, **{k: v for k, v in batch.items() if k != "project"}}
-        return self.call("POST", body)
+        body = {"project": self.project, **{k: v for k, v in batch.items() if k not in ("project", "pushed")}}
+        # The service posts each idea to Telegram before it answers: a batch of 5-20 can take a while.
+        return self.call("POST", body, timeout=PUSH_TIMEOUT)
+
+    def _batch_rows(self, name):
+        name = (name or "").strip()
+        return {(i.get("title") or "").strip(): i for i in self.pull().get("ideas", []) if i.get("batch") == name}
+
+    def push_once(self, batch, sleep=time.sleep, settle_s=20, settle_max=9):
+        """push, safe to run again: ideas of this batch already in the service (same batch name and title) are not
+        sent again, and one stored without its Telegram message is posted (repost) instead of pushed twice.
+        After a timeout the service may still be working on the request, so the batch is watched until it stops
+        changing before anything is resent. Returns {created, messages: {id: message id or None}, skipped, retried}."""
+        name = batch.get("batch")
+        titles = [(i.get("title") or "").strip() for i in batch.get("ideas") or []]
+        missing = lambda have: [i for i, t in zip(batch["ideas"], titles) if t not in have]  # noqa: E731
+        have = self._batch_rows(name)
+        skipped = len(titles) - len(missing(have))
+        first_try = None
+        if missing(have):
+            try:
+                self.push({**batch, "ideas": missing(have)})
+            except IdeasError as e:
+                if str(e)[:1] == "4":          # the API refused the body (HTTP 4xx): nothing was stored
+                    raise
+                # A timeout, a dropped connection or a 5xx: part of it may be stored and posted, and the service
+                # may still be at it. Wait until the batch stops changing, then send only what isn't there.
+                first_try = str(e)[:200]
+                have = self._settle(name, sleep, settle_s, settle_max)
+                if missing(have):
+                    self.push({**batch, "ideas": missing(have)})
+        have = self._batch_rows(name)
+        # Stored but never posted (the bot's message failed, or the request died in between): post it now, once.
+        unposted = [have[t]["id"] for t in titles if t in have and not have[t].get("tgMessageId") and have[t].get("status") == "sent"]
+        if unposted:
+            self.call("PATCH", {"ids": unposted, "repost": True})
+            have = self._batch_rows(name)
+        if missing(have):
+            raise IdeasError(f"not stored: {[i.get('title') for i in missing(have)]}; run the same push again (it sends only what is missing)")
+        rows = [have[t] for t in dict.fromkeys(titles)]
+        out = {"batch": name, "created": [r["id"] for r in rows], "messages": {str(r["id"]): r.get("tgMessageId") for r in rows},
+               "already_there": skipped, "reposted": unposted}
+        if first_try:
+            out["first_try"] = first_try
+        return out
+
+    def _settle(self, name, sleep, every, tries):
+        """The batch's rows once two looks in a row agree (ids and message ids), at most `tries` looks."""
+        last = None
+        for _ in range(tries):
+            try:
+                rows = self._batch_rows(name)
+            except IdeasError:
+                rows = None
+            snap = None if rows is None else sorted((r["id"], r.get("tgMessageId")) for r in rows.values())
+            if snap is not None and snap == last:
+                return rows
+            last = snap
+            sleep(every)
+        if last is None:
+            raise IdeasError("the ideas service doesn't answer; nothing resent (run the same push again later: it only sends what is missing)")
+        return self._batch_rows(name)
 
     def tracked(self, ids):
         self.ensure_own(ids)

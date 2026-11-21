@@ -2,7 +2,9 @@
 fails or gives up, a day with fewer films than planned, a sign-in about to expire.
 
 Delivery: the business's bot (the notes API of jobs.api: a small .txt with the details, the summary as its caption),
-else the morning pack's Telegram bot, else only data/publish/<profile>/alerts.log. Every alert is also written to that
+else the morning pack's Telegram bot, else only data/publish/<profile>/alerts.log. The bot route goes straight to
+Telegram when the video bot's token is here (notes.Client), with one retry only when the alert can't have arrived;
+a timeout on the answer is logged as "not delivered" and never resent, so an alert can't arrive twice. Every alert is also written to that
 log. The same alert goes out at most once per REPEAT_HOURS, so a broken key doesn't message every 30 minutes.
 """
 import hashlib
@@ -56,9 +58,14 @@ def _deliver(cfg, title, body):
     f = Path(tempfile.gettempdir()) / f"viral-scout-alert-{cfg['name']}.txt"
     f.write_text(body + "\n", encoding="utf-8")
     caption = f"⚠️ {title}\n\n{body}"[:1000]
-    if a["url"] and a["secret"]:
-        notes.Client(a["url"], a["secret"], a["project"]).send(str(f), caption, tags="alert")
-        return "bot"
+    if (a["url"] and a["secret"]) or a["token"]:
+        # notes.Client retries once when the request can't have arrived and never resends after a timeout on the
+        # answer (no duplicate alerts). Only a certain "not sent" falls through to the morning pack's bot.
+        try:
+            r = notes.client(cfg).send(str(f), caption, tags="alert")
+            return "bot" if r.get("route") != "telegram" else "bot (direct)"
+        except notes.NotSent:
+            pass
     from . import core, pack
     mp = core.settings(cfg)["morning_pack"]
     env = {**pack.read_env_file(mp.get("env_file") or core.settings(cfg)["env_file"]), **os.environ}

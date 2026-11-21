@@ -17,6 +17,8 @@ import { tagsLine } from "@/lib/ui";
  *   GET   ?file=<id>&sig=<hmac>                → the note's Telegram file, proxied (no auth header; the signed link is the key)
  *   PATCH {id, project, status: done|skipped|open, result?, reply?}   reply = answer in the note's thread
  *   POST  multipart: project, caption, tags?, reply_to?, file → {message_id}  (caption ends with the hashtags: business, file kind, tags)  (sent to the project bot's first allowed chat)
+ *   POST  JSON {project, prepare: true, name, caption?, tags?, reply_to?} → {bot_id, chat_id, method, field, caption, reply_parameters?}
+ *         the same send planned, nothing sent: the PC uploads files over Vercel's ~4.5 MB body limit to the Bot API itself
  * The bot token never leaves the service: file links point back here with an HMAC of the note id.
  */
 
@@ -110,39 +112,66 @@ export async function PATCH(req: Request) {
   return json({ ok: true });
 }
 
+/** How a file goes to the group: the video bot's first chat, the project's header first and the tags last. */
+async function planFor(project: string, name: string, captionIn: string, tagsIn: string, replyToIn: unknown) {
+  const bot = videoBotOf();
+  const token = tokenOf(bot);
+  const chat = allowedChats(bot)[0];
+  if (!token || !chat) return null;
+  // Like the old notes.mjs: videos play in the chat, images show inline, anything else is a file.
+  const kind = /\.(mp4|mov|m4v)$/i.test(name) ? "video" : /\.(jpe?g|png|webp)$/i.test(name) ? "photo" : "document";
+  const method = { video: "sendVideo", photo: "sendPhoto", document: "sendDocument" }[kind];
+  // The project's header goes first, so a reply to the file is a note for that project.
+  // Tags last (business, file kind, and any extra words the job passed in `tags`, e.g. "film tiktok idea92"), kept whole
+  // when the caption has to be cut to Telegram's 1024 characters.
+  const extra = tagsIn.split(/[\s,]+/).filter(Boolean);
+  const tags = tagsLine(project, [{ video: "video", photo: "image", document: "file" }[kind]!, ...extra]);
+  const body = `${labelOf(project)}${captionIn}`.trim();
+  const caption = `${body.slice(0, 1024 - tags.length - 2)}\n\n${tags}`.trim();
+  let reply_parameters: { message_id: number } | undefined;
+  const replyTo = Number(replyToIn);
+  if (Number.isInteger(replyTo) && replyTo > 0) {
+    const n = (await prisma.claudeNote.findUnique({ where: { id: replyTo } })) as Note | null;
+    if (n && n.bot === bot) reply_parameters = { message_id: n.messageId };
+  }
+  return { bot, token, chat, kind, method, caption, reply_parameters };
+}
+
+/**
+ * POST multipart (file ≤ ~4.5 MB, Vercel's request body limit) → sent here. POST JSON {project, prepare: true, name,
+ * caption?, tags?, reply_to?} → the plan only, so the PC can upload a bigger file (Telegram: 50 MB) straight to the
+ * Bot API with the same bot, chat, caption and reply target. The plan carries the bot's numeric id (public, the part
+ * of the token before ":") so the client can check its token is this bot's; never the token.
+ */
 export async function POST(req: Request) {
   if (!full(req)) return json({ error: "unauthorized" }, 401);
+  if ((req.headers.get("content-type") ?? "").includes("application/json")) {
+    const b = (await req.json().catch(() => null)) as
+      | { project?: string; prepare?: boolean; name?: string; caption?: string; tags?: string; reply_to?: number }
+      | null;
+    if (!b?.prepare || !botsFor(b.project ?? null) || !b.name) return json({ error: "JSON: {project, prepare: true, name, caption?, tags?, reply_to?}" }, 400);
+    const p = await planFor(b.project!, b.name, String(b.caption ?? ""), String(b.tags ?? ""), b.reply_to);
+    if (!p) return json({ error: `bot ${videoBotOf()} has no token or chat configured` }, 503);
+    return json({
+      bot_id: p.token.split(":")[0], chat_id: p.chat, method: p.method, field: p.kind, caption: p.caption,
+      ...(p.reply_parameters ? { reply_parameters: p.reply_parameters } : {}),
+    });
+  }
   const form = await req.formData().catch(() => null);
   const project = (form?.get("project") as string | null) ?? null;
   const bots = botsFor(project);
   const f = form?.get("file");
   if (!form || !bots || !(f instanceof Blob)) return json({ error: "multipart: project, file, caption?, reply_to?" }, 400);
-  const bot = videoBotOf();
-  const token = tokenOf(bot);
-  const chat = allowedChats(bot)[0];
-  if (!token || !chat) return json({ error: `bot ${bot} has no token or chat configured` }, 503);
   const name = (f as File).name || "file";
-  // Like the old notes.mjs: videos play in the chat, images show inline, anything else is a file.
-  const kind = /\.(mp4|mov|m4v)$/i.test(name) ? "video" : /\.(jpe?g|png|webp)$/i.test(name) ? "photo" : "document";
-  const method = { video: "sendVideo", photo: "sendPhoto", document: "sendDocument" }[kind];
+  const p = await planFor(project!, name, String(form.get("caption") ?? ""), String(form.get("tags") ?? ""), form.get("reply_to"));
+  if (!p) return json({ error: `bot ${videoBotOf()} has no token or chat configured` }, 503);
   const out = new FormData();
-  out.set("chat_id", chat);
-  out.set(kind, f, name);
-  if (kind === "video") out.set("supports_streaming", "true");
-  // The project's header goes first, so a reply to the file is a note for that project.
-  // Tags last (business, file kind, and any extra words the job passed in `tags`, e.g. "film tiktok idea92"), kept whole
-  // when the caption has to be cut to Telegram's 1024 characters.
-  const extra = String(form.get("tags") ?? "").split(/[\s,]+/).filter(Boolean);
-  const tags = tagsLine(project, [{ video: "video", photo: "image", document: "file" }[kind]!, ...extra]);
-  const body = `${labelOf(project!)}${String(form.get("caption") ?? "")}`.trim();
-  const caption = `${body.slice(0, 1024 - tags.length - 2)}\n\n${tags}`.trim();
-  if (caption) out.set("caption", caption);
-  const replyTo = Number(form.get("reply_to"));
-  if (Number.isInteger(replyTo) && replyTo > 0) {
-    const n = (await prisma.claudeNote.findUnique({ where: { id: replyTo } })) as Note | null;
-    if (n && n.bot === bot) out.set("reply_parameters", JSON.stringify({ message_id: n.messageId }));
-  }
-  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: "POST", body: out });
+  out.set("chat_id", p.chat);
+  out.set(p.kind, f, name);
+  if (p.kind === "video") out.set("supports_streaming", "true");
+  if (p.caption) out.set("caption", p.caption);
+  if (p.reply_parameters) out.set("reply_parameters", JSON.stringify(p.reply_parameters));
+  const r = await fetch(`https://api.telegram.org/bot${p.token}/${p.method}`, { method: "POST", body: out });
   const res = (await r.json().catch(() => ({}))) as { ok?: boolean; description?: string; result?: { message_id?: number } };
   if (!res.ok) return json({ error: res.description ?? `Telegram ${r.status}` }, 502);
   return json({ message_id: res.result?.message_id });

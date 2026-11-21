@@ -2,7 +2,8 @@
 
   info                                  the resolved ideas block, notes to read, newest market data (no network)
   pull                                  every idea of the profile's project with ratings, tags, comments (JSON)
-  push <file.json> [--dry-run]          {batch, ideas: [...]} → stored and posted to the ideas bot
+  push <file.json> [--dry-run]          {batch, ideas: [...]} → stored and posted to the ideas bot; safe to run again
+                                        (sends only what's missing), message ids written back into the file
   tracked <id ...>                      mark ideas as added to the vault tracker
   repost <id ...>                       post again through the project's current bot
   script <id> <file.md>                 send the scenario for approval
@@ -190,7 +191,14 @@ def dispatch(args, transport=None, environ=None):
         if cmd == "pull":
             out = c.pull()
         elif cmd == "push":
-            out = c.push(batch)
+            # Safe to run again (after a timeout, or twice by mistake): only what isn't in the service yet is sent.
+            out = c.push_once(batch)
+            batch["pushed"] = {"ids": out["created"], "messages": out["messages"]}
+            Path(args.file).write_text(json.dumps(batch, ensure_ascii=False, indent=2), encoding="utf-8")
+            unposted = [i for i, m in out["messages"].items() if not m]
+            if unposted:
+                print(f"warning: stored but not in Telegram: {', '.join('#' + i for i in unposted)} "
+                      f"(the bot couldn't post them; `ideas {cfg['name']} repost <id>` later)", file=sys.stderr)
         elif cmd == "tracked":
             out = c.tracked(args.ids)
         elif cmd == "repost":

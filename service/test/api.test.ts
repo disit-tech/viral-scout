@@ -20,8 +20,9 @@ beforeEach(() => {
   setConfig(null, ENV);
   db = fakeDb([idea({ id: 1, tags: "hk" }), idea({ id: 2, project: "homes", tgMessageId: 51 })]);
   // findMany for GET includes feedback rows
-  db.db.videoIdea.findMany = vi.fn(async ({ where }: { where?: { project?: string } } = {}) =>
-    [...db.ideas.values()].filter((r) => !where?.project || r.project === where.project).map((r) => ({ ...r, feedback: [{ id: 1, createdAt: new Date(0), kind: "pack", value: '{"sections":[{"title":"LinkedIn"}]}' }] })),
+  const plain = db.db.videoIdea.findMany;
+  db.db.videoIdea.findMany = vi.fn(async (args: Parameters<typeof plain>[0] = {}) =>
+    (await plain(args)).map((r) => ({ ...r, feedback: [{ id: 1, createdAt: new Date(0), kind: "pack", value: '{"sections":[{"title":"LinkedIn"}]}' }] })),
   ) as never;
   state.db = db.db;
   tg = fakeTelegram();
@@ -62,9 +63,29 @@ describe("/api/ideas contract", () => {
   });
   it("POST stores and posts through the project's bot", async () => {
     const res = await ideas.POST(req("POST", "api-secret", { batch: "b1", project: "agency", ideas: [{ title: "T", hook: "H", platforms: ["linkedin", "linkedin"] }] }));
-    expect(await res.json()).toEqual({ created: [3] });
+    expect(await res.json()).toEqual({ created: [3], reused: [], messages: { 3: expect.any(Number) } });
     expect(db.ideas.get(3)!).toMatchObject({ project: "agency", platforms: "linkedin", tgMessageId: expect.any(Number) });
     expect(tg.method("sendMessage")[0].token).toBe("222:agency");
+  });
+  it("POST of the same batch again (a client retry after a timeout) posts no second card", async () => {
+    const batch = { batch: "nf-b", project: "agency", ideas: [{ title: "A", hook: "H" }, { title: "B", hook: "H" }] };
+    // The first try stored A and B, but only A got its Telegram message before the client gave up.
+    await ideas.POST(req("POST", "api-secret", batch));
+    db.ideas.get(4)!.tgMessageId = null;
+    const before = tg.method("sendMessage").length;
+    const res = await ideas.POST(req("POST", "api-secret", { ...batch, ideas: [...batch.ideas, { title: "C", hook: "H" }] }));
+    const body = (await res.json()) as { created: number[]; reused: number[]; messages: Record<string, number | null> };
+    expect(body.created).toEqual([3, 4, 5]);
+    expect(body.reused).toEqual([3, 4]);
+    expect(Object.values(body.messages).every((m) => typeof m === "number")).toBe(true);
+    expect(tg.method("sendMessage").length - before).toBe(2); // B (never posted) and the new C; not A again
+    expect([...db.ideas.values()].filter((i) => i.batch === "nf-b")).toHaveLength(3);
+  });
+  it("a Telegram call that hangs or fails comes back as not ok instead of throwing", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new DOMException("The operation was aborted due to timeout", "TimeoutError"); }));
+    const res = await ideas.POST(req("POST", "api-secret", { batch: "b9", project: "agency", ideas: [{ title: "T", hook: "H" }] }));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { messages: Record<string, unknown> }).messages).toEqual({ 3: null });
   });
   it("POST validates the body", async () => {
     expect((await ideas.POST(req("POST", "api-secret", { batch: "b1", ideas: [] }))).status).toBe(400);

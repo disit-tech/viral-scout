@@ -56,7 +56,7 @@ Standard token names: `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_USER_ID`, `FACEBOOK_P
 | `blog` | off, Monday 08:45 | one blog draft a week, sent for ✅ |
 | `owner`, `language` | "the owner", English | how prompts name and talk to the approver |
 | `delivery` | none | `telegram` (through the ideas API / service) or `none` |
-| `api` | `IDEAS_SITE_URL`, `IDEAS_API_SECRET`, project = profile name | env var names for the notes/ideas API; falls back to an `ideas:` block |
+| `api` | `IDEAS_SITE_URL`, `IDEAS_API_SECRET`, project = profile name | env var names for the notes/ideas API; falls back to an `ideas:` block. `token_env` / `chat_env` (default: the morning pack's): the service's video bot token and the group, for files sent straight to Telegram (see [Notes API](#notes-api)) |
 | `notes_command` | none | use a notes CLI with the same verbs instead of the API |
 | `cwd`, `add_dirs` | this repo, none | where Claude runs and which folders it may touch (the vault is always added) |
 | `allowed_tools` | none | extras per job (`film: ["Bash(npx hyperframes:*)"]`) or for `all` |
@@ -110,7 +110,10 @@ The prompt is the header (unattended rules, paths, CTA, compliance note), the co
 | `GET /api/notes?status=new` (or `status=all&limit=20`) | `{notes: [{id, created_at, from, kind, status, text, about, file_url, result}]}` |
 | `GET /api/notes?pending=1` | `{pending: n}` (new notes plus approved items waiting for the job) |
 | `PATCH /api/notes {id, project, status: done\|skipped\|open, result, reply}` | closes or answers a note in its thread |
-| `POST /api/notes` multipart `file`, `caption`, `project`, `reply_to` | `{message_id}` |
+| `POST /api/notes` multipart `file`, `caption`, `project`, `reply_to` | `{message_id}` (files up to ~4 MB: Vercel takes request bodies up to 4.5 MB) |
+| `POST /api/notes` JSON `{project, prepare: true, name, caption, tags, reply_to}` | `{bot_id, chat_id, method, field, caption, reply_parameters}`: the same send planned, nothing sent |
+
+**Files over 4 MB (film masters) go straight to the Telegram Bot API** (50 MB) from the PC: `notes send` asks the service for the plan (chat, header, tags, reply target), checks that the token in `jobs.api.token_env` is the service's video bot (`bot_id`), and uploads the file itself. A video over 49 MB goes as an ffmpeg preview with the master's path in the caption. If the service doesn't answer, the header (`ideas.header`), tags and `chat_env` come from the profile. `python -m viral_scout notes <profile> direct` says whether this route is on (it sends nothing). Without the token, files over 4 MB are refused with a clear error and small ones go through the service. Any request is sent again once, and only when it can't have arrived (the connection or the upload failed, or HTTP 429); after a timeout waiting for the answer nothing is resent, so an alert or a film never arrives twice.
 
 The service has these endpoints. `jobs.notes_command` is only for a business that keeps its own notes CLI with the same verbs.
 

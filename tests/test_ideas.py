@@ -65,9 +65,45 @@ class Recorder:
         self.calls.append({"method": method, "url": url, "headers": headers, "body": body})
         if method == "GET" and "/api/ideas" in url:
             return 200, json.dumps({"ideas": self.ideas, "storms": []})
+        if method == "POST" and url.endswith("/api/ideas"):
+            b = json.loads(body)
+            ids = []
+            for i in b["ideas"]:
+                ids.append(100 + len(self.ideas) + 1)
+                self.ideas.append({"id": ids[-1], "batch": b["batch"], "title": i["title"], "status": "sent", "tgMessageId": 5000 + ids[-1]})
+            return 200, json.dumps({"created": ids})
         if method == "POST":
             return 200, json.dumps({"created": [101]})
         return 200, json.dumps({"ok": True})
+
+
+class FlakyService(Recorder):
+    """The ideas service of 2026-11-20: the first push stores the batch, posts only `posted` of it to Telegram, and
+    the client sees a timeout. A repost posts what is still missing."""
+
+    def __init__(self, posted=1, fail="timeout"):
+        super().__init__()
+        self.posted, self.fail, self.failed = posted, fail, False
+
+    def __call__(self, method, url, headers, body, timeout=60):
+        if method == "POST" and url.endswith("/api/ideas") and not self.failed:
+            self.failed = True
+            self.calls.append({"method": method, "url": url, "headers": headers, "body": body, "timeout": timeout})
+            b = json.loads(body)
+            for n, i in enumerate(b["ideas"]):
+                iid = 200 + len(self.ideas)
+                self.ideas.append({"id": iid, "batch": b["batch"], "title": i["title"], "status": "sent",
+                                   "tgMessageId": 7000 + iid if n < self.posted else None})
+            if self.fail == "5xx":
+                return 504, "FUNCTION_INVOCATION_TIMEOUT"
+            raise IdeasError("Can't reach https://svc.test: is the site running? The read operation timed out")
+        if method == "PATCH" and json.loads(body).get("repost"):
+            self.calls.append({"method": method, "url": url, "headers": headers, "body": body})
+            for i in self.ideas:
+                if i["id"] in json.loads(body)["ids"]:
+                    i["tgMessageId"] = 9000 + i["id"]
+            return 200, json.dumps({"ok": True})
+        return super().__call__(method, url, headers, body, timeout)
 
 
 def ideas_block(**over):
@@ -348,7 +384,84 @@ class TestCredentialsAndCli(unittest.TestCase):
             self.assertEqual(self.run_cli(prof, ["push", str(batch), "--dry-run"], rec, env)[0], 0)
             self.assertEqual(rec.calls, [])
             self.assertEqual(self.run_cli(prof, ["push", str(batch)], rec, env)[0], 0)
-            self.assertEqual(rec.calls[0]["url"], "http://localhost:3000/api/ideas")
+            posts = [c for c in rec.calls if c["method"] == "POST"]
+            self.assertEqual([c["url"] for c in posts], ["http://localhost:3000/api/ideas"])
+            # the message ids are written back into the batch file; pushing the same file again sends nothing
+            saved = json.loads(batch.read_text(encoding="utf-8"))
+            self.assertEqual(saved["pushed"]["ids"], [101])
+            self.assertEqual(saved["pushed"]["messages"], {"101": 5101})
+            self.assertEqual(self.run_cli(prof, ["push", str(batch)], rec, env)[0], 0)
+            self.assertEqual(len([c for c in rec.calls if c["method"] == "POST"]), 1)
+            self.assertNotIn("pushed", posts[0]["body"].decode())
+
+
+class TestPushOnce(unittest.TestCase):
+    BATCH = {"batch": "nf-2026-11-20-a", "ideas": [{"title": t, "hook": "h", "score": 40} for t in "ABCDE"]}
+
+    def posts(self, svc):
+        return [json.loads(c["body"]) for c in svc.calls if c["method"] == "POST"]
+
+    def test_timeout_after_a_partial_push_sends_no_duplicates(self):
+        # 2026-11-20: all 5 stored, 1 posted, then the client timed out. The retry used to post the batch again.
+        svc = FlakyService(posted=1)
+        c = Client("homes", "https://svc.test", "s", svc)
+        out = c.push_once(self.BATCH, sleep=lambda s: None)
+        self.assertEqual(len(self.posts(svc)), 1)                        # nothing pushed a second time
+        self.assertEqual(len(svc.ideas), 5)                              # one card per idea
+        self.assertEqual(sorted(out["reposted"]), [201, 202, 203, 204])  # the 4 stored without a message
+        self.assertTrue(all(out["messages"].values()))
+        self.assertIn("timed out", out["first_try"])
+
+    def test_retry_sends_only_the_missing_ideas(self):
+        svc = FlakyService(posted=5, fail="5xx")
+        c = Client("homes", "https://svc.test", "s", svc)
+        # The service stored the first 3 only (the function died after them).
+        orig = svc.__call__
+
+        def partial(method, url, headers, body, timeout=60):
+            if method == "POST" and not svc.failed:
+                b = json.loads(body)
+                return orig(method, url, headers, json.dumps({**b, "ideas": b["ideas"][:3]}).encode(), timeout)
+            return orig(method, url, headers, body, timeout)
+        c.transport = partial
+        out = c.push_once(self.BATCH, sleep=lambda s: None)
+        self.assertEqual([i["title"] for i in self.posts(svc)[-1]["ideas"]], ["D", "E"])   # the retry: only D and E
+        self.assertEqual(len(self.posts(svc)), 2)
+        self.assertEqual(len(svc.ideas), 5)
+        self.assertEqual(len(out["created"]), 5)
+
+    def test_a_refused_body_is_not_retried(self):
+        class Refuse(Recorder):
+            def __call__(self, method, url, headers, body, timeout=60):
+                if method == "POST":
+                    self.calls.append({"method": method, "url": url, "headers": headers, "body": body})
+                    return 400, '{"error":"title too long"}'
+                return super().__call__(method, url, headers, body, timeout)
+        svc = Refuse()
+        with self.assertRaises(IdeasError):
+            Client("homes", "https://svc.test", "s", svc).push_once(self.BATCH, sleep=lambda s: None)
+        self.assertEqual(len(self.posts(svc)), 1)
+
+    def test_push_waits_longer_than_the_default(self):
+        seen = []
+        Client("homes", "https://svc.test", "s", lambda m, u, h, b, timeout=60: seen.append(timeout) or (200, "{}")).push(self.BATCH)
+        self.assertEqual(seen, [180])
+
+    def test_service_down_after_a_timeout_resends_nothing(self):
+        svc = FlakyService()
+        calls = {"n": 0}
+        orig = svc.__call__
+
+        def down(method, url, headers, body, timeout=60):
+            if svc.failed and method == "GET":
+                calls["n"] += 1
+                raise IdeasError("Can't reach https://svc.test")
+            return orig(method, url, headers, body, timeout)
+        c = Client("homes", "https://svc.test", "s", down)
+        with self.assertRaises(IdeasError) as e:
+            c.push_once(self.BATCH, sleep=lambda s: None, settle_max=3)
+        self.assertIn("nothing resent", str(e.exception))
+        self.assertEqual(len(self.posts(svc)), 1)
 
     def test_defaults_not_shared(self):
         a = ideas_cfg({"name": "a", "output_dir": "A", "ideas": {"project": "homes"}})

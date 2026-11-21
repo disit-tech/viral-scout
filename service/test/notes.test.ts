@@ -85,4 +85,19 @@ describe("/api/notes POST", () => {
     expect(urls.map((u) => u.split("/").pop())).toEqual(["sendVideo", "sendPhoto", "sendDocument"]);
     vi.unstubAllGlobals();
   });
+  it("plans a big file's send without sending it: chat, caption with tags, reply target, bot id but no token", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const r = await notes.POST(req("POST", SECRET, "", { project: "solar", prepare: true, name: "film.mp4", caption: "🎬 Film", tags: "film idea92", reply_to: 1 }));
+    expect(r.status).toBe(200);
+    const plan = (await r.json()) as Record<string, unknown>;
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(plan).toMatchObject({ method: "sendVideo", field: "video", reply_parameters: { message_id: 9 } });
+    expect(plan.caption).toMatch(/🎬 Film\n\n#\S+ #video #film #idea92$/);
+    expect(String(plan.bot_id)).toMatch(/^\d+$/);
+    expect(JSON.stringify(plan)).not.toContain(":ideas");
+    expect((await notes.POST(req("POST", SECRET, "", { project: "solar", name: "film.mp4" }))).status).toBe(400);
+    expect((await notes.POST(req("POST", null, "", { project: "solar", prepare: true, name: "x.mp4" }))).status).toBe(401);
+    vi.unstubAllGlobals();
+  });
 });

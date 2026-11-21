@@ -138,5 +138,5 @@ def tell_owner(cfg, title, caption):
     f = Path(tempfile.gettempdir()) / f"tiktok-caption-{cfg['name']}.txt"
     f.write_text(text + "\n", encoding="utf-8")
     msg = (f"📱 TikTok draft ready: \"{title}\". Open TikTok → inbox notification → paste this caption → Post.\n\n{text}")
-    notes.Client(a["url"], a["secret"], a["project"]).send(str(f), msg, tags="tiktok")
+    notes.client(cfg).send(str(f), msg, tags="tiktok")
     return "caption sent to the bot"

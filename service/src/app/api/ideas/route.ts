@@ -108,7 +108,20 @@ export async function POST(req: Request) {
   const created: number[] = [];
   const varied = new Set<number>();
   const { project } = parsed.data;
+  // A push the client gave up on (timeout) may have stored and posted part of the batch. Sending the same batch again
+  // must not post a second card: an idea of this batch with the same title is the same idea. It is only posted
+  // when it never got its Telegram message.
+  const earlier = await prisma.videoIdea.findMany({ where: { project, batch: parsed.data.batch } });
+  const reused: number[] = [];
+  const messages: Record<number, number | null> = {};
   for (const { replaces, variantOf, platforms, ...data } of parsed.data.ideas) {
+    const same = earlier.find((e) => e.title === data.title);
+    if (same) {
+      if (!same.tgMessageId && same.status === "sent") await postIdea(same);
+      reused.push(same.id);
+      created.push(same.id);
+      continue;
+    }
     // replaces: a new version (redo / expand) → the old one turns ♻️; variantOf: a sibling → the original turns 🧬 once all are posted
     const parent = replaces ? await prisma.videoIdea.findUnique({ where: { id: replaces, project } }) : null;
     const origin = !parent && variantOf ? await prisma.videoIdea.findUnique({ where: { id: variantOf, project } }) : null;
@@ -134,7 +147,11 @@ export async function POST(req: Request) {
     await refreshIdeaMessage(await prisma.videoIdea.update({ where: { id }, data: { status: "varied" } }));
     await logFeedback(id, "system", "varied");
   }
-  return Response.json({ created });
+  // The Telegram message of every idea of the batch (null = not posted: the bot couldn't send it).
+  for (const i of await prisma.videoIdea.findMany({ where: { id: { in: created } }, select: { id: true, tgMessageId: true } })) {
+    messages[i.id] = i.tgMessageId ?? null;
+  }
+  return Response.json({ created, reused, messages });
 }
 
 export async function PATCH(req: Request) {

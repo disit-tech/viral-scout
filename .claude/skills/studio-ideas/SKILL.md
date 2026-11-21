@@ -72,7 +72,7 @@ Write the batch to `<batch_dir>/ideas-<date>-<letter>.json` (git-ignored):
 ```
 `replaces` only for redo / expand, `variantOf` only for variants. Limits (the API rejects longer): title 200, hook 300, why 300, cta 200, source 400, rubric 80, hookType 40, angle / fact / visual 600 characters; 1–20 ideas per batch; batch name ≤ 60. Do not put `project` in the file: the CLI adds it from the profile.
 If the instructions note asks for a voice pass on some ideas (e.g. Acme Agency's humanizer pass on content hooks), do it now, before pushing.
-Then `… ideas <profile> push <file> --dry-run`, fix every error, and `… ideas <profile> push <file>`.
+Then `… ideas <profile> push <file> --dry-run`, fix every error, and `… ideas <profile> push <file>`. If the push fails (a timeout), run the same push again: it sends only the ideas that aren't in the service yet and posts the stored ones that have no Telegram card, so it never makes duplicates.
 
 ## 5. Report
 In chat, 5 lines max: how many new / redone / expanded / variants / moved to the tracker / packs sent, the strongest idea, how many ideas built on market data and which report dates (or "none fresh"), what the taste note changed. Stop. The owner rates in Telegram (messages headed with the profile's `header`); the next run learns from it.

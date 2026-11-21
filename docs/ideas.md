@@ -93,7 +93,7 @@ python -m viral_scout ideas <profile> blog <slug> "<title>" <summary.txt> | blog
 ```
 
 What the CLI checks before it sends anything:
-- **push:** the API's field limits (title 200, hook 300, why 300, cta 200, source 400, rubric 80, hookType 40, angle / fact / visual 600; 1–20 ideas; batch name ≤ 60), `score` against the threshold, `platforms` against `packs.platforms`, `replaces` / `variantOf`. `--dry-run` only checks.
+- **push:** the API's field limits (title 200, hook 300, why 300, cta 200, source 400, rubric 80, hookType 40, angle / fact / visual 600; 1–20 ideas; batch name ≤ 60), `score` against the threshold, `platforms` against `packs.platforms`, `replaces` / `variantOf`. `--dry-run` only checks. A push is safe to run again: ideas already in the service with the same batch name and title are not sent twice, one stored without its Telegram card gets posted (`repost`), and after a timeout the CLI waits until the batch stops changing before it sends only what is missing. The service dedupes the same way, so a repeated POST makes no second card. The idea ids and their Telegram message ids are written back into the batch file (`pushed`).
 - **pack:** parses the note (every `## Platform` is one message, every `### Label` a block, `>` lines are owner notes, Checks / Notes sections are skipped), then the profile's limits, the API's limits (15 sections, 10 blocks, 3,500 chars per block, one Telegram message per section) and the banned words. `--dry-run` prints the messages and sends nothing.
 - **tracked / repost / script / stage:** the API body has no project, so the CLI first pulls the project's ideas and refuses ids that aren't in it.
 
