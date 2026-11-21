@@ -6,10 +6,10 @@
   video <profile> make <media> <script.md> ...      cut + render in one go (--music FILE)
   video <profile> cards <job dir>                    render only the cards (preview the PNGs before the full render)
   video <profile> render <job dir> [--music FILE]    build the master from <job>/edit.json
-  video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto]   plain transcript (+ word times .json)
+  video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto] [--force]   plain transcript (+ word times .json)
   video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--cfg 0.5 0.3] [--exaggeration 0.5]
   video <profile> film new <name> --from <reference film>   a new film folder seeded from a reference film
-  video <profile> film words|check|render <film dir> ...
+  video <profile> film words|captions|check|render <film dir> ...
   video <profile> still --top a.png --bottom b.png --top-text ... --bottom-text ... --out still.png [--source ...]
 Missing optional tools exit with code 3 and a message saying how to install them.
 """
@@ -61,6 +61,7 @@ def _parser() -> argparse.ArgumentParser:
     tr.add_argument("--out", help="transcript .txt (default: <media>.txt)")
     tr.add_argument("--model")
     tr.add_argument("--language", help="language code (en, pl, uk...) or auto to detect it (default: video.language, else en)")
+    tr.add_argument("--force", action="store_true", help="transcribe again even when the word times .json is newer than the media")
     vo = sub.add_parser("voice")
     vo.add_argument("reference", help="reference .wav, or `profile` for video.voice.reference")
     vo.add_argument("out")
@@ -81,6 +82,8 @@ def _parser() -> argparse.ArgumentParser:
     fw.add_argument("script")
     fw.add_argument("--section")
     fw.add_argument("--model")
+    fw.add_argument("--force", action="store_true", help="transcribe again even when the cached transcript is newer than the voice")
+    fs.add_parser("captions").add_argument("dir")
     fc = fs.add_parser("check")
     fc.add_argument("dir")
     fr = fs.add_parser("render")
@@ -159,7 +162,7 @@ def main(argv: list[str]) -> int:
             return 0
         if a.action == "transcribe":
             from . import pipeline
-            print(pipeline.transcript(v, a.media, a.out, a.model, a.language))
+            print(pipeline.transcript(v, a.media, a.out, a.model, a.language, a.force))
             return 0
         if a.action == "voice":
             from . import voice
@@ -172,7 +175,9 @@ def main(argv: list[str]) -> int:
             if a.film_action == "new":
                 return film.new(v, a.name, a.reference)
             if a.film_action == "words":
-                return film.words(v, a.dir, a.voice, a.script, a.section, a.model)
+                return film.words(v, a.dir, a.voice, a.script, a.section, a.model, a.force)
+            if a.film_action == "captions":
+                return film.captions(v, a.dir)
             if a.film_action == "check":
                 return film.check(v, a.dir)
             return film.render(v, a.dir, a.out, a.quality)

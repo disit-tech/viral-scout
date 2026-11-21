@@ -138,10 +138,11 @@ python -m viral_scout video <profile> cut <media> <script.md> [--section N] [--s
 python -m viral_scout video <profile> make <media> <script.md> ... [--music FILE]          cut + render
 python -m viral_scout video <profile> cards <job>                                           preview the card PNGs
 python -m viral_scout video <profile> render <job> [--music FILE]
-python -m viral_scout video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto]   default: video.language, else en; auto = WhisperX detects it
+python -m viral_scout video <profile> transcribe <media> [--out FILE.txt] [--language CODE|auto] [--force]   default: video.language, else en; auto = WhisperX detects it
 python -m viral_scout video <profile> voice <ref.wav|profile> <out.wav> <text|script.md|file.txt> [--section N] [--cfg 0.5 0.3] [--exaggeration 0.6] [--seed 1]
 python -m viral_scout video <profile> film new <name> --from <reference film>
-python -m viral_scout video <profile> film words <film> <voice.wav> <script.md> [--section N]
+python -m viral_scout video <profile> film words <film> <voice.wav> <script.md> [--section N] [--force]
+python -m viral_scout video <profile> film captions <film>
 python -m viral_scout video <profile> film check <film>
 python -m viral_scout video <profile> film render <film> [--out FILE] [--quality delivery]
 python -m viral_scout video <profile> still --top a.png --bottom b.png --top-text "DON'T ..." --bottom-text "DO ..." --out still.png [--source "Source: CDC"]
@@ -183,9 +184,20 @@ Scripts for an AI voice spell numbers out ("seventeenth", "nine one one"); Whisp
 
 A film folder holds `SPEC.md`, `index.html`, `compositions/`, `assets/` and `REVIEW.md` (see the playbook §8 and HyperFrames' own skills in `<node_modules>/hyperframes/dist/skills/`, where `<node_modules>` is `$VIRAL_SCOUT_VIDEO_NODE_MODULES` when set, else `viral_scout/video/node/node_modules`).
 
-- `film new <name> --from <reference>` starts a film from a reference film: it copies the folder into `films_dir/<name>` (or to a path) with its code, fonts, sound effects and their credits, and leaves out `out/`, `work/`, `.hyperframes/`, `assets/voice/` contents, `work-words.json`, `voice-check.md`, `REVIEW.md`, `POST.md` and `still.png`. An existing folder is never overwritten. This is how an unattended job gets binary assets it can't write itself.
+- `film new <name> --from <reference>` starts a film from a reference film: it copies the folder into `films_dir/<name>` (or to a path) with its code, fonts, sound effects and their credits, and leaves out `out/`, `work/`, `.hyperframes/`, `assets/voice/` contents, `work-words.json`, `voice-check.md`, `REVIEW.md`, `POST.md`, `still.png` and `make_captions.py`. An existing folder is never overwritten. This is how an unattended job gets binary assets it can't write itself.
 
+- Transcripts are cached (`<out>.json` for `transcribe`, `work/words-<size>.json` for `film words`) and reused only while they are newer than the media. A new take or a new render is transcribed again under the same `--out` name; `--force` redoes it anyway.
 - `film words` transcribes the voice, aligns it to the script, writes `work-words.json` (`[{w, s, e, i}]`, `i` = script sentence, `w` exactly as in the script) and `voice-check.md`: missing sentences, extra speech (repeats like "two two"), and words longer than 0.8 s, which can hide a repeat the aligner merged. Exit code 1 when it finds any. A first or last word of a sentence that Whisper heard as another word ("Do" as "so", "Save" as "Tape") is kept with the script's text and listed as `heard differently: so → Do`, not as extra speech; listen to those spots. Spelled numbers keep the script's words ("one eight hundred", not "1-800") with the heard word's time shared among them.
+- `film captions` writes `compositions/captions.html` from `work-words.json`: 1-3 words per screen (a new group after 3 words, past 16 characters, after `. , ? !` or a pause over 0.15 s), each word highlighted while it is spoken. The look (the composition's `<style>` and the two word colors) is kept from the film's current `captions.html`, which `film new` copies from the reference film; without one it comes from `video.colors` (`caption`, `accent`, `caption_outline`) and `video.fonts.caption`. Per-film settings go in the optional `<film>/captions.json`:
+
+  ```json
+  {"merge": {"three hundred": "300", "five minutes.": "5 minutes."},
+   "fix": {"backup": "BACKUP"},
+   "max_words": 3, "max_chars": 16, "gap": 0.15,
+   "color": "#ffffff", "highlight": "#ffc45c", "css": "<the whole style block>"}
+  ```
+
+  `merge` turns a run of words (as written in `work-words.json`, punctuation included) into one caption item, `fix` replaces one word. Run it again after every `film words`; it overwrites `captions.html`. It replaces the per-film `make_captions.py` scripts (same output), which an unattended job can't run, and `film new` no longer copies them.
 - `film check` runs `hyperframes check` (lint, runtime, layout, contrast).
 - `film render` renders to `<film>/out/<name>-film.mp4` and reports loudness against about -14 LUFS and -1 dBTP. It changes nothing. A ⚠ line → change the voice and sound effect levels in the composition and render again; as a last resort normalize the audio only (`ffmpeg -i in.mp4 -c:v copy -af loudnorm=I=-14:TP=-1:LRA=11 out.mp4`) and run `check` again.
 

@@ -563,7 +563,7 @@ def test_cli_transcribe_language_plumbing():
     from viral_scout.video import media, pipeline, transcribe
     seen = []
 
-    def fake_transcribe(wav16, cache, model, log, language):
+    def fake_transcribe(wav16, cache, model, log, language, **kw):
         seen.append(language)
         return [{"w": "hello", "s": 0.0, "e": 0.4}]
 
@@ -588,6 +588,153 @@ def test_cli_transcribe_language_plumbing():
     assert seen == ["en", "auto", "pl", "uk", "en"]                           # default: video.language, else en
     assert transcribe.whisper_language("auto") is None and transcribe.whisper_language("") is None
     assert transcribe.whisper_language("PL") == "pl"
+
+
+FILM_WORDS = [{"w": w, "s": round(0.5 + n * 0.4, 3), "e": round(0.8 + n * 0.4, 3), "i": 0}
+              for n, w in enumerate("It waits three hundred seconds. Comment backup now.".split())]
+OLD_CAPTIONS = """<template>
+  <style>
+    @font-face { font-family: "Brand Sans"; src: url("assets/fonts/brand.woff2"); }
+    .cap { top: 1100px; }
+  </style>
+  <div id="root" data-composition-id="captions" data-width="1080" data-height="1920">
+  </div>
+  <script>
+    tl.set("#cw0_0", { color: "#00ff88" }, 0.500); tl.set("#cw0_0", { color: "#fafafa" }, 0.850);
+  </script>
+</template>
+"""
+
+
+def test_film_captions_from_work_words_and_captions_json():
+    from viral_scout.video import film, film_captions
+    v = vset()
+    with tempfile.TemporaryDirectory() as d:
+        fd = Path(d) / "films" / "f1"
+        (fd / "compositions").mkdir(parents=True)
+        (fd / "work-words.json").write_text(json.dumps(FILM_WORDS), encoding="utf-8")
+        (fd / "compositions" / "captions.html").write_text(OLD_CAPTIONS, encoding="utf-8")   # the reference's look
+        (fd / "captions.json").write_text(json.dumps({"fix": {"backup": "BACKUP"},
+                                                      "merge": {"three hundred": "300"}}), encoding="utf-8")
+        v["films_dir"] = Path(d) / "films"
+        assert film.captions(v, "f1") == 0                                     # a bare name is looked up in films_dir
+        page = (fd / "compositions" / "captions.html").read_text(encoding="utf-8")
+        assert '"Brand Sans"' in page and "top: 1100px" in page                # style kept from the reference
+        assert 'color: "#00ff88"' in page and 'color: "#fafafa"' in page        # old script's colors kept
+        assert ">300<" in page and ">BACKUP<" in page and "three" not in page
+        assert 'data-composition-id="captions"' in page and 'window.__timelines["captions"]' in page
+        # groups: 3 words max, a period ends one, "Comment BACKUP now." is over 16 characters
+        its = film_captions.items(FILM_WORDS, {"backup": "BACKUP"}, {"three hundred": "300"})
+        assert [[x["t"] for x in g] for g in film_captions.groups(its)] == [["It", "waits", "300"], ["seconds."],
+                                                                            ["Comment", "BACKUP"], ["now."]]
+        assert its[2]["s"] == FILM_WORDS[2]["s"] and its[2]["e"] == FILM_WORDS[3]["e"]   # merged item spans both
+        # the list form of merge (as in the old scripts) gives the same items
+        assert film_captions.items(FILM_WORDS, {}, [[["three", "hundred"], "300"]])[2]["t"] == "300"
+        # a second run reads its own output: same page
+        assert film.captions(v, "f1") == 0
+        assert (fd / "compositions" / "captions.html").read_text(encoding="utf-8") == page
+        # captions.json overrides the look; no captions.html → the profile's colors
+        (fd / "captions.json").write_text(json.dumps({"highlight": "#123456"}), encoding="utf-8")
+        film.captions(v, "f1")
+        assert 'color: "#123456"' in (fd / "compositions" / "captions.html").read_text(encoding="utf-8")
+        (fd / "compositions" / "captions.html").unlink()
+        (fd / "captions.json").unlink()
+        film.captions(v, "f1")
+        page = (fd / "compositions" / "captions.html").read_text(encoding="utf-8")
+        assert f'color: "{v["colors"]["accent"]}"' in page and v["fonts"]["caption"] in page
+        (fd / "work-words.json").unlink()
+        try:
+            film.captions(v, "f1")
+            raise AssertionError("expected SystemExit")
+        except SystemExit as e:
+            assert "film words" in str(e)
+
+
+def test_cli_film_captions():
+    with tempfile.TemporaryDirectory() as d:
+        fd = Path(d) / "f2"
+        fd.mkdir()
+        (fd / "work-words.json").write_text(json.dumps(FILM_WORDS), encoding="utf-8")
+        assert video_main([str(PROFILE), "film", "captions", str(fd)]) == 0
+        assert (fd / "compositions" / "captions.html").exists()
+
+
+def test_film_new_leaves_out_make_captions_script():
+    from viral_scout.video import film
+    v = vset()
+    with tempfile.TemporaryDirectory() as d:
+        ref = Path(d) / "films" / "ref"
+        (ref / "compositions").mkdir(parents=True)
+        for f in ("make_captions.py", "captions.json", "compositions/captions.html"):
+            (ref / f).write_text("x", encoding="utf-8")
+        v["films_dir"] = Path(d) / "films"
+        film.new(v, "new", "ref")
+        new = Path(d) / "films" / "new"
+        assert not (new / "make_captions.py").exists()
+        assert (new / "captions.json").exists() and (new / "compositions" / "captions.html").exists()
+
+
+def test_transcribe_cache_redone_when_media_is_newer_or_forced():
+    from types import SimpleNamespace
+    from viral_scout.video import transcribe as tr
+    calls = []
+
+    def fake_whisperx(wav16, cache, model, log, language):
+        calls.append(cache.name)
+        cache.write_text(json.dumps([{"w": f"take{len(calls)}", "s": 0, "e": 1}]), encoding="utf-8")
+        return json.loads(cache.read_text(encoding="utf-8"))
+
+    old_w, old_i = tr._whisperx, tr.importlib
+    tr._whisperx = fake_whisperx
+    tr.importlib = SimpleNamespace(util=SimpleNamespace(find_spec=lambda name: object()))   # "WhisperX is here"
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            rec, cache = Path(d) / "final.mp4", Path(d) / "final.json"
+            rec.write_bytes(b"x")
+            os.utime(rec, (1_000_000, 1_000_000))
+            assert tr.transcribe(rec, cache, source=rec)[0]["w"] == "take1"
+            os.utime(cache, (2_000_000, 2_000_000))
+            assert tr.transcribe(rec, cache, source=rec)[0]["w"] == "take1"          # media older: cached
+            assert calls == ["final.json"]
+            os.utime(rec, (3_000_000, 3_000_000))                                     # a new render, same name
+            assert tr.transcribe(rec, cache, source=rec)[0]["w"] == "take2"
+            os.utime(rec, (1_000_000, 1_000_000))
+            assert tr.transcribe(rec, cache, source=rec, force=True)[0]["w"] == "take3"
+            assert tr.transcribe(rec, cache)[0]["w"] == "take3"                       # no source: cache as before
+            assert not tr.stale(cache, Path(d) / "missing.wav")
+    finally:
+        tr._whisperx, tr.importlib = old_w, old_i
+
+
+def test_cli_transcribe_force_and_source_plumbing():
+    from viral_scout.video import media, transcribe
+    seen = []
+
+    def fake_transcribe(wav16, cache, model, log, language, source=None, force=False):
+        seen.append((source.name if source else None, force))
+        return [{"w": "hello", "s": 0.0, "e": 0.4}]
+
+    old_t, old_x = transcribe.transcribe, media.extract_audio
+    transcribe.transcribe = fake_transcribe
+    media.extract_audio = lambda src, work: (work / "voice-48k.wav", work / "voice-16k.wav")
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            rec = Path(d) / "a.mp4"
+            rec.write_bytes(b"x")
+            out = str(Path(d) / "a.txt")
+            assert video_main([str(PROFILE), "transcribe", str(rec), "--out", out]) == 0
+            assert video_main([str(PROFILE), "transcribe", str(rec), "--out", out, "--force"]) == 0
+    finally:
+        transcribe.transcribe, media.extract_audio = old_t, old_x
+    assert seen == [("a.mp4", False), ("a.mp4", True)]
+
+
+def test_film_job_prompt_uses_captions_command():
+    from viral_scout.jobs import prompts
+    text = (prompts.DIR / "film.md").read_text(encoding="utf-8")
+    assert "{{video}} film captions <slug>" in text and "make_captions.py" in text   # named as never to run
+    header = (prompts.DIR / "_header.md").read_text(encoding="utf-8")
+    assert "No shell loops" in header
 
 
 if __name__ == "__main__":

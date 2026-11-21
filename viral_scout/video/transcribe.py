@@ -12,11 +12,16 @@ import sys
 from pathlib import Path
 
 
-def transcribe(wav16k: Path, cache: Path, model_name: str | None = None, log=print, language: str = "en") -> list[dict]:
-    """Returns [{"w": "word", "s": start_sec, "e": end_sec}, ...] in recording order."""
-    if cache.exists():
-        log(f"transcript: cached {cache.name}")
+def transcribe(wav16k: Path, cache: Path, model_name: str | None = None, log=print, language: str = "en",
+               source: Path | None = None, force: bool = False) -> list[dict]:
+    """Returns [{"w": "word", "s": start_sec, "e": end_sec}, ...] in recording order.
+    The cache is reused unless force, or source (the recording it came from) was changed after the cache was written."""
+    if cache.exists() and not force and not stale(cache, source):
+        log(f"transcript: cached {cache.name} (the audio is older; --force to transcribe again)")
         return json.loads(cache.read_text(encoding="utf-8"))
+    if cache.exists():
+        log(f"transcript: {'--force' if force else 'the audio is newer than ' + cache.name}: transcribing again")
+        cache.unlink()
     if importlib.util.find_spec("whisperx") is None:
         from .deps import ROOT, video_python
         py = video_python(required=True)
@@ -28,6 +33,14 @@ def transcribe(wav16k: Path, cache: Path, model_name: str | None = None, log=pri
             raise SystemExit(f"transcription failed in {py} (exit {p.returncode})")
         return json.loads(cache.read_text(encoding="utf-8"))
     return _whisperx(wav16k, cache, model_name, log, language)
+
+
+def stale(cache: Path, source: Path | None) -> bool:
+    """True when the recording was modified after the cached transcript was written (a new take, a new render)."""
+    try:
+        return source is not None and Path(source).stat().st_mtime > cache.stat().st_mtime
+    except OSError:
+        return False
 
 
 def _whisperx(wav16k: Path, cache: Path, model_name, log, language) -> list[dict]:

@@ -97,9 +97,10 @@ def cut(v: dict, recording: str, script: str, section=None, name=None, broll=Non
 
 
 def transcript(v: dict, media_file: str, out: str | None = None, model: str | None = None,
-               language: str | None = None) -> Path:
+               language: str | None = None, force: bool = False) -> Path:
     """Plain transcript of a recording (for repurposing): <out>.txt plus the word times in <out>.json.
-    language: a code, or "auto" to let WhisperX detect it; default the profile's video.language, else "en"."""
+    language: a code, or "auto" to let WhisperX detect it; default the profile's video.language, else "en".
+    An existing <out>.json is reused only while it is newer than the recording (force: always transcribe again)."""
     from .transcribe import transcribe
     import tempfile
     rec = Path(media_file).resolve()
@@ -111,7 +112,7 @@ def transcript(v: dict, media_file: str, out: str | None = None, model: str | No
     with tempfile.TemporaryDirectory() as d:
         _, wav16 = media.extract_audio(rec, Path(d))
         words = transcribe(wav16, cache, model or v.get("whisper_model") or None, log,
-                           language or v.get("language") or "en")
+                           language or v.get("language") or "en", source=rec, force=force)
     txt.write_text(" ".join(w["w"] for w in words) + "\n", encoding="utf-8")
     return txt
 

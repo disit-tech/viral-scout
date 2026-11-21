@@ -1,7 +1,8 @@
 """Animated films with HyperFrames (HeyGen, Apache 2.0): HTML/CSS compositions rendered to MP4 locally.
 
   film new    <name> --from <reference film>                a new film folder seeded from a reference film
-  film words  <dir> <voice.wav> <script.md> [--section N]   word times for the scenes + the voice check
+  film words  <dir> <voice.wav> <script.md> [--section N] [--force]   word times for the scenes + the voice check
+  film captions <dir>                                       compositions/captions.html from work-words.json (+ captions.json)
   film check  <dir> [hyperframes check options]             lint, runtime, layout and contrast gate (0 errors)
   film render <dir> [--out FILE] [--quality delivery]       MP4, then loudness against −14 LUFS / −1 dBTP
 
@@ -30,9 +31,11 @@ def resolve_dir(v: dict, d: str) -> Path:
 
 
 # Left out when a new film is seeded from a reference: renders, caches, the reference's own voice, word times,
-# review and post pack. Kept: SPEC.md, index.html, compositions/, assets/ (fonts, sfx and their CREDITS.md), scripts.
+# review and post pack. Kept: SPEC.md, index.html, compositions/ (its captions.html sets the caption look), assets/
+# (fonts, sfx and their CREDITS.md), captions.json, other scripts.
 SKIP_NAMES = {"out", "work", ".hyperframes", "snapshots", "work-words.json", "voice-check.md", "REVIEW.md",
-              "POST.md", "still.png"}
+              "POST.md", "still.png",
+              "make_captions.py"}   # replaced by `film captions` (an unattended job can't run a film folder's Python)
 SKIP_DIRS_CONTENT = {Path("assets") / "voice"}
 
 
@@ -136,7 +139,16 @@ def align(lines: list[dict], raw: list[dict], vocab: dict | None = None, log=pri
     return [{"w": w["w"], "s": w["s"], "e": w["e"], "i": w["i"]} for w in fixed], rc, heard
 
 
-def words(v: dict, d: str, voice: str, script: str, section: str | None = None, model: str | None = None) -> int:
+def captions(v: dict, d: str) -> int:
+    """Word-highlight captions for the film from work-words.json; settings in the film's captions.json."""
+    from .film_captions import build
+    out, n_items, n_groups = build(v, resolve_dir(v, d))
+    print(f"captions: {n_items} words, {n_groups} caption groups → {out}")
+    return 0
+
+
+def words(v: dict, d: str, voice: str, script: str, section: str | None = None, model: str | None = None,
+          force: bool = False) -> int:
     """Transcribe the film's voice, align it to the script, write work-words.json and a voice check."""
     from . import media
     from .pipeline import find_script
@@ -153,7 +165,7 @@ def words(v: dict, d: str, voice: str, script: str, section: str | None = None, 
     work.mkdir(exist_ok=True)
     _, wav16 = media.extract_audio(wav, work)
     raw = transcribe(wav16, work / f"words-{wav.stat().st_size}.json", model or v.get("whisper_model") or None,
-                     print, v.get("language") or "en")
+                     print, v.get("language") or "en", source=wav, force=force)
     out, rc, heard = align(sc["lines"], raw, vocabulary(v))
     (film / "work-words.json").write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
 
