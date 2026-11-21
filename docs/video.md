@@ -206,7 +206,7 @@ A film folder (`<films_dir>/<name>/`) holds:
 
 | File | What |
 |---|---|
-| `scene_full.py` | the whole film as one Blender Python script: materials, models, animation, lights, camera keys, plus checks. Run headless: `blender -b -P scene_full.py -- out/full` (`--preview` = half size and fewer samples; `--frames 1,200,…` = stills only; `--check` = build and check, no render) |
+| `scene_full.py` | the whole film as one Blender Python script: materials, models, animation, lights, camera keys, plus checks. Run headless: `blender -b -P scene_full.py -- out/full` (`--preview` = half size and fewer samples; `--frames 1,200,…` = stills only; `--check` = build and check, no render; `--from N` = resume the animation at frame N) |
 | `assets/tex/` | CC0 textures (Poly Haven: diffuse, normal, roughness, md5-checked), credited in `assets/CREDITS.md` |
 | `assets/voice/` | the voice; `work-words.json` from `video <profile> film words` (the voice is the clock) |
 | `labels.json` | written by the scene script: each pointer label's screen position (the 3D anchor projected through the camera) and its time window, plus the shot cuts and key word times |
@@ -218,7 +218,32 @@ How the scene script works:
 - **Sets:** a cutaway slice (the cut face at x = 0, open to the camera) for the shots inside the house, and a separate full set for the outside shots.
 - **Models:** real thickness and bevels. Profiles such as a K-style gutter or a clip are extruded from a 2D outline with Solidify and Bevel. Stains, rot and wet spots are spreading masks in the material (a radius value keyed over time), not stickers on the surface.
 - **Checks:** every frame, the script checks that the camera never enters the solid and prints the frames where it does. Look at one preview still per shot before the full render.
-- **Render:** Eevee at 1080×1920, 30 fps, a PNG sequence. About 1 s per frame on a laptop RTX GPU, so a 45 s film takes about 20 min.
+- **Render:** Eevee at 1080×1920, 30 fps, a PNG sequence. About 1-2 s per frame on a laptop RTX GPU, so a 45 s film takes 20-40 min. If one frame takes much longer than that (the first overnight render ran at 40-60 s per frame), stop and find out why before leaving it unattended. For shots with water, wet surfaces, glass or glowing bulbs, use Cycles (real reflections and refraction). Time one Cycles still first and multiply by the frame count.
+- **Resume:** `--from N` starts the animation at frame N and keeps the frames already on disk, so an interrupted render carries on instead of starting over.
+- **Unattended render and send:** `resume_and_send.ps1` in the light-clips film is the pattern: keep the PC awake, render (resuming from the last frame on disk), `compose.py`, then `send_direct.py` to the review group, logging to `work/send.log`. There's no timeout: each step runs until it finishes, and a failure is logged as `FAILED: …`. Don't make a waiter with a fixed timeout. The first film's waiter gave up after 4 h, which let the PC sleep with the render 84% done.
+
+**Quality bar (owner's review of the first film, 2026-11-17).** It was accepted only as a sample, because it looked cheap: the holes were rectangles, the water was a thick blue line, and the textures were flat. Detail had been cut to save render time, but the time was never the constraint. Next time:
+- **Damage:** puncture holes are round, with depth and a torn or raised edge. Never a box cut into the surface.
+- **Water:** droplets, and a trickle that follows the surface and gravity, plus darkened wet wood or drywall with a sheen around it. Never a solid tube or a flat colored line.
+- **Materials:** full PBR sets (diffuse, normal, roughness, and displacement where it shows) with wear, dirt and color variation. Use real models for anything that would look like a primitive: CC0 only, so Poly Haven, ambientCG, or a Sketchfab model whose licence is CC0. Credit them in `assets/CREDITS.md`.
+- **Approval:** before the full render, send the owner 3-4 close-up stills of the hero details (the hole, the water, the product) and render only after they say yes.
+- **Text:** the headline and brand tag sit on a dark plate whenever the background behind them is light.
+- **Render budget (owner, 2026-11-17):** the bar above is for hero objects only. Background and filler (lawn, ground, flower beds, grass scatter, rain) stay cheap: plain muted colours, few tufts, glossy rain streaks with a constant instance count (hide by scale 0, never by Selection, or motion blur stalls), transparent bounces ≤ 8. Time 3-4 heavy frames at 20 % before any full render. Details and shader traps: the vault's `shared/playbooks/05 Marketing/3d-explainer-videos.md` §4, "Render budget".
+
+### Blender MCP (live control of Blender)
+
+[MCP for Blender](https://github.com/ahujasid/blender-mcp) (`mcp-for-blender` on PyPI) connects Claude to a running Blender: it can run code in the open scene, take viewport and render screenshots, and search and import Poly Haven models, textures and HDRIs, Sketchfab models and Poly Pizza models. Use it to build and look at hero details interactively instead of writing the script blind.
+
+Setup (Windows, once per PC):
+1. `python -m pip install --user uv`. `uvx` lands in `%APPDATA%\Python\Python3xx\Scripts\`.
+2. `uvx mcp-for-blender==2.3.0 install-addon` copies the add-on into Blender's user add-ons folder. Then in Blender: Edit → Preferences → Add-ons → enable **MCP for Blender**. In the 3D view sidebar (N) → BlenderMCP, start the server (localhost:9876) and tick Poly Haven (and Sketchfab with a free API key).
+3. `claude mcp add blender --scope user -e DISABLE_TELEMETRY=true -- uvx mcp-for-blender==2.3.0`. In PowerShell, quote the `'--'` or PowerShell swallows it, and use the full path to `uvx.exe` if `Scripts\` isn't on PATH.
+
+Notes:
+- **Pinned version:** pin it and review the add-on before upgrading. The add-on can update itself from the repo's `main`, so only accept an update after reading it.
+- **Telemetry:** by default the server sends an anonymous usage record (tool name, success, timing, versions). `DISABLE_TELEMETRY=true` turns that off. Never tick the add-on's content-collection consent: that sends prompts, code and screenshots.
+- **Premium and paid generators:** the premium server and the paid AI-model generators (Hyper3D, Tripo, Meshy, Hunyuan, World Labs) are only contacted when a key is entered, and we don't enter one.
+- **The script stays the source of truth.** Anything built through MCP goes back into `scene_full.py` (or an imported `.blend` or `.glb` asset under `assets/`), so the film can be re-rendered headless, re-voiced, and resumed with `--from`. MCP is for building and checking. The final render is the headless script.
 
 The rest is the normal film flow:
 - `film new <name> --from <reference film>` copies the scene script, textures and compose script.
