@@ -37,6 +37,22 @@ export function when(iso: string | null): string {
   return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+/** When a past event happened, with the day: "today 11:29 PM", "yesterday 9:05 AM", "Sat Nov 21, 11:29 PM" (+ year if not this year). */
+export function stamp(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const clock = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(now) - dayStart(d)) / 864e5);
+  if (days === 0) return `today ${clock}`;
+  if (days === 1) return `yesterday ${clock}`;
+  const wd = d.toLocaleDateString("en-US", { weekday: "short" });
+  const md = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const year = d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : "";
+  return `${wd} ${md}${year}, ${clock}`;
+}
+
 export function tier(outlier: number | null | undefined): "mega" | "viral" | "above" | null {
   if (!outlier) return null;
   if (outlier >= 10) return "mega";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { stamp } from "@/lib/format";
 
 type PlanStep = { source: string; steps: number; what: string };
 type Progress = {
@@ -31,7 +32,6 @@ function dur(s: number) {
   if (m < 60) return `${m} min ${s % 60} s`;
   return `${Math.floor(m / 60)} h ${m % 60} min`;
 }
-const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 const usd = (n?: number) => (n == null ? "–" : `$${n.toFixed(2)}`);
 
 export default function ActivityFeed() {
@@ -133,7 +133,7 @@ function ApifyPanel({ a }: { a?: Apify }) {
             <tbody>
               {runs.map((r) => (
                 <tr key={r.id} className={`border-t border-line ${r.status === "RUNNING" ? "bg-above/5" : ""}`}>
-                  <td className="px-2 py-1 text-muted">{time(r.started)}</td>
+                  <td className="px-2 py-1 text-muted">{stamp(r.started)}</td>
                   <td className="px-2"><a href={`https://console.apify.com/actors/runs/${r.id}`} target="_blank" rel="noreferrer" className="hover:underline">{r.actor}</a></td>
                   <td className="px-2"><StatusPill s={r.status} /></td>
                   <td className="px-2 text-right text-muted">{dur(r.seconds)}</td>
@@ -167,7 +167,7 @@ function JobCard({ j, open = false }: { j: Job; open?: boolean }) {
         <span className="text-sm text-muted">{KIND[j.kind] ?? j.kind}</span>
         <StatusPill s={j.status} />
         <span className="text-xs text-muted">
-          started {time(j.started)} · {j.status === "running" ? "running for" : "took"} {dur(j.elapsed_s)}
+          started {stamp(j.started)} · {j.status === "running" ? "running for" : "took"} {dur(j.elapsed_s)}
           {j.status === "running" && j.quiet_s != null && ` · last output ${dur(j.quiet_s)} ago`}
         </span>
         <span className="ml-auto text-xs text-muted">{expanded ? "hide log ▲" : "show log ▼"}</span>
